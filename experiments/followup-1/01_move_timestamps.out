@@ -1,0 +1,106 @@
+[0mdirenv: loading ~/code/syncflowy/.envrc
+[0mdirenv: using flake
+[0mdirenv: nix-direnv: Using cached dev shell
+[0mdirenv: loading ~/code/syncflowy/.envrc.local
+--- create 'P1'  [t=1791835513.27]
+    POST /api/v1/nodes
+    req: {"parent_id":"7ca45ac4-2a8d-4bb6-be8d-0a01becdf2a4","name":"P1","position":"bottom"}
+    -> 200 {"item_id": "b2d1ab69-7dd3-4a0e-9ed9-4c8b775499d3"}
+--- create 'P2'  [t=1791835513.50]
+    POST /api/v1/nodes
+    req: {"parent_id":"7ca45ac4-2a8d-4bb6-be8d-0a01becdf2a4","name":"P2","position":"bottom"}
+    -> 200 {"item_id": "9f609db5-7127-4c6c-94d4-7a6b1c10503f"}
+--- create 'X (moved)'  [t=1791835513.72]
+    POST /api/v1/nodes
+    req: {"parent_id":"b2d1ab69-7dd3-4a0e-9ed9-4c8b775499d3","name":"X (moved)"}
+    -> 200 {"item_id": "677ce9d5-3c31-4c1c-bc17-4a52d0616f62"}
+--- create 'X1 child'  [t=1791835513.95]
+    POST /api/v1/nodes
+    req: {"parent_id":"677ce9d5-3c31-4c1c-bc17-4a52d0616f62","name":"X1 child"}
+    -> 200 {"item_id": "fb7afd07-1e44-4a2c-ae08-b40f9e7bd14e"}
+--- create 'X2 grandchild'  [t=1791835514.19]
+    POST /api/v1/nodes
+    req: {"parent_id":"fb7afd07-1e44-4a2c-ae08-b40f9e7bd14e","name":"X2 grandchild"}
+    -> 200 {"item_id": "bd54057a-51c0-4ac4-bfc3-6af4148feb4b"}
+--- create 'P2 existing child'  [t=1791835514.42]
+    POST /api/v1/nodes
+    req: {"parent_id":"9f609db5-7127-4c6c-94d4-7a6b1c10503f","name":"P2 existing child"}
+    -> 200 {"item_id": "3dbb7372-a02b-4f35-92b1-8883285b1238"}
+--- move  [t=1791835518.28]
+    POST /api/v1/nodes/677ce9d5-3c31-4c1c-bc17-4a52d0616f62/move
+    req: {"parent_id":"9f609db5-7127-4c6c-94d4-7a6b1c10503f","position":"bottom"}
+    -> 200 {"status": "ok"}
+=== trial0 move X -> P2 bottom: action at 1791835518.02
+      S              1791835512 -> 1791835512  same
+      P1             1791835513 -> 1791835513  same
+      P2             1791835513 -> 1791835518  BUMPED
+      X              1791835513 -> 1791835518  BUMPED
+      X1             1791835513 -> 1791835513  same
+      X2             1791835514 -> 1791835514  same
+      P2child        1791835514 -> 1791835514  same
+    SUMMARY trial0 move X -> P2 bottom: bumped=['P2', 'X']
+--- move  [t=1791835523.65]
+    POST /api/v1/nodes/677ce9d5-3c31-4c1c-bc17-4a52d0616f62/move
+    req: {"parent_id":"b2d1ab69-7dd3-4a0e-9ed9-4c8b775499d3","position":"bottom"}
+    -> 200 {"status": "ok"}
+=== trial1 move X -> P1 bottom: action at 1791835523.39
+      S              1791835512 -> 1791835512  same
+      P1             1791835513 -> 1791835523  BUMPED
+      P2             1791835518 -> 1791835518  same
+      X              1791835518 -> 1791835523  BUMPED
+      X1             1791835513 -> 1791835513  same
+      X2             1791835514 -> 1791835514  same
+      P2child        1791835514 -> 1791835514  same
+    SUMMARY trial1 move X -> P1 bottom: bumped=['P1', 'X']
+--- move  [t=1791835529.11]
+    POST /api/v1/nodes/677ce9d5-3c31-4c1c-bc17-4a52d0616f62/move
+    req: {"parent_id":"9f609db5-7127-4c6c-94d4-7a6b1c10503f","position":"bottom"}
+    -> 200 {"status": "ok"}
+=== trial2 move X -> P2 bottom: action at 1791835528.83
+      S              1791835512 -> 1791835512  same
+      P1             1791835523 -> 1791835523  same
+      P2             1791835518 -> 1791835528  BUMPED
+      X              1791835523 -> 1791835528  BUMPED
+      X1             1791835513 -> 1791835513  same
+      X2             1791835514 -> 1791835514  same
+      P2child        1791835514 -> 1791835514  same
+    SUMMARY trial2 move X -> P2 bottom: bumped=['P2', 'X']
+--- move self  [t=1791835533.99]
+    POST /api/v1/nodes/677ce9d5-3c31-4c1c-bc17-4a52d0616f62/move
+    req: {"parent_id":"677ce9d5-3c31-4c1c-bc17-4a52d0616f62"}
+    -> 200 {"status": "ok"}
+=== self-move0 X -> X: action at 1791835533.79
+      S              1791835512 -> 1791835512  same
+      P1             1791835523 -> 1791835523  same
+      P2             1791835528 -> 1791835528  same
+      X              1791835528 -> 1791835533  BUMPED
+      X1             1791835513 -> 1791835513  same
+      X2             1791835514 -> 1791835514  same
+      P2child        1791835514 -> 1791835514  same
+    SUMMARY self-move0 X -> X: bumped=['X']
+--- move self  [t=1791835538.38]
+    POST /api/v1/nodes/677ce9d5-3c31-4c1c-bc17-4a52d0616f62/move
+    req: {"parent_id":"677ce9d5-3c31-4c1c-bc17-4a52d0616f62"}
+    -> 200 {"status": "ok"}
+=== self-move1 X -> X: action at 1791835538.20
+      S              1791835512 -> 1791835512  same
+      P1             1791835523 -> 1791835523  same
+      P2             1791835528 -> 1791835528  same
+      X              1791835533 -> 1791835538  BUMPED
+      X1             1791835513 -> 1791835513  same
+      X2             1791835514 -> 1791835514  same
+      P2child        1791835514 -> 1791835514  same
+    SUMMARY self-move1 X -> X: bumped=['X']
+--- move  [t=1791835543.48]
+    POST /api/v1/nodes/677ce9d5-3c31-4c1c-bc17-4a52d0616f62/move
+    req: {"parent_id":"9f609db5-7127-4c6c-94d4-7a6b1c10503f","position":"top"}
+    -> 200 {"status": "ok"}
+=== same-parent move X top: action at 1791835543.00
+      S              1791835512 -> 1791835512  same
+      P1             1791835523 -> 1791835523  same
+      P2             1791835528 -> 1791835543  BUMPED
+      X              1791835538 -> 1791835543  BUMPED
+      X1             1791835513 -> 1791835513  same
+      X2             1791835514 -> 1791835514  same
+      P2child        1791835514 -> 1791835514  same
+    SUMMARY same-parent move X top: bumped=['P2', 'X']

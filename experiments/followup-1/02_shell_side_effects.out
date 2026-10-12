@@ -1,0 +1,190 @@
+[0mdirenv: loading ~/code/syncflowy/.envrc
+[0mdirenv: using flake
+[0mdirenv: nix-direnv: Using cached dev shell
+[0mdirenv: loading ~/code/syncflowy/.envrc.local
+--- create 'O origin'  [t=1791835556.26]
+    POST /api/v1/nodes
+    req: {"parent_id":"2d97a9b5-1623-4fe8-970f-4a1bd793d07d","name":"O origin","position":"bottom"}
+    -> 200 {"item_id": "26532bc0-b2b0-4f24-9be7-5a4592b7a0da"}
+--- create 'oc origin child'  [t=1791835556.46]
+    POST /api/v1/nodes
+    req: {"parent_id":"26532bc0-b2b0-4f24-9be7-5a4592b7a0da","name":"oc origin child"}
+    -> 200 {"item_id": "fb18eb20-2a6f-4e13-83b8-00b7d7110b7e"}
+--- create 'D dest'  [t=1791835556.68]
+    POST /api/v1/nodes
+    req: {"parent_id":"2d97a9b5-1623-4fe8-970f-4a1bd793d07d","name":"D dest","position":"bottom"}
+    -> 200 {"item_id": "b16b0add-625e-42b9-b12c-a13baa87749f"}
+--- create 'L loose'  [t=1791835556.95]
+    POST /api/v1/nodes
+    req: {"parent_id":"2d97a9b5-1623-4fe8-970f-4a1bd793d07d","name":"L loose","position":"bottom"}
+    -> 200 {"item_id": "0030bcdc-364c-4ad1-8f77-85e86a925279"}
+--- mirror 5a4592b7a0da -> a13baa87749f  [t=1791835557.18]
+    POST /api/v1/nodes/26532bc0-b2b0-4f24-9be7-5a4592b7a0da/mirror
+    req: {"parent_id":"b16b0add-625e-42b9-b12c-a13baa87749f"}
+    -> 200 {"item_id": "e0333809-1c9d-4be9-a374-c5a25afa80e2", "origin_id": "26532bc0-b2b0-4f24-9be7-5a4592b7a0da"}
+--- move  [t=1791835560.97]
+    POST /api/v1/nodes/0030bcdc-364c-4ad1-8f77-85e86a925279/move
+    req: {"parent_id":"e0333809-1c9d-4be9-a374-c5a25afa80e2"}
+    -> 200 {"status": "ok"}
+=== move L -> M (into shell): action at 1791835560.70
+      S              1791835555 -> 1791835555  same
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835556  same
+      M              1791835557 -> 1791835560  BUMPED
+      L              1791835556 -> 1791835560  BUMPED
+    SUMMARY move L -> M (into shell): bumped=['M', 'L']
+--- move  [t=1791835565.87]
+    POST /api/v1/nodes/0030bcdc-364c-4ad1-8f77-85e86a925279/move
+    req: {"parent_id":"2d97a9b5-1623-4fe8-970f-4a1bd793d07d","position":"bottom"}
+    -> 200 {"status": "ok"}
+=== move L -> S (out of shell): action at 1791835565.60
+      S              1791835555 -> 1791835565  BUMPED
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835556  same
+      M              1791835560 -> 1791835560  same
+      L              1791835560 -> 1791835565  BUMPED
+    SUMMARY move L -> S (out of shell): bumped=['S', 'L']
+--- move  [t=1791835570.85]
+    POST /api/v1/nodes/0030bcdc-364c-4ad1-8f77-85e86a925279/move
+    req: {"parent_id":"e0333809-1c9d-4be9-a374-c5a25afa80e2","position":"bottom"}
+    -> 200 {"status": "ok"}
+=== move L -> M again: action at 1791835570.56
+      S              1791835565 -> 1791835565  same
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835556  same
+      M              1791835560 -> 1791835570  BUMPED
+      L              1791835565 -> 1791835570  BUMPED
+    SUMMARY move L -> M again: bumped=['M', 'L']
+--- create 'K child created under shell'  [t=1791835575.39]
+    POST /api/v1/nodes
+    req: {"parent_id":"e0333809-1c9d-4be9-a374-c5a25afa80e2","name":"K child created under shell"}
+    -> 200 {"item_id": "3a0b4cf1-7754-4288-b5e9-409e84246fca"}
+=== create child under M: action at 1791835575.17
+      S              1791835565 -> 1791835565  same
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835556  same
+      M              1791835570 -> 1791835570  same
+      L              1791835570 -> 1791835570  same
+    SUMMARY create child under M: bumped=[]
+--- update  [t=1791835579.63]
+    POST /api/v1/nodes/3a0b4cf1-7754-4288-b5e9-409e84246fca
+    req: {"name":"K renamed"}
+    -> 200 {"status": "ok"}
+=== update K name: action at 1791835579.43
+      S              1791835565 -> 1791835565  same
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835556  same
+      M              1791835570 -> 1791835570  same
+      L              1791835570 -> 1791835570  same
+      K              1791835575 -> 1791835579  BUMPED
+    SUMMARY update K name: bumped=['K']
+--- complete  [t=1791835584.03]
+    POST /api/v1/nodes/3a0b4cf1-7754-4288-b5e9-409e84246fca/complete
+    -> 200 {"status": "ok"}
+=== complete K: action at 1791835583.86
+      S              1791835565 -> 1791835565  same
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835556  same
+      M              1791835570 -> 1791835570  same
+      L              1791835570 -> 1791835570  same
+      K              1791835579 -> 1791835583  BUMPED
+    SUMMARY complete K: bumped=['K']
+--- uncomplete  [t=1791835588.38]
+    POST /api/v1/nodes/3a0b4cf1-7754-4288-b5e9-409e84246fca/uncomplete
+    -> 200 {"status": "ok"}
+=== uncomplete K: action at 1791835588.21
+      S              1791835565 -> 1791835565  same
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835556  same
+      M              1791835570 -> 1791835570  same
+      L              1791835570 -> 1791835570  same
+      K              1791835583 -> 1791835588  BUMPED
+    SUMMARY uncomplete K: bumped=['K']
+--- update  [t=1791835593.75]
+    POST /api/v1/nodes/e0333809-1c9d-4be9-a374-c5a25afa80e2
+    req: {"name":"shell renamed"}
+    -> 200 {"status": "ok"}
+=== update M (shell) name: action at 1791835593.56
+      S              1791835565 -> 1791835565  same
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835556  same
+      M              1791835570 -> 1791835593  BUMPED
+      L              1791835570 -> 1791835570  same
+      K              1791835588 -> 1791835588  same
+    SUMMARY update M (shell) name: bumped=['M']
+--- complete  [t=1791835600.28]
+    POST /api/v1/nodes/e0333809-1c9d-4be9-a374-c5a25afa80e2/complete
+    -> 200 {"status": "ok"}
+=== complete M (shell): action at 1791835600.07
+      S              1791835565 -> 1791835565  same
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835556  same
+      M              1791835593 -> 1791835600  BUMPED
+      L              1791835570 -> 1791835570  same
+      K              1791835588 -> 1791835588  same
+    SUMMARY complete M (shell): bumped=['M']
+--- move  [t=1791835607.04]
+    POST /api/v1/nodes/e0333809-1c9d-4be9-a374-c5a25afa80e2/move
+    req: {"parent_id":"2d97a9b5-1623-4fe8-970f-4a1bd793d07d","position":"bottom"}
+    -> 200 {"status": "ok"}
+=== move M (shell) -> S bottom: action at 1791835606.78
+      S              1791835565 -> 1791835606  BUMPED
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835556  same
+      M              1791835600 -> 1791835606  BUMPED
+      L              1791835570 -> 1791835570  same
+      K              1791835588 -> 1791835588  same
+    SUMMARY move M (shell) -> S bottom: bumped=['S', 'M']
+--- move  [t=1791835612.84]
+    POST /api/v1/nodes/e0333809-1c9d-4be9-a374-c5a25afa80e2/move
+    req: {"parent_id":"b16b0add-625e-42b9-b12c-a13baa87749f"}
+    -> 200 {"status": "ok"}
+=== move M (shell) -> D back: action at 1791835612.60
+      S              1791835606 -> 1791835606  same
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835556 -> 1791835612  BUMPED
+      M              1791835606 -> 1791835612  BUMPED
+      L              1791835570 -> 1791835570  same
+      K              1791835588 -> 1791835588  same
+    SUMMARY move M (shell) -> D back: bumped=['D', 'M']
+--- delete  [t=1791835617.28]
+    DELETE /api/v1/nodes/3a0b4cf1-7754-4288-b5e9-409e84246fca
+    -> 200 {"status": "ok"}
+=== delete K (child of shell): action at 1791835617.05
+      S              1791835606 -> 1791835606  same
+      O              1791835557 -> 1791835557  same
+      oc             1791835556 -> 1791835556  same
+      D              1791835612 -> 1791835612  same
+      M              1791835612 -> 1791835612  same
+      L              1791835570 -> 1791835570  same
+      K              1791835588 -> None  BUMPED
+    SUMMARY delete K (child of shell): bumped=['K']
+--- update  [t=1791835621.66]
+    POST /api/v1/nodes/26532bc0-b2b0-4f24-9be7-5a4592b7a0da
+    req: {"name":"O renamed"}
+    -> 200 {"status": "ok"}
+=== update O name (control): action at 1791835621.38
+      S              1791835606 -> 1791835606  same
+      O              1791835557 -> 1791835621  BUMPED
+      oc             1791835556 -> 1791835556  same
+      D              1791835612 -> 1791835612  same
+      M              1791835612 -> 1791835612  same
+      L              1791835570 -> 1791835570  same
+    SUMMARY update O name (control): bumped=['O']
+--- list M  [t=1791835622.72]
+    GET /api/v1/nodes?parent_id=e0333809-1c9d-4be9-a374-c5a25afa80e2
+    -> 200 {"nodes": [{"id": "0030bcdc-364c-4ad1-8f77-85e86a925279", "name": "L loose", "note": null, "parent_id": "e0333809-1c9d-4be9-a374-c5a25afa80e2", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835556, "modifiedAt": 1791835570, "completedAt": null}]}
+--- list O  [t=1791835622.87]
+    GET /api/v1/nodes?parent_id=26532bc0-b2b0-4f24-9be7-5a4592b7a0da
+    -> 200 {"nodes": [{"id": "fb18eb20-2a6f-4e13-83b8-00b7d7110b7e", "name": "oc origin child", "note": null, "parent_id": "26532bc0-b2b0-4f24-9be7-5a4592b7a0da", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835556, "modifiedAt": 1791835556, "completedAt": null}]}

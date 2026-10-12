@@ -1,0 +1,201 @@
+[
+ {
+  "label": "random uuid",
+  "status": 404,
+  "ctype": "application/json",
+  "response": {
+   "code": "not_found",
+   "message": "Parent item not found"
+  }
+ },
+ {
+  "label": "random short",
+  "status": 404,
+  "ctype": "application/json",
+  "response": {
+   "code": "not_found",
+   "message": "Location '0123456789ab' not found"
+  }
+ },
+ {
+  "label": "garbage",
+  "status": 404,
+  "ctype": "application/json",
+  "response": {
+   "code": "not_found",
+   "message": "Location 'not-a-real-id-zzz' not found"
+  }
+ },
+ {
+  "label": "url to random short",
+  "status": 404,
+  "ctype": "application/json",
+  "response": {
+   "code": "not_found",
+   "message": "Parent item not found"
+  }
+ },
+ {
+  "label": "int parent",
+  "status": 400,
+  "ctype": "application/json",
+  "response": {
+   "errors": [
+    {
+     "type": "string_type",
+     "loc": [
+      "parent_id"
+     ],
+     "msg": "Input should be a valid string",
+     "input": 123
+    }
+   ]
+  }
+ },
+ {
+  "label": "random uuid + missing name",
+  "status": 400,
+  "ctype": "application/json",
+  "response": {
+   "errors": [
+    {
+     "type": "missing",
+     "loc": [
+      "name"
+     ],
+     "msg": "Field required",
+     "input": {
+      "parent_id": "6f9cd431-a7d9-411b-b769-96ed5034471c"
+     }
+    }
+   ]
+  }
+ },
+ {
+  "label": "random uuid + bad position",
+  "status": 400,
+  "ctype": "application/json",
+  "response": {
+   "errors": [
+    {
+     "type": "enum",
+     "loc": [
+      "position"
+     ],
+     "msg": "Input should be 'top' or 'bottom'",
+     "input": "zz"
+    }
+   ]
+  }
+ },
+ {
+  "label": "invalid json",
+  "status": 400,
+  "ctype": "application/json",
+  "response": {
+   "code": "invalid_json",
+   "message": "Invalid JSON format in request body"
+  }
+ },
+ {
+  "label": "json list",
+  "status": 400,
+  "ctype": "application/json",
+  "response": {
+   "errors": [
+    {
+     "type": "model_type",
+     "loc": [],
+     "msg": "Input should be a valid dictionary or instance of CreateItemRequest",
+     "input": [
+      1,
+      2
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "label": "json string",
+  "status": 400,
+  "ctype": "application/json",
+  "response": {
+   "errors": [
+    {
+     "type": "model_type",
+     "loc": [],
+     "msg": "Input should be a valid dictionary or instance of CreateItemRequest",
+     "input": "hello"
+    }
+   ]
+  }
+ },
+ {
+  "label": "empty body",
+  "status": 400,
+  "ctype": "application/json",
+  "response": {
+   "code": "invalid_json",
+   "message": "Invalid JSON format in request body"
+  }
+ },
+ {
+  "label": "form encoded (fake parent)",
+  "status": 404,
+  "ctype": "application/json",
+  "response": {
+   "code": "not_found",
+   "message": "Parent item not found"
+  }
+ },
+ {
+  "label": "json body with text/plain",
+  "status": 404,
+  "ctype": "application/json",
+  "response": {
+   "code": "not_found",
+   "message": "Parent item not found"
+  }
+ },
+ {
+  "label": "multiple errors",
+  "status": 400,
+  "ctype": "application/json",
+  "response": {
+   "errors": [
+    {
+     "type": "string_type",
+     "loc": [
+      "name"
+     ],
+     "msg": "Input should be a valid string",
+     "input": 1
+    },
+    {
+     "type": "string_type",
+     "loc": [
+      "note"
+     ],
+     "msg": "Input should be a valid string",
+     "input": 2
+    },
+    {
+     "type": "string_type",
+     "loc": [
+      "layoutMode"
+     ],
+     "msg": "Input should be a valid string",
+     "input": 3
+    },
+    {
+     "type": "enum",
+     "loc": [
+      "position"
+     ],
+     "msg": "Input should be 'top' or 'bottom'",
+     "input": "q"
+    }
+   ]
+  }
+ }
+]

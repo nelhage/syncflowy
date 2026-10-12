@@ -1,0 +1,105 @@
+[0mdirenv: loading ~/code/syncflowy/.envrc
+[0mdirenv: using flake
+[0mdirenv: nix-direnv: Using cached dev shell
+[0mdirenv: loading ~/code/syncflowy/.envrc.local
+--- create 'O origin'  [t=1791835677.32]
+    POST /api/v1/nodes
+    req: {"parent_id":"97c58d49-b4a5-484a-964d-776537a98e49","name":"O origin","position":"bottom"}
+    -> 200 {"item_id": "f6f2cd16-ec3a-4779-ac76-a25a27078436"}
+--- create 'D1'  [t=1791835677.57]
+    POST /api/v1/nodes
+    req: {"parent_id":"97c58d49-b4a5-484a-964d-776537a98e49","name":"D1","position":"bottom"}
+    -> 200 {"item_id": "2c4ec764-2bd0-4481-8ad8-8c75a21576d5"}
+--- create 'D2'  [t=1791835677.76]
+    POST /api/v1/nodes
+    req: {"parent_id":"97c58d49-b4a5-484a-964d-776537a98e49","name":"D2","position":"bottom"}
+    -> 200 {"item_id": "24f2fd38-de48-4e3a-b2c5-571e9a25f2c8"}
+--- create 'X to be mirrored under M1'  [t=1791835678.00]
+    POST /api/v1/nodes
+    req: {"parent_id":"97c58d49-b4a5-484a-964d-776537a98e49","name":"X to be mirrored under M1","position":"bottom"}
+    -> 200 {"item_id": "864c48e8-3574-476f-98ba-851fb133dfe1"}
+--- mirror a25a27078436 -> 8c75a21576d5  [t=1791835678.22]
+    POST /api/v1/nodes/f6f2cd16-ec3a-4779-ac76-a25a27078436/mirror
+    req: {"parent_id":"2c4ec764-2bd0-4481-8ad8-8c75a21576d5"}
+    -> 200 {"item_id": "0ab0307e-a656-4f6b-86c7-61cf207604cc", "origin_id": "f6f2cd16-ec3a-4779-ac76-a25a27078436"}
+--- mirror M1->D2  [t=1791835681.49]
+    POST /api/v1/nodes/0ab0307e-a656-4f6b-86c7-61cf207604cc/mirror
+    req: {"parent_id":"24f2fd38-de48-4e3a-b2c5-571e9a25f2c8"}
+    -> 200 {"item_id": "5936a6ea-2874-453e-8d0b-ee008f4dbcd7", "origin_id": "f6f2cd16-ec3a-4779-ac76-a25a27078436"}
+=== mirror M1 -> D2 (#0): action at 1791835681.24
+      S              1791835676 -> 1791835676  same
+      O              1791835678 -> 1791835681  BUMPED
+      D1             1791835677 -> 1791835677  same
+      D2             1791835677 -> 1791835677  same
+      M1             1791835678 -> 1791835678  same
+      X              1791835677 -> 1791835677  same
+    SUMMARY mirror M1 -> D2 (#0): bumped=['O']
+--- mirror M1->D2  [t=1791835685.68]
+    POST /api/v1/nodes/0ab0307e-a656-4f6b-86c7-61cf207604cc/mirror
+    req: {"parent_id":"24f2fd38-de48-4e3a-b2c5-571e9a25f2c8"}
+    -> 200 {"item_id": "7d39f5fa-0535-4244-b513-072755072f40", "origin_id": "f6f2cd16-ec3a-4779-ac76-a25a27078436"}
+=== mirror M1 -> D2 (#1): action at 1791835685.48
+      S              1791835676 -> 1791835676  same
+      O              1791835681 -> 1791835685  BUMPED
+      D1             1791835677 -> 1791835677  same
+      D2             1791835677 -> 1791835677  same
+      M1             1791835678 -> 1791835678  same
+      X              1791835677 -> 1791835677  same
+    SUMMARY mirror M1 -> D2 (#1): bumped=['O']
+--- mirror X -> M1 (redirects to O)  [t=1791835689.79]
+    POST /api/v1/nodes/864c48e8-3574-476f-98ba-851fb133dfe1/mirror
+    req: {"parent_id":"0ab0307e-a656-4f6b-86c7-61cf207604cc"}
+    -> 200 {"item_id": "fcfa246e-4954-4f92-9cc8-7e777df0b37f", "origin_id": "864c48e8-3574-476f-98ba-851fb133dfe1"}
+=== mirror X with parent_id=M1: action at 1791835689.53
+      S              1791835676 -> 1791835676  same
+      O              1791835685 -> 1791835685  same
+      D1             1791835677 -> 1791835677  same
+      D2             1791835677 -> 1791835677  same
+      M1             1791835678 -> 1791835678  same
+      X              1791835677 -> 1791835689  BUMPED
+    SUMMARY mirror X with parent_id=M1: bumped=['X']
+--- GET new mirror of X  [t=1791835690.82]
+    GET /api/v1/nodes/fcfa246e-4954-4f92-9cc8-7e777df0b37f
+    -> 200 {"node": {"id": "fcfa246e-4954-4f92-9cc8-7e777df0b37f", "name": "", "note": "", "parent_id": "f6f2cd16-ec3a-4779-ac76-a25a27078436", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835689, "modifiedAt": 1791835689, "completedAt": null}}
+--- create 'D3 asym'  [t=1791835691.05]
+    POST /api/v1/nodes
+    req: {"parent_id":"97c58d49-b4a5-484a-964d-776537a98e49","name":"D3 asym","position":"bottom"}
+    -> 200 {"item_id": "d75e012c-b79b-4e26-b1ac-568a40dea2a6"}
+--- create 'Y origin'  [t=1791835691.30]
+    POST /api/v1/nodes
+    req: {"parent_id":"97c58d49-b4a5-484a-964d-776537a98e49","name":"Y origin","position":"bottom"}
+    -> 200 {"item_id": "a4d146f8-e748-451c-8400-0d0f5befa670"}
+--- create 'Z loose'  [t=1791835691.52]
+    POST /api/v1/nodes
+    req: {"parent_id":"97c58d49-b4a5-484a-964d-776537a98e49","name":"Z loose","position":"bottom"}
+    -> 200 {"item_id": "f2aaba17-857c-4a81-af11-bfebab3cd67d"}
+--- mirror  [t=1791835694.40]
+    POST /api/v1/nodes/a4d146f8-e748-451c-8400-0d0f5befa670/mirror
+    req: {"parent_id":"d75e012c-b79b-4e26-b1ac-568a40dea2a6"}
+    -> 200 {"item_id": "7560eaee-77d6-4499-bfe0-7d0995b2f481", "origin_id": "a4d146f8-e748-451c-8400-0d0f5befa670"}
+=== mirror Y -> D3 (creation): action at 1791835694.21
+      D3             1791835690 -> 1791835690  same
+      Y              1791835691 -> 1791835694  BUMPED
+      Z              1791835691 -> 1791835691  same
+      S              1791835676 -> 1791835676  same
+    SUMMARY mirror Y -> D3 (creation): bumped=['Y']
+--- move  [t=1791835697.90]
+    POST /api/v1/nodes/f2aaba17-857c-4a81-af11-bfebab3cd67d/move
+    req: {"parent_id":"d75e012c-b79b-4e26-b1ac-568a40dea2a6"}
+    -> 200 {"status": "ok"}
+=== move Z -> D3 (move-in): action at 1791835697.70
+      D3             1791835690 -> 1791835697  BUMPED
+      Y              1791835694 -> 1791835694  same
+      Z              1791835691 -> 1791835697  BUMPED
+      S              1791835676 -> 1791835676  same
+    SUMMARY move Z -> D3 (move-in): bumped=['D3', 'Z']
+--- create  [t=1791835701.59]
+    POST /api/v1/nodes
+    req: {"parent_id":"d75e012c-b79b-4e26-b1ac-568a40dea2a6","name":"new child"}
+    -> 200 {"item_id": "dc8a4751-ad31-4d12-92f2-008551e434ba"}
+=== create child under D3: action at 1791835701.36
+      D3             1791835697 -> 1791835697  same
+      Y              1791835694 -> 1791835694  same
+      Z              1791835697 -> 1791835697  same
+      S              1791835676 -> 1791835676  same
+    SUMMARY create child under D3: bumped=[]

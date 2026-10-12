@@ -1,0 +1,677 @@
+{
+ "linesep_children": {
+  "U+000B": {
+   "nodes": [
+    {
+     "id": "b40ff972-3e3e-44dc-90e9-b11d2891c345",
+     "name": "b",
+     "note": "",
+     "parent_id": "936787ff-5410-42ba-a2c2-ed2b69155555",
+     "priority": 0,
+     "completed": false,
+     "data": {
+      "layoutMode": "p"
+     },
+     "createdAt": 1791834783,
+     "modifiedAt": 1791834783,
+     "completedAt": null
+    }
+   ]
+  },
+  "U+000C": {
+   "nodes": [
+    {
+     "id": "86a511ec-28f8-4e58-aabb-55e06b5ac4d9",
+     "name": "b",
+     "note": "",
+     "parent_id": "f3dc28c9-056b-4c29-ae68-26c9ad50dd93",
+     "priority": 0,
+     "completed": false,
+     "data": {
+      "layoutMode": "p"
+     },
+     "createdAt": 1791834784,
+     "modifiedAt": 1791834784,
+     "completedAt": null
+    }
+   ]
+  },
+  "U+0085": {
+   "nodes": [
+    {
+     "id": "dc2153f1-1225-47c7-b789-b13f1f19edb5",
+     "name": "b",
+     "note": "",
+     "parent_id": "ca32e351-dc01-4cce-b55a-b7bfd14b92f2",
+     "priority": 0,
+     "completed": false,
+     "data": {
+      "layoutMode": "p"
+     },
+     "createdAt": 1791834788,
+     "modifiedAt": 1791834788,
+     "completedAt": null
+    }
+   ]
+  },
+  "U+2028": {
+   "nodes": [
+    {
+     "id": "231f834e-bf7c-4c76-baab-cce9eb0a3faa",
+     "name": "b",
+     "note": "",
+     "parent_id": "77bd0726-ef5c-4e95-a6b5-9efa47b4955d",
+     "priority": 0,
+     "completed": false,
+     "data": {
+      "layoutMode": "p"
+     },
+     "createdAt": 1791834790,
+     "modifiedAt": 1791834790,
+     "completedAt": null
+    }
+   ]
+  },
+  "U+2029": {
+   "nodes": [
+    {
+     "id": "20d49c44-554a-4de5-a244-e9612eb0a10a",
+     "name": "b",
+     "note": "",
+     "parent_id": "d6e2ed67-868f-4020-8530-4841ed25e8f1",
+     "priority": 0,
+     "completed": false,
+     "data": {
+      "layoutMode": "p"
+     },
+     "createdAt": 1791834791,
+     "modifiedAt": 1791834791,
+     "completedAt": null
+    }
+   ]
+  }
+ },
+ "list": {
+  "nodes": [
+   {
+    "id": "62bbc1f9-bd74-4b43-8fc5-b3525619d8b6",
+    "name": "ab",
+    "note": null,
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "priority": 100,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834831,
+    "modifiedAt": 1791834831,
+    "completedAt": null
+   },
+   {
+    "id": "928c6c5d-8e82-4910-b240-aabde4634745",
+    "name": "x",
+    "note": null,
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "priority": 50,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834831,
+    "modifiedAt": 1791834831,
+    "completedAt": null
+   },
+   {
+    "id": "2d88b139-73db-4d41-8bea-6e413413bdbb",
+    "name": "",
+    "note": "",
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "priority": 25,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834832,
+    "modifiedAt": 1791834835,
+    "completedAt": null
+   },
+   {
+    "id": "5e50bd51-47a4-439d-8081-673b48b43298",
+    "name": "notenull",
+    "note": null,
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "priority": 12,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834832,
+    "modifiedAt": 1791834832,
+    "completedAt": null
+   },
+   {
+    "id": "f2bd5df8-bc7b-4fff-af18-cef02a1eb24f",
+    "name": "noteempty",
+    "note": "",
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "priority": 6,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834832,
+    "modifiedAt": 1791834832,
+    "completedAt": null
+   },
+   {
+    "id": "7c5468ec-4f29-45e0-b365-9aaaf706a4d9",
+    "name": "",
+    "note": null,
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "priority": 3,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834832,
+    "modifiedAt": 1791834832,
+    "completedAt": null
+   },
+   {
+    "id": "351d8e19-31dc-46e4-9ff1-798d3fc61463",
+    "name": "<b>b</b> <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"14\" startMinute=\"30\">Thu, Jan 15, 2026 at 2:30 PM</time> <u>u</u>",
+    "note": "n",
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "priority": 1,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834833,
+    "modifiedAt": 1791834837,
+    "completedAt": null
+   }
+  ]
+ },
+ "requests": [
+  {
+   "label": "create name with NUL only",
+   "method": "POST",
+   "path": "/api/v1/nodes",
+   "body": {
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "name": "a\u0000b"
+   },
+   "status": 200,
+   "resp": {
+    "item_id": "62bbc1f9-bd74-4b43-8fc5-b3525619d8b6"
+   }
+  },
+  {
+   "label": "create note with NUL only",
+   "method": "POST",
+   "path": "/api/v1/nodes",
+   "body": {
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "name": "nul-note",
+    "note": "a\u0000b"
+   },
+   "status": 500,
+   "resp": {
+    "code": "internal_error",
+    "message": "An internal server error occurred"
+   }
+  },
+  {
+   "label": "create name with \\x0b and note absent",
+   "method": "POST",
+   "path": "/api/v1/nodes",
+   "body": {
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "name": "x\u000by\u000bz\u000bw"
+   },
+   "status": 200,
+   "resp": {
+    "item_id": "928c6c5d-8e82-4910-b240-aabde4634745"
+   }
+  },
+  {
+   "label": "create no note field",
+   "method": "POST",
+   "path": "/api/v1/nodes",
+   "body": {
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "name": "nonote"
+   },
+   "status": 200,
+   "resp": {
+    "item_id": "2d88b139-73db-4d41-8bea-6e413413bdbb"
+   }
+  },
+  {
+   "label": "create note null",
+   "method": "POST",
+   "path": "/api/v1/nodes",
+   "body": {
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "name": "notenull",
+    "note": null
+   },
+   "status": 200,
+   "resp": {
+    "item_id": "5e50bd51-47a4-439d-8081-673b48b43298"
+   }
+  },
+  {
+   "label": "create note empty",
+   "method": "POST",
+   "path": "/api/v1/nodes",
+   "body": {
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "name": "noteempty",
+    "note": ""
+   },
+   "status": 200,
+   "resp": {
+    "item_id": "f2bd5df8-bc7b-4fff-af18-cef02a1eb24f"
+   }
+  },
+  {
+   "label": "create name empty",
+   "method": "POST",
+   "path": "/api/v1/nodes",
+   "body": {
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "name": ""
+   },
+   "status": 200,
+   "resp": {
+    "item_id": "7c5468ec-4f29-45e0-b365-9aaaf706a4d9"
+   }
+  },
+  {
+   "label": "create time+md name",
+   "method": "POST",
+   "path": "/api/v1/nodes",
+   "body": {
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "name": "**b** [2026-01-15 14:30] <u>u</u>",
+    "note": "n"
+   },
+   "status": 200,
+   "resp": {
+    "item_id": "351d8e19-31dc-46e4-9ff1-798d3fc61463"
+   }
+  },
+  {
+   "label": "GET time node by id",
+   "method": "GET",
+   "path": "/api/v1/nodes/351d8e19-31dc-46e4-9ff1-798d3fc61463",
+   "body": null,
+   "status": 200,
+   "resp": {
+    "node": {
+     "id": "351d8e19-31dc-46e4-9ff1-798d3fc61463",
+     "name": "<b>b</b> <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"14\" startMinute=\"30\">Thu, Jan 15, 2026 at 2:30 PM</time> <u>u</u>",
+     "note": "n",
+     "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+     "priority": 1,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": 1791834833,
+     "modifiedAt": 1791834833,
+     "completedAt": null
+    }
+   }
+  },
+  {
+   "label": "upd note->text",
+   "method": "POST",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": {
+    "note": "has note"
+   },
+   "status": 200,
+   "resp": {
+    "status": "ok"
+   }
+  },
+  {
+   "label": "GET after note set",
+   "method": "GET",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": null,
+   "status": 200,
+   "resp": {
+    "node": {
+     "id": "2d88b139-73db-4d41-8bea-6e413413bdbb",
+     "name": "nonote",
+     "note": "has note",
+     "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+     "priority": 25,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": 1791834832,
+     "modifiedAt": 1791834833,
+     "completedAt": null
+    }
+   }
+  },
+  {
+   "label": "upd note->null",
+   "method": "POST",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": {
+    "note": null
+   },
+   "status": 200,
+   "resp": {
+    "status": "ok"
+   }
+  },
+  {
+   "label": "GET after note null",
+   "method": "GET",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": null,
+   "status": 200,
+   "resp": {
+    "node": {
+     "id": "2d88b139-73db-4d41-8bea-6e413413bdbb",
+     "name": "nonote",
+     "note": "has note",
+     "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+     "priority": 25,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": 1791834832,
+     "modifiedAt": 1791834834,
+     "completedAt": null
+    }
+   }
+  },
+  {
+   "label": "upd note->''",
+   "method": "POST",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": {
+    "note": ""
+   },
+   "status": 200,
+   "resp": {
+    "status": "ok"
+   }
+  },
+  {
+   "label": "GET after note ''",
+   "method": "GET",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": null,
+   "status": 200,
+   "resp": {
+    "node": {
+     "id": "2d88b139-73db-4d41-8bea-6e413413bdbb",
+     "name": "nonote",
+     "note": "",
+     "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+     "priority": 25,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": 1791834832,
+     "modifiedAt": 1791834834,
+     "completedAt": null
+    }
+   }
+  },
+  {
+   "label": "upd name->null",
+   "method": "POST",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": {
+    "name": null
+   },
+   "status": 200,
+   "resp": {
+    "status": "ok"
+   }
+  },
+  {
+   "label": "GET after name null",
+   "method": "GET",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": null,
+   "status": 200,
+   "resp": {
+    "node": {
+     "id": "2d88b139-73db-4d41-8bea-6e413413bdbb",
+     "name": "nonote",
+     "note": "",
+     "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+     "priority": 25,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": 1791834832,
+     "modifiedAt": 1791834834,
+     "completedAt": null
+    }
+   }
+  },
+  {
+   "label": "upd name->''",
+   "method": "POST",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": {
+    "name": ""
+   },
+   "status": 200,
+   "resp": {
+    "status": "ok"
+   }
+  },
+  {
+   "label": "GET after name ''",
+   "method": "GET",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": null,
+   "status": 200,
+   "resp": {
+    "node": {
+     "id": "2d88b139-73db-4d41-8bea-6e413413bdbb",
+     "name": "",
+     "note": "",
+     "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+     "priority": 25,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": 1791834832,
+     "modifiedAt": 1791834835,
+     "completedAt": null
+    }
+   }
+  },
+  {
+   "label": "upd name non-string int",
+   "method": "POST",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": {
+    "name": 123
+   },
+   "status": 400,
+   "resp": {
+    "errors": [
+     {
+      "type": "string_type",
+      "loc": [
+       "name"
+      ],
+      "msg": "Input should be a valid string",
+      "input": 123
+     }
+    ]
+   }
+  },
+  {
+   "label": "GET after name 123",
+   "method": "GET",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": null,
+   "status": 200,
+   "resp": {
+    "node": {
+     "id": "2d88b139-73db-4d41-8bea-6e413413bdbb",
+     "name": "",
+     "note": "",
+     "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+     "priority": 25,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": 1791834832,
+     "modifiedAt": 1791834835,
+     "completedAt": null
+    }
+   }
+  },
+  {
+   "label": "upd note non-string",
+   "method": "POST",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": {
+    "note": [
+     "x"
+    ]
+   },
+   "status": 400,
+   "resp": {
+    "errors": [
+     {
+      "type": "string_type",
+      "loc": [
+       "note"
+      ],
+      "msg": "Input should be a valid string",
+      "input": [
+       "x"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "GET after note list",
+   "method": "GET",
+   "path": "/api/v1/nodes/2d88b139-73db-4d41-8bea-6e413413bdbb",
+   "body": null,
+   "status": 200,
+   "resp": {
+    "node": {
+     "id": "2d88b139-73db-4d41-8bea-6e413413bdbb",
+     "name": "",
+     "note": "",
+     "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+     "priority": 25,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": 1791834832,
+     "modifiedAt": 1791834835,
+     "completedAt": null
+    }
+   }
+  },
+  {
+   "label": "create name int",
+   "method": "POST",
+   "path": "/api/v1/nodes",
+   "body": {
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "name": 42
+   },
+   "status": 400,
+   "resp": {
+    "errors": [
+     {
+      "type": "string_type",
+      "loc": [
+       "name"
+      ],
+      "msg": "Input should be a valid string",
+      "input": 42
+     }
+    ]
+   }
+  },
+  {
+   "label": "create note int",
+   "method": "POST",
+   "path": "/api/v1/nodes",
+   "body": {
+    "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+    "name": "noteint",
+    "note": 42
+   },
+   "status": 400,
+   "resp": {
+    "errors": [
+     {
+      "type": "string_type",
+      "loc": [
+       "note"
+      ],
+      "msg": "Input should be a valid string",
+      "input": 42
+     }
+    ]
+   }
+  },
+  {
+   "label": "upd name with own create output",
+   "method": "POST",
+   "path": "/api/v1/nodes/351d8e19-31dc-46e4-9ff1-798d3fc61463",
+   "body": {
+    "name": "<b>b</b> <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"14\" startMinute=\"30\">Thu, Jan 15, 2026 at 2:30 PM</time> <u>u</u>"
+   },
+   "status": 200,
+   "resp": {
+    "status": "ok"
+   }
+  },
+  {
+   "label": "GET after self-roundtrip",
+   "method": "GET",
+   "path": "/api/v1/nodes/351d8e19-31dc-46e4-9ff1-798d3fc61463",
+   "body": null,
+   "status": 200,
+   "resp": {
+    "node": {
+     "id": "351d8e19-31dc-46e4-9ff1-798d3fc61463",
+     "name": "<b>b</b> <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"14\" startMinute=\"30\">Thu, Jan 15, 2026 at 2:30 PM</time> <u>u</u>",
+     "note": "n",
+     "parent_id": "21c99a90-d878-4a50-8d46-ff9286d79a8d",
+     "priority": 1,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": 1791834833,
+     "modifiedAt": 1791834837,
+     "completedAt": null
+    }
+   }
+  }
+ ]
+}

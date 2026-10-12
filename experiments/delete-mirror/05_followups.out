@@ -1,0 +1,331 @@
+== delayed re-read of experiment 03 nodes
+--- GET M (03) now
+    GET /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "h1"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834486, "name": "M renamed via mirror", "note": "mirror note", "parent_id": "eb81e07b-1d40-4065-8a06-563cab2ff099", "priority": 100}}
+--- GET O (03) now
+    GET /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "modifiedAt": 1791834488, "name": "O renamed via origin", "note": "note v2", "parent_id": "eb81e07b-1d40-4065-8a06-563cab2ff099", "priority": 200}}
+--- list M (03) now -- children moved with mirror?
+    GET /api/v1/nodes?parent_id=df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834482, "data": {"layoutMode": "bullets"}, "id": "c078119e-66cd-41ba-95a6-da87468972ff", "modifiedAt": 1791834482, "name": "child created under mirror M", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834483, "data": {"layoutMode": "bullets"}, "id": "ac4672f2-4265-4690-8345-899de6e0daa7", "modifiedAt": 1791834483, "name": "child created under mirror M (bottom)", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 200}, {"completed": false, "completedAt": null, "createdAt": 1791834484, "data": {"layoutMode": "bullets"}, "id": "c77eeaca-9c2b-4d54-9010-be3873d082fe", "modifiedAt": 1791834485, "name": "loose node to move into mirror", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 50}]}
+sandbox 2882eb89-25a3-4d38-94be-5335447681ab
+--- create 'A (mirror dest)'
+    POST /api/v1/nodes
+    req: {"parent_id":"2882eb89-25a3-4d38-94be-5335447681ab","name":"A (mirror dest)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "1727b2c2-3976-488e-8e65-44d2b0b4fdd2"}
+--- create 'B (origin container)'
+    POST /api/v1/nodes
+    req: {"parent_id":"2882eb89-25a3-4d38-94be-5335447681ab","name":"B (origin container)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "2e96da4e-90f8-49fa-8a81-7e07799c160c"}
+--- create 'O origin'
+    POST /api/v1/nodes
+    req: {"parent_id":"2e96da4e-90f8-49fa-8a81-7e07799c160c","name":"O origin"}
+    -> 200 content-type=application/json
+    {"item_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df"}
+--- create 'oc'
+    POST /api/v1/nodes
+    req: {"parent_id":"f3b37cea-f495-4dba-9fd9-92fff33a02df","name":"oc"}
+    -> 200 content-type=application/json
+    {"item_id": "3c90751a-6a74-4595-a51b-84c4bdae7801"}
+
+== timestamps: which nodes does mirror create/delete touch?
+--- GET A before
+    GET /api/v1/nodes/1727b2c2-3976-488e-8e65-44d2b0b4fdd2
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834586, "data": {"layoutMode": "bullets"}, "id": "1727b2c2-3976-488e-8e65-44d2b0b4fdd2", "modifiedAt": 1791834586, "name": "A (mirror dest)", "note": null, "parent_id": "2882eb89-25a3-4d38-94be-5335447681ab", "priority": 100}}
+--- GET B before
+    GET /api/v1/nodes/2e96da4e-90f8-49fa-8a81-7e07799c160c
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "2e96da4e-90f8-49fa-8a81-7e07799c160c", "modifiedAt": 1791834587, "name": "B (origin container)", "note": null, "parent_id": "2882eb89-25a3-4d38-94be-5335447681ab", "priority": 200}}
+--- GET O before
+    GET /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "modifiedAt": 1791834587, "name": "O origin", "note": null, "parent_id": "2e96da4e-90f8-49fa-8a81-7e07799c160c", "priority": 100}}
+--- GET oc before
+    GET /api/v1/nodes/3c90751a-6a74-4595-a51b-84c4bdae7801
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "modifiedAt": 1791834587, "name": "oc", "note": null, "parent_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "priority": 100}}
+--- MIRROR O -> A
+    POST /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df/mirror
+    req: {"parent_id":"1727b2c2-3976-488e-8e65-44d2b0b4fdd2"}
+    -> 200 content-type=application/json
+    {"item_id": "53cc1c01-d4d3-4089-991b-e8f34fa3e666", "origin_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df"}
+--- GET A after mirror
+    GET /api/v1/nodes/1727b2c2-3976-488e-8e65-44d2b0b4fdd2
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834586, "data": {"layoutMode": "bullets"}, "id": "1727b2c2-3976-488e-8e65-44d2b0b4fdd2", "modifiedAt": 1791834586, "name": "A (mirror dest)", "note": null, "parent_id": "2882eb89-25a3-4d38-94be-5335447681ab", "priority": 100}}
+--- GET B after mirror
+    GET /api/v1/nodes/2e96da4e-90f8-49fa-8a81-7e07799c160c
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "2e96da4e-90f8-49fa-8a81-7e07799c160c", "modifiedAt": 1791834587, "name": "B (origin container)", "note": null, "parent_id": "2882eb89-25a3-4d38-94be-5335447681ab", "priority": 200}}
+--- GET O after mirror
+    GET /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "modifiedAt": 1791834591, "name": "O origin", "note": null, "parent_id": "2e96da4e-90f8-49fa-8a81-7e07799c160c", "priority": 100}}
+--- GET oc after mirror
+    GET /api/v1/nodes/3c90751a-6a74-4595-a51b-84c4bdae7801
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "modifiedAt": 1791834587, "name": "oc", "note": null, "parent_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "priority": 100}}
+  A: modifiedAt 1791834586 -> 1791834586
+  B: modifiedAt 1791834587 -> 1791834587
+  O: modifiedAt 1791834587 -> 1791834591
+  oc: modifiedAt 1791834587 -> 1791834587
+--- COMPLETE O
+    POST /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df/complete
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M after completing origin
+    GET /api/v1/nodes/53cc1c01-d4d3-4089-991b-e8f34fa3e666
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834591, "data": {"layoutMode": "bullets"}, "id": "53cc1c01-d4d3-4089-991b-e8f34fa3e666", "modifiedAt": 1791834591, "name": "", "note": "", "parent_id": "1727b2c2-3976-488e-8e65-44d2b0b4fdd2", "priority": 100}}
+  M modifiedAt 1791834591 completed False
+--- UNCOMPLETE O
+    POST /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df/uncomplete
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- UPDATE O name
+    POST /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df
+    req: {"name":"O renamed"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M
+    GET /api/v1/nodes/53cc1c01-d4d3-4089-991b-e8f34fa3e666
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834591, "data": {"layoutMode": "bullets"}, "id": "53cc1c01-d4d3-4089-991b-e8f34fa3e666", "modifiedAt": 1791834591, "name": "", "note": "", "parent_id": "1727b2c2-3976-488e-8e65-44d2b0b4fdd2", "priority": 100}}
+  M modifiedAt after origin rename: 1791834591
+--- UPDATE M name
+    POST /api/v1/nodes/53cc1c01-d4d3-4089-991b-e8f34fa3e666
+    req: {"name":"M renamed"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET O
+    GET /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "modifiedAt": 1791834598, "name": "O renamed", "note": null, "parent_id": "2e96da4e-90f8-49fa-8a81-7e07799c160c", "priority": 100}}
+  O modifiedAt after mirror rename: 1791834598
+--- DELETE M via /mirror
+    DELETE /api/v1/nodes/53cc1c01-d4d3-4089-991b-e8f34fa3e666/mirror
+    -> 200 content-type=application/json
+    {"status": "ok"}
+  delete at ~ 1791834602
+--- GET A
+    GET /api/v1/nodes/1727b2c2-3976-488e-8e65-44d2b0b4fdd2
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834586, "data": {"layoutMode": "bullets"}, "id": "1727b2c2-3976-488e-8e65-44d2b0b4fdd2", "modifiedAt": 1791834586, "name": "A (mirror dest)", "note": null, "parent_id": "2882eb89-25a3-4d38-94be-5335447681ab", "priority": 100}}
+  A modifiedAt after mirror delete: 1791834586
+--- GET B
+    GET /api/v1/nodes/2e96da4e-90f8-49fa-8a81-7e07799c160c
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "2e96da4e-90f8-49fa-8a81-7e07799c160c", "modifiedAt": 1791834587, "name": "B (origin container)", "note": null, "parent_id": "2882eb89-25a3-4d38-94be-5335447681ab", "priority": 200}}
+  B modifiedAt after mirror delete: 1791834587
+--- GET O
+    GET /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "modifiedAt": 1791834603, "name": "O renamed", "note": null, "parent_id": "2e96da4e-90f8-49fa-8a81-7e07799c160c", "priority": 100}}
+  O modifiedAt after mirror delete: 1791834603
+--- GET oc
+    GET /api/v1/nodes/3c90751a-6a74-4595-a51b-84c4bdae7801
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "modifiedAt": 1791834587, "name": "oc", "note": null, "parent_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "priority": 100}}
+  oc modifiedAt after mirror delete: 1791834587
+
+== mirror of a completed / todo node
+--- create 'T todo completed'
+    POST /api/v1/nodes
+    req: {"parent_id":"2e96da4e-90f8-49fa-8a81-7e07799c160c","name":"T todo completed","layoutMode":"todo","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "4e12dcc5-8575-490f-a142-f2e1db714cb6"}
+--- COMPLETE T
+    POST /api/v1/nodes/4e12dcc5-8575-490f-a142-f2e1db714cb6/complete
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- MIRROR T -> A
+    POST /api/v1/nodes/4e12dcc5-8575-490f-a142-f2e1db714cb6/mirror
+    req: {"parent_id":"1727b2c2-3976-488e-8e65-44d2b0b4fdd2","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "039abaf1-664e-4f38-b2fc-6a9604a83e17", "origin_id": "4e12dcc5-8575-490f-a142-f2e1db714cb6"}
+--- GET mirror of completed todo
+    GET /api/v1/nodes/039abaf1-664e-4f38-b2fc-6a9604a83e17
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834605, "data": {"layoutMode": "bullets"}, "id": "039abaf1-664e-4f38-b2fc-6a9604a83e17", "modifiedAt": 1791834605, "name": "", "note": "", "parent_id": "1727b2c2-3976-488e-8e65-44d2b0b4fdd2", "priority": 100}}
+
+== cycles via move
+--- MIRROR O -> A
+    POST /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df/mirror
+    req: {"parent_id":"1727b2c2-3976-488e-8e65-44d2b0b4fdd2"}
+    -> 200 content-type=application/json
+    {"item_id": "d2558515-4ca6-419f-a3b0-1a0a9c82e397", "origin_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df"}
+--- MOVE O -> M5 (into its own mirror)
+    POST /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df/move
+    req: {"parent_id":"d2558515-4ca6-419f-a3b0-1a0a9c82e397"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET O
+    GET /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "modifiedAt": 1791834606, "name": "O renamed", "note": null, "parent_id": "d2558515-4ca6-419f-a3b0-1a0a9c82e397", "priority": 100}}
+--- MOVE B -> M5 (origin's parent into origin's mirror)
+    POST /api/v1/nodes/2e96da4e-90f8-49fa-8a81-7e07799c160c/move
+    req: {"parent_id":"d2558515-4ca6-419f-a3b0-1a0a9c82e397"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET B
+    GET /api/v1/nodes/2e96da4e-90f8-49fa-8a81-7e07799c160c
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "2e96da4e-90f8-49fa-8a81-7e07799c160c", "modifiedAt": 1791834607, "name": "B (origin container)", "note": null, "parent_id": "d2558515-4ca6-419f-a3b0-1a0a9c82e397", "priority": 50}}
+--- MOVE O -> oc (into own child)
+    POST /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df/move
+    req: {"parent_id":"3c90751a-6a74-4595-a51b-84c4bdae7801"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- MOVE M5 -> oc (mirror into origin's child)
+    POST /api/v1/nodes/d2558515-4ca6-419f-a3b0-1a0a9c82e397/move
+    req: {"parent_id":"3c90751a-6a74-4595-a51b-84c4bdae7801"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M5
+    GET /api/v1/nodes/d2558515-4ca6-419f-a3b0-1a0a9c82e397
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834606, "data": {"layoutMode": "bullets"}, "id": "d2558515-4ca6-419f-a3b0-1a0a9c82e397", "modifiedAt": 1791834608, "name": "", "note": "", "parent_id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "priority": 50}}
+
+== delete a container that holds a mirror
+--- create 'H holds a mirror'
+    POST /api/v1/nodes
+    req: {"parent_id":"2882eb89-25a3-4d38-94be-5335447681ab","name":"H holds a mirror","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "deec2231-0fa3-4e19-b435-4ad0be38ea58"}
+--- MIRROR O -> H
+    POST /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df/mirror
+    req: {"parent_id":"deec2231-0fa3-4e19-b435-4ad0be38ea58"}
+    -> 200 content-type=application/json
+    {"item_id": "eb4cdf0b-024a-4216-af6a-737118cabf7c", "origin_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df"}
+--- DELETE H
+    DELETE /api/v1/nodes/deec2231-0fa3-4e19-b435-4ad0be38ea58
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET MH
+    GET /api/v1/nodes/eb4cdf0b-024a-4216-af6a-737118cabf7c
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- GET O (should survive)
+    GET /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "modifiedAt": 1791834609, "name": "O renamed", "note": null, "parent_id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "priority": 100}}
+--- list O (children survive)
+    GET /api/v1/nodes?parent_id=f3b37cea-f495-4dba-9fd9-92fff33a02df
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "modifiedAt": 1791834608, "name": "oc", "note": null, "parent_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "priority": 100}]}
+
+== delete a container that holds an origin with a mirror elsewhere
+--- create 'H2 holds an origin'
+    POST /api/v1/nodes
+    req: {"parent_id":"2882eb89-25a3-4d38-94be-5335447681ab","name":"H2 holds an origin","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "b3a932a0-157a-482c-963b-6e54549819aa"}
+--- create 'O3 origin inside H2'
+    POST /api/v1/nodes
+    req: {"parent_id":"b3a932a0-157a-482c-963b-6e54549819aa","name":"O3 origin inside H2"}
+    -> 200 content-type=application/json
+    {"item_id": "9123cb10-bf1c-43d6-b045-cece8e81b5ad"}
+--- MIRROR O3 -> A
+    POST /api/v1/nodes/9123cb10-bf1c-43d6-b045-cece8e81b5ad/mirror
+    req: {"parent_id":"1727b2c2-3976-488e-8e65-44d2b0b4fdd2","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "7d5d22ad-2a2c-44df-ad2d-31a81c9991c0", "origin_id": "9123cb10-bf1c-43d6-b045-cece8e81b5ad"}
+--- DELETE H2
+    DELETE /api/v1/nodes/b3a932a0-157a-482c-963b-6e54549819aa
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET O3
+    GET /api/v1/nodes/9123cb10-bf1c-43d6-b045-cece8e81b5ad
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- GET MO3 (mirror of deleted-by-ancestor origin)
+    GET /api/v1/nodes/7d5d22ad-2a2c-44df-ad2d-31a81c9991c0
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834612, "data": {"layoutMode": "bullets"}, "id": "7d5d22ad-2a2c-44df-ad2d-31a81c9991c0", "modifiedAt": 1791834612, "name": "", "note": "", "parent_id": "1727b2c2-3976-488e-8e65-44d2b0b4fdd2", "priority": 200}}
+--- MIRROR MO3 -> S
+    POST /api/v1/nodes/7d5d22ad-2a2c-44df-ad2d-31a81c9991c0/mirror
+    req: {"parent_id":"2882eb89-25a3-4d38-94be-5335447681ab","position":"bottom"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- UPDATE MO3 name (orphan mirror)
+    POST /api/v1/nodes/7d5d22ad-2a2c-44df-ad2d-31a81c9991c0
+    req: {"name":"orphan mirror renamed"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET MO3 after rename
+    GET /api/v1/nodes/7d5d22ad-2a2c-44df-ad2d-31a81c9991c0
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834612, "data": {"layoutMode": "bullets"}, "id": "7d5d22ad-2a2c-44df-ad2d-31a81c9991c0", "modifiedAt": 1791834613, "name": "orphan mirror renamed", "note": "", "parent_id": "1727b2c2-3976-488e-8e65-44d2b0b4fdd2", "priority": 200}}
+
+== delete sibling then insert at top: priority computation after delete
+--- create 'P priorities'
+    POST /api/v1/nodes
+    req: {"parent_id":"2882eb89-25a3-4d38-94be-5335447681ab","name":"P priorities","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "859b7a68-4039-4b49-a936-7dcddcc1dcb6"}
+--- create 'p1'
+    POST /api/v1/nodes
+    req: {"parent_id":"859b7a68-4039-4b49-a936-7dcddcc1dcb6","name":"p1","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "03aaebbf-b7ed-4094-a6ac-6dbb5901b17a"}
+--- create 'p2'
+    POST /api/v1/nodes
+    req: {"parent_id":"859b7a68-4039-4b49-a936-7dcddcc1dcb6","name":"p2","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "cd313ab8-e950-4278-b4db-16362228f60e"}
+--- create 'p3'
+    POST /api/v1/nodes
+    req: {"parent_id":"859b7a68-4039-4b49-a936-7dcddcc1dcb6","name":"p3","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "155f0ec8-dc4f-4012-9a16-b50ef9b975f8"}
+--- DELETE p1 (lowest priority)
+    DELETE /api/v1/nodes/03aaebbf-b7ed-4094-a6ac-6dbb5901b17a
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- create 'new top after deleting p1'
+    POST /api/v1/nodes
+    req: {"parent_id":"859b7a68-4039-4b49-a936-7dcddcc1dcb6","name":"new top after deleting p1"}
+    -> 200 content-type=application/json
+    {"item_id": "0ae3bc25-d9ee-44ca-8b73-2d2cc6e02ecd"}
+--- DELETE p3 (highest priority)
+    DELETE /api/v1/nodes/155f0ec8-dc4f-4012-9a16-b50ef9b975f8
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- create 'new bottom after deleting p3'
+    POST /api/v1/nodes
+    req: {"parent_id":"859b7a68-4039-4b49-a936-7dcddcc1dcb6","name":"new bottom after deleting p3","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "d1822723-4279-4844-9ea2-ef5dd8c488ee"}
+--- list P
+    GET /api/v1/nodes?parent_id=859b7a68-4039-4b49-a936-7dcddcc1dcb6
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834614, "data": {"layoutMode": "bullets"}, "id": "cd313ab8-e950-4278-b4db-16362228f60e", "modifiedAt": 1791834614, "name": "p2", "note": null, "parent_id": "859b7a68-4039-4b49-a936-7dcddcc1dcb6", "priority": 200}, {"completed": false, "completedAt": null, "createdAt": 1791834615, "data": {"layoutMode": "bullets"}, "id": "0ae3bc25-d9ee-44ca-8b73-2d2cc6e02ecd", "modifiedAt": 1791834615, "name": "new top after deleting p1", "note": null, "parent_id": "859b7a68-4039-4b49-a936-7dcddcc1dcb6", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834615, "data": {"layoutMode": "bullets"}, "id": "d1822723-4279-4844-9ea2-ef5dd8c488ee", "modifiedAt": 1791834615, "name": "new bottom after deleting p3", "note": null, "parent_id": "859b7a68-4039-4b49-a936-7dcddcc1dcb6", "priority": 300}]}
+
+== trash probes
+--- GET /api/v1/trash
+    GET /api/v1/trash
+    -> 404 content-type=text/html; charset=utf-8
+    "<!DOCTYPE html>\n<html lang=\"en-US\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>404</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <meta name=\"description\" content=\"\">\n\n  <link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/favicon-32x32.png\">\n  <link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/favicon-16x16.png\">\n  <link rel=\"shortcut icon\" href=\"/media/home/images/favicon.2f5b671c0ae6.png\" type=\"image/x-icon\">\n  <link rel=\"apple-touch-icon\" href=\"/media/home/images/webclip.png\">\n  <link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/apple-touch-icon.png\">\n\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/css/reset.11b989919d8b.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/css/tailwind.4b903fc42b5a.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/themes/design.406173c7336d.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/themes/default.596f0f5da931.css\">\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n  <link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;0,800;1,300;1,400;1,600;1,700;1,800&family=Roboto:wght@300;400;700&display=swap\">\n\n  <style nonce=\"/0KHpRN7lN9k3dFSmo6yXQ==\">\n    * { box-sizing: border-box; }\n  </style>\n\n  \n\n  <script src=\"/media/commands.7ec9dd11cd28.js\"></script>\n  <script defer src=\"/media/alpine-3.15.1.20a1849ea337.js\"></script>\n  <style>[x-cloak] { display: none !important; }</style>\n</head>\n\n<body\n  class=\"\n    _theme-default\n    [font-family:var(--wf-font-family-brand)]\n    !max-w-[100vw]\n    bg-primary\n    text-primary\n    leading-base\n\n    [&_h1]:text-2xl\n    md:[&_h1]:text-5xl\n\n    [&_h2]:text-l\n    md:[&_h2]:text-3xl\n\n    [&_h3]:text-m\n    md:[&_h3]:text-xl\n    [&_h3]:font-semi-bold\n\n    [&_h4]:text-base\n    md:[&_h4]:text-l\n    [&_h4]:font-normal\n\n    [&_p]:text-base\n\n    [&_a]:no-underline\n    [&_a:hover]:underline\n    [&_a]:text-secondary\n\n    [&_.button:hover]:no-underline\n    [&_.button]:font-normal\n    [&_.button]:text-primary\n    [&_.button]:rounded-pill\n    [&_.button]:text-center\n    [&_.button]:py-m\n    [&_.button]:px-xl\n    [&_.button]:bg-secondary\n    [&_.button]:transition-all\n    [&_.button]:cursor-pointer\n    [&_.button:hover]:bg-tertiary\n\n    [&_.button.primary]:bg-tint\n    [&_.button.primary:hover]:!bg-tint\n    [&_.button.primary]:text-on-color\n\n    [&_.section]:flex\n    [&_.section]:flex-col\n    [&_.section]:gap-l\n    md:[&_.section]:gap-xl\n    [&_.section]:px-l\n    [&_.section]:py-2xl\n    [&_.section]:w-full\n    md:[&_.section]:py-4xl\n    md:[&_.section]:items-center\n  \"\n>\n            <script nonce=\"/0KHpRN7lN9k3dFSmo6yXQ==\">\n                if ('caches' in window) {\n                    caches.keys().then(function(cacheNames) {\n                        cacheNames.forEach(function(cacheName) {\n                            caches.delete(cacheName);\n                        });\n                    });\n                }\n            </script>\n            \n  \n    <div id=\"header\" class=\"bg-primary border-b border-solid border-primary z-10 sticky top-0 !text-s\">\n  <div role=\"banner\" class=\"relative\">\n    <div class=\"max-w-7xl mx-auto px-l sm:px-xl lg:px-2xl\">\n      <div class=\"flex items-center justify-between h-4xl\">\n        <a\n          href=\"/\"\n          class=\"flex items-center space-x-m hover:opacity-80 transition-opacity no-underline\"\n        >\n          <img\n            loading=\"lazy\"\n            src=\"/media/home/images/workflowy-logo.svg\"\n            alt=\"\"\n            class=\"h-xl w-xl\"\n          />\n          <div class=\"text-base font-bold text-primary\">Workflowy</div>\n        </a>\n\n        <div class=\"md:hidden flex items-center gap-s\">\n          \n\n          <button\n            id=\"mobile-menu-button\"\n            type=\"button\"\n            aria-label=\"Open menu\"\n            class=\"!bg-white border border-solid border-primary hover:!bg-secondary rounded-m p-m text-secondary flex items-center justify-center hover:text-primary\"\n          >\n            <svg\n              class=\"w-xl h-xl\"\n              fill=\"none\"\n              stroke=\"currentColor\"\n              viewBox=\"0 0 24 24\"\n              aria-hidden=\"true\"\n            >\n              <path\n                stroke-linecap=\"round\"\n                stroke-linejoin=\"round\"\n                stroke-width=\"2\"\n                d=\"M4 6h16M4 12h16M4 18h16\"\n              />\n            </svg>\n          </button>\n        </div>\n\n        <nav\n          id=\"main-nav\"\n          class=\"\n            hidden md:flex md:items-center md:space-x-2xl absolute md:relative\n            top-full md:top-auto left-0 right-0 md:left-auto md:right-auto\n            bg-primary md:bg-transparent border-t md:border-t-0 border-subtle px-l\n            md:px-0 py-l md:py-0 flex-col md:flex-row space-y-l md:space-y-0 z-50\n          \"\n        >\n          <div class=\"relative group\">\n            <a\n              href=\"/help/get-started\"\n              class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal flex items-center gap-xs\"\n            >\n              Using Workflowy\n              <svg class=\"w-m h-m\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">\n                <path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M19 9l-7 7-7-7\" />\n              </svg>\n            </a>\n            <div\n              class=\"\n                flex flex-col pl-l mt-s space-y-s\n                md:hidden md:group-hover:flex md:group-focus-within:flex\n                md:absolute md:top-full md:left-0 md:mt-0 md:pl-0 md:space-y-0\n                md:bg-primary md:border md:border-solid border-primary md:rounded-m md:shadow-lg\n                md:py-s md:min-w-[200px]\n              \"\n            >\n              <a href=\"/help/get-started\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Help</a>\n              <a href=\"/help/guides-and-workflows\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Guides and workflows</a>\n              <a href=\"/help/integrations\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Integrate other apps</a>\n              <a href=\"/api-reference/\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Developer API</a>\n            </div>\n          </div>\n          <a href=\"/pricing/\" class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal\">Pricing</a>\n          <a href=\"/download/\" class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal\">Downloads</a>\n          <a href=\"/login/\" class=\"button primary no-underline\">Sign up / Log in</a>\n        </nav>\n      </div>\n    </div>\n  </div>\n\n  <script nonce=\"/0KHpRN7lN9k3dFSmo6yXQ==\">\n    (function () {\n      const button = document.getElementById(\"mobile-menu-button\");\n      const menu = document.getElementById(\"main-nav\");\n\n      if (button && menu) {\n        button.addEventListener(\"click\", function () {\n          const isHidden = menu.classList.contains(\"hidden\");\n          if (isHidden) {\n            menu.classList.remove(\"hidden\");\n            menu.classList.add(\"flex\");\n          } else {\n            menu.classList.add(\"hidden\");\n            menu.classList.remove(\"flex\");\n          }\n        });\n      }\n\n    })();\n  </script>\n\n  <style>\n    #main-nav a,\n    #main-nav button {\n      -webkit-tap-highlight-color: transparent;\n      tap-highlight-color: transparent;\n    }\n  </style>\n</div>\n  \n\n  \n  <div class=\"section flex flex-col my-4xl !gap-3xl\">\n    <div class=\"flex flex-col items-center text-center gap-2xl max-w-2xl\">\n      <h1 class=\"font-bold\">4O4.</h1>\n      <p class=\"!text-m text-tertiary\">Sorry, the page you\u2019re looking for is no longer there or you don&#39;t have permission to view it.</p>\n    </div>\n\n  </div>\n\n\n  \n    <div\n  class=\"\n    grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5\n    p-xl\n    md:p-3xl\n    gap-xl\n    mx-auto\n\n    border-t\n    border-solid\n    border-primary\n    !text-s\n\n    [&_li]:my-xs\n  \"\n>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Product</h5>\n    <ul>\n      <li><a href=\"/team-signup/\" title=\"Teams\">Teams</a></li>\n      <li><a href=\"/edu/\" title=\"Education\">Education</a></li>\n      <li><a href=\"/integrations/\" title=\"Integrations\">Integrations</a></li>\n      <li><a href=\"/whats-new/\" title=\"What's New\">What's New</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Resources</h5>\n    <ul>\n      <li><a href=\"/help/get-started\" title=\"Get Started\">Get Started</a></li>\n      <li><a href=\"/templates/\" title=\"Templates\">Templates</a></li>\n      <li><a href=\"/help/find-your-productivity-system\" title=\"Guides\">Guides</a></li>\n      <li><a href=\"https://community.workflowy.com\" title=\"Forum\">Community</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Use Cases</h5>\n    <ul>\n      <li><a href=\"/help/bullet-journal/\" title=\"Bullet Journaling\">Bullet Journaling</a></li>\n      <li><a href=\"/help/para-method/\" title=\"Using Kanban\">PARA Method</a></li>\n      <li><a href=\"/help/kanban-board/\" title=\"Using Kanban\">Using Kanban</a></li>\n      <li><a href=\"/list-maker/\" title=\"List Making\">List Making</a></li>\n      <li><a href=\"/help/checklist/\" title=\"Creating Checklists\">Creating Checklists</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>About</h5>\n    <ul>\n      <li><a href=\"https://blog.workflowy.com/\" title=\"Blog\">Blog</a></li>\n      <li><a href=\"/privacy-policy/\" title=\"Privacy\">Privacy</a></li>\n      <li><a href=\"/ai-terms/\" title=\"Workflowy AI\">Workflowy AI</a></li>\n      <li><a href=\"/affiliates/\" title=\"Affiliates\">Affiliates</a></li>\n      <li><a href=\"https://status.workflowy.com/\" title=\"System Status\">System Status</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Follow us</h5>\n    <ul>\n      <li><a href=\"https://www.youtube.com/user/workflowy\" title=\"YouTube\">YouTube</a></li>\n      <li><a href=\"https://twitter.com/workflowy\" title=\"X/Twitter\">X/Twitter</a></li>\n      <li><a href=\"https://www.reddit.com/r/Workflowy/\" title=\"Reddit\">Reddit</a></li>\n      <li><a href=\"https://join.slack.com/t/workflowyusergroup/shared_invite/zt-1d4al6zv8-~rSCkIaobbMm~GmnhyWjjA\" title=\"Slack Group\">Slack Group</a></li>\n      <li><a href=\"https://www.linkedin.com/company/workflowy/\" title=\"LinkedIn\">LinkedIn</a></li>\n      <li><a href=\"https://www.tiktok.com/@workflowyapp\" title=\"TikTok\">TikTok</a></li>\n      <li><a href=\"https://t.me/workflowy\" title=\"Telegram\">Telegram</a></li>\n    </ul>\n  </div>\n</div>\n  \n\n  \n</body>\n</html>"
+--- DELETE /api/v1/nodes (no id)
+    DELETE /api/v1/nodes
+    -> 405 content-type=application/json
+    {"allowed_methods": ["GET", "POST"], "error": "Method not allowed"}
+--- GET deleted with include_deleted
+    GET /api/v1/nodes/03aaebbf-b7ed-4094-a6ac-6dbb5901b17a?include_deleted=true
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- POST /nodes/:deleted/restore
+    POST /api/v1/nodes/03aaebbf-b7ed-4094-a6ac-6dbb5901b17a/restore
+    -> 404 content-type=text/html; charset=utf-8
+    "<!DOCTYPE html>\n<html lang=\"en-US\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>404</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <meta name=\"description\" content=\"\">\n\n  <link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/favicon-32x32.png\">\n  <link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/favicon-16x16.png\">\n  <link rel=\"shortcut icon\" href=\"/media/home/images/favicon.2f5b671c0ae6.png\" type=\"image/x-icon\">\n  <link rel=\"apple-touch-icon\" href=\"/media/home/images/webclip.png\">\n  <link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/apple-touch-icon.png\">\n\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/css/reset.11b989919d8b.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/css/tailwind.4b903fc42b5a.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/themes/design.406173c7336d.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/themes/default.596f0f5da931.css\">\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n  <link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;0,800;1,300;1,400;1,600;1,700;1,800&family=Roboto:wght@300;400;700&display=swap\">\n\n  <style nonce=\"K/rAxlZWSKCx4SCGDsD0CA==\">\n    * { box-sizing: border-box; }\n  </style>\n\n  \n\n  <script src=\"/media/commands.7ec9dd11cd28.js\"></script>\n  <script defer src=\"/media/alpine-3.15.1.20a1849ea337.js\"></script>\n  <style>[x-cloak] { display: none !important; }</style>\n</head>\n\n<body\n  class=\"\n    _theme-default\n    [font-family:var(--wf-font-family-brand)]\n    !max-w-[100vw]\n    bg-primary\n    text-primary\n    leading-base\n\n    [&_h1]:text-2xl\n    md:[&_h1]:text-5xl\n\n    [&_h2]:text-l\n    md:[&_h2]:text-3xl\n\n    [&_h3]:text-m\n    md:[&_h3]:text-xl\n    [&_h3]:font-semi-bold\n\n    [&_h4]:text-base\n    md:[&_h4]:text-l\n    [&_h4]:font-normal\n\n    [&_p]:text-base\n\n    [&_a]:no-underline\n    [&_a:hover]:underline\n    [&_a]:text-secondary\n\n    [&_.button:hover]:no-underline\n    [&_.button]:font-normal\n    [&_.button]:text-primary\n    [&_.button]:rounded-pill\n    [&_.button]:text-center\n    [&_.button]:py-m\n    [&_.button]:px-xl\n    [&_.button]:bg-secondary\n    [&_.button]:transition-all\n    [&_.button]:cursor-pointer\n    [&_.button:hover]:bg-tertiary\n\n    [&_.button.primary]:bg-tint\n    [&_.button.primary:hover]:!bg-tint\n    [&_.button.primary]:text-on-color\n\n    [&_.section]:flex\n    [&_.section]:flex-col\n    [&_.section]:gap-l\n    md:[&_.section]:gap-xl\n    [&_.section]:px-l\n    [&_.section]:py-2xl\n    [&_.section]:w-full\n    md:[&_.section]:py-4xl\n    md:[&_.section]:items-center\n  \"\n>\n            <script nonce=\"K/rAxlZWSKCx4SCGDsD0CA==\">\n                if ('caches' in window) {\n                    caches.keys().then(function(cacheNames) {\n                        cacheNames.forEach(function(cacheName) {\n                            caches.delete(cacheName);\n                        });\n                    });\n                }\n            </script>\n            \n  \n    <div id=\"header\" class=\"bg-primary border-b border-solid border-primary z-10 sticky top-0 !text-s\">\n  <div role=\"banner\" class=\"relative\">\n    <div class=\"max-w-7xl mx-auto px-l sm:px-xl lg:px-2xl\">\n      <div class=\"flex items-center justify-between h-4xl\">\n        <a\n          href=\"/\"\n          class=\"flex items-center space-x-m hover:opacity-80 transition-opacity no-underline\"\n        >\n          <img\n            loading=\"lazy\"\n            src=\"/media/home/images/workflowy-logo.svg\"\n            alt=\"\"\n            class=\"h-xl w-xl\"\n          />\n          <div class=\"text-base font-bold text-primary\">Workflowy</div>\n        </a>\n\n        <div class=\"md:hidden flex items-center gap-s\">\n          \n\n          <button\n            id=\"mobile-menu-button\"\n            type=\"button\"\n            aria-label=\"Open menu\"\n            class=\"!bg-white border border-solid border-primary hover:!bg-secondary rounded-m p-m text-secondary flex items-center justify-center hover:text-primary\"\n          >\n            <svg\n              class=\"w-xl h-xl\"\n              fill=\"none\"\n              stroke=\"currentColor\"\n              viewBox=\"0 0 24 24\"\n              aria-hidden=\"true\"\n            >\n              <path\n                stroke-linecap=\"round\"\n                stroke-linejoin=\"round\"\n                stroke-width=\"2\"\n                d=\"M4 6h16M4 12h16M4 18h16\"\n              />\n            </svg>\n          </button>\n        </div>\n\n        <nav\n          id=\"main-nav\"\n          class=\"\n            hidden md:flex md:items-center md:space-x-2xl absolute md:relative\n            top-full md:top-auto left-0 right-0 md:left-auto md:right-auto\n            bg-primary md:bg-transparent border-t md:border-t-0 border-subtle px-l\n            md:px-0 py-l md:py-0 flex-col md:flex-row space-y-l md:space-y-0 z-50\n          \"\n        >\n          <div class=\"relative group\">\n            <a\n              href=\"/help/get-started\"\n              class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal flex items-center gap-xs\"\n            >\n              Using Workflowy\n              <svg class=\"w-m h-m\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">\n                <path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M19 9l-7 7-7-7\" />\n              </svg>\n            </a>\n            <div\n              class=\"\n                flex flex-col pl-l mt-s space-y-s\n                md:hidden md:group-hover:flex md:group-focus-within:flex\n                md:absolute md:top-full md:left-0 md:mt-0 md:pl-0 md:space-y-0\n                md:bg-primary md:border md:border-solid border-primary md:rounded-m md:shadow-lg\n                md:py-s md:min-w-[200px]\n              \"\n            >\n              <a href=\"/help/get-started\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Help</a>\n              <a href=\"/help/guides-and-workflows\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Guides and workflows</a>\n              <a href=\"/help/integrations\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Integrate other apps</a>\n              <a href=\"/api-reference/\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Developer API</a>\n            </div>\n          </div>\n          <a href=\"/pricing/\" class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal\">Pricing</a>\n          <a href=\"/download/\" class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal\">Downloads</a>\n          <a href=\"/login/\" class=\"button primary no-underline\">Sign up / Log in</a>\n        </nav>\n      </div>\n    </div>\n  </div>\n\n  <script nonce=\"K/rAxlZWSKCx4SCGDsD0CA==\">\n    (function () {\n      const button = document.getElementById(\"mobile-menu-button\");\n      const menu = document.getElementById(\"main-nav\");\n\n      if (button && menu) {\n        button.addEventListener(\"click\", function () {\n          const isHidden = menu.classList.contains(\"hidden\");\n          if (isHidden) {\n            menu.classList.remove(\"hidden\");\n            menu.classList.add(\"flex\");\n          } else {\n            menu.classList.add(\"hidden\");\n            menu.classList.remove(\"flex\");\n          }\n        });\n      }\n\n    })();\n  </script>\n\n  <style>\n    #main-nav a,\n    #main-nav button {\n      -webkit-tap-highlight-color: transparent;\n      tap-highlight-color: transparent;\n    }\n  </style>\n</div>\n  \n\n  \n  <div class=\"section flex flex-col my-4xl !gap-3xl\">\n    <div class=\"flex flex-col items-center text-center gap-2xl max-w-2xl\">\n      <h1 class=\"font-bold\">4O4.</h1>\n      <p class=\"!text-m text-tertiary\">Sorry, the page you\u2019re looking for is no longer there or you don&#39;t have permission to view it.</p>\n    </div>\n\n  </div>\n\n\n  \n    <div\n  class=\"\n    grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5\n    p-xl\n    md:p-3xl\n    gap-xl\n    mx-auto\n\n    border-t\n    border-solid\n    border-primary\n    !text-s\n\n    [&_li]:my-xs\n  \"\n>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Product</h5>\n    <ul>\n      <li><a href=\"/team-signup/\" title=\"Teams\">Teams</a></li>\n      <li><a href=\"/edu/\" title=\"Education\">Education</a></li>\n      <li><a href=\"/integrations/\" title=\"Integrations\">Integrations</a></li>\n      <li><a href=\"/whats-new/\" title=\"What's New\">What's New</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Resources</h5>\n    <ul>\n      <li><a href=\"/help/get-started\" title=\"Get Started\">Get Started</a></li>\n      <li><a href=\"/templates/\" title=\"Templates\">Templates</a></li>\n      <li><a href=\"/help/find-your-productivity-system\" title=\"Guides\">Guides</a></li>\n      <li><a href=\"https://community.workflowy.com\" title=\"Forum\">Community</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Use Cases</h5>\n    <ul>\n      <li><a href=\"/help/bullet-journal/\" title=\"Bullet Journaling\">Bullet Journaling</a></li>\n      <li><a href=\"/help/para-method/\" title=\"Using Kanban\">PARA Method</a></li>\n      <li><a href=\"/help/kanban-board/\" title=\"Using Kanban\">Using Kanban</a></li>\n      <li><a href=\"/list-maker/\" title=\"List Making\">List Making</a></li>\n      <li><a href=\"/help/checklist/\" title=\"Creating Checklists\">Creating Checklists</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>About</h5>\n    <ul>\n      <li><a href=\"https://blog.workflowy.com/\" title=\"Blog\">Blog</a></li>\n      <li><a href=\"/privacy-policy/\" title=\"Privacy\">Privacy</a></li>\n      <li><a href=\"/ai-terms/\" title=\"Workflowy AI\">Workflowy AI</a></li>\n      <li><a href=\"/affiliates/\" title=\"Affiliates\">Affiliates</a></li>\n      <li><a href=\"https://status.workflowy.com/\" title=\"System Status\">System Status</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Follow us</h5>\n    <ul>\n      <li><a href=\"https://www.youtube.com/user/workflowy\" title=\"YouTube\">YouTube</a></li>\n      <li><a href=\"https://twitter.com/workflowy\" title=\"X/Twitter\">X/Twitter</a></li>\n      <li><a href=\"https://www.reddit.com/r/Workflowy/\" title=\"Reddit\">Reddit</a></li>\n      <li><a href=\"https://join.slack.com/t/workflowyusergroup/shared_invite/zt-1d4al6zv8-~rSCkIaobbMm~GmnhyWjjA\" title=\"Slack Group\">Slack Group</a></li>\n      <li><a href=\"https://www.linkedin.com/company/workflowy/\" title=\"LinkedIn\">LinkedIn</a></li>\n      <li><a href=\"https://www.tiktok.com/@workflowyapp\" title=\"TikTok\">TikTok</a></li>\n      <li><a href=\"https://t.me/workflowy\" title=\"Telegram\">Telegram</a></li>\n    </ul>\n  </div>\n</div>\n  \n\n  \n</body>\n</html>"
+--- POST /nodes/:deleted/undelete
+    POST /api/v1/nodes/03aaebbf-b7ed-4094-a6ac-6dbb5901b17a/undelete
+    -> 404 content-type=text/html; charset=utf-8
+    "<!DOCTYPE html>\n<html lang=\"en-US\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>404</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <meta name=\"description\" content=\"\">\n\n  <link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/favicon-32x32.png\">\n  <link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/favicon-16x16.png\">\n  <link rel=\"shortcut icon\" href=\"/media/home/images/favicon.2f5b671c0ae6.png\" type=\"image/x-icon\">\n  <link rel=\"apple-touch-icon\" href=\"/media/home/images/webclip.png\">\n  <link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/apple-touch-icon.png\">\n\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/css/reset.11b989919d8b.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/css/tailwind.4b903fc42b5a.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/themes/design.406173c7336d.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/themes/default.596f0f5da931.css\">\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n  <link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;0,800;1,300;1,400;1,600;1,700;1,800&family=Roboto:wght@300;400;700&display=swap\">\n\n  <style nonce=\"KFN3j43LE7821ksUyjwYHg==\">\n    * { box-sizing: border-box; }\n  </style>\n\n  \n\n  <script src=\"/media/commands.7ec9dd11cd28.js\"></script>\n  <script defer src=\"/media/alpine-3.15.1.20a1849ea337.js\"></script>\n  <style>[x-cloak] { display: none !important; }</style>\n</head>\n\n<body\n  class=\"\n    _theme-default\n    [font-family:var(--wf-font-family-brand)]\n    !max-w-[100vw]\n    bg-primary\n    text-primary\n    leading-base\n\n    [&_h1]:text-2xl\n    md:[&_h1]:text-5xl\n\n    [&_h2]:text-l\n    md:[&_h2]:text-3xl\n\n    [&_h3]:text-m\n    md:[&_h3]:text-xl\n    [&_h3]:font-semi-bold\n\n    [&_h4]:text-base\n    md:[&_h4]:text-l\n    [&_h4]:font-normal\n\n    [&_p]:text-base\n\n    [&_a]:no-underline\n    [&_a:hover]:underline\n    [&_a]:text-secondary\n\n    [&_.button:hover]:no-underline\n    [&_.button]:font-normal\n    [&_.button]:text-primary\n    [&_.button]:rounded-pill\n    [&_.button]:text-center\n    [&_.button]:py-m\n    [&_.button]:px-xl\n    [&_.button]:bg-secondary\n    [&_.button]:transition-all\n    [&_.button]:cursor-pointer\n    [&_.button:hover]:bg-tertiary\n\n    [&_.button.primary]:bg-tint\n    [&_.button.primary:hover]:!bg-tint\n    [&_.button.primary]:text-on-color\n\n    [&_.section]:flex\n    [&_.section]:flex-col\n    [&_.section]:gap-l\n    md:[&_.section]:gap-xl\n    [&_.section]:px-l\n    [&_.section]:py-2xl\n    [&_.section]:w-full\n    md:[&_.section]:py-4xl\n    md:[&_.section]:items-center\n  \"\n>\n            <script nonce=\"KFN3j43LE7821ksUyjwYHg==\">\n                if ('caches' in window) {\n                    caches.keys().then(function(cacheNames) {\n                        cacheNames.forEach(function(cacheName) {\n                            caches.delete(cacheName);\n                        });\n                    });\n                }\n            </script>\n            \n  \n    <div id=\"header\" class=\"bg-primary border-b border-solid border-primary z-10 sticky top-0 !text-s\">\n  <div role=\"banner\" class=\"relative\">\n    <div class=\"max-w-7xl mx-auto px-l sm:px-xl lg:px-2xl\">\n      <div class=\"flex items-center justify-between h-4xl\">\n        <a\n          href=\"/\"\n          class=\"flex items-center space-x-m hover:opacity-80 transition-opacity no-underline\"\n        >\n          <img\n            loading=\"lazy\"\n            src=\"/media/home/images/workflowy-logo.svg\"\n            alt=\"\"\n            class=\"h-xl w-xl\"\n          />\n          <div class=\"text-base font-bold text-primary\">Workflowy</div>\n        </a>\n\n        <div class=\"md:hidden flex items-center gap-s\">\n          \n\n          <button\n            id=\"mobile-menu-button\"\n            type=\"button\"\n            aria-label=\"Open menu\"\n            class=\"!bg-white border border-solid border-primary hover:!bg-secondary rounded-m p-m text-secondary flex items-center justify-center hover:text-primary\"\n          >\n            <svg\n              class=\"w-xl h-xl\"\n              fill=\"none\"\n              stroke=\"currentColor\"\n              viewBox=\"0 0 24 24\"\n              aria-hidden=\"true\"\n            >\n              <path\n                stroke-linecap=\"round\"\n                stroke-linejoin=\"round\"\n                stroke-width=\"2\"\n                d=\"M4 6h16M4 12h16M4 18h16\"\n              />\n            </svg>\n          </button>\n        </div>\n\n        <nav\n          id=\"main-nav\"\n          class=\"\n            hidden md:flex md:items-center md:space-x-2xl absolute md:relative\n            top-full md:top-auto left-0 right-0 md:left-auto md:right-auto\n            bg-primary md:bg-transparent border-t md:border-t-0 border-subtle px-l\n            md:px-0 py-l md:py-0 flex-col md:flex-row space-y-l md:space-y-0 z-50\n          \"\n        >\n          <div class=\"relative group\">\n            <a\n              href=\"/help/get-started\"\n              class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal flex items-center gap-xs\"\n            >\n              Using Workflowy\n              <svg class=\"w-m h-m\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">\n                <path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M19 9l-7 7-7-7\" />\n              </svg>\n            </a>\n            <div\n              class=\"\n                flex flex-col pl-l mt-s space-y-s\n                md:hidden md:group-hover:flex md:group-focus-within:flex\n                md:absolute md:top-full md:left-0 md:mt-0 md:pl-0 md:space-y-0\n                md:bg-primary md:border md:border-solid border-primary md:rounded-m md:shadow-lg\n                md:py-s md:min-w-[200px]\n              \"\n            >\n              <a href=\"/help/get-started\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Help</a>\n              <a href=\"/help/guides-and-workflows\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Guides and workflows</a>\n              <a href=\"/help/integrations\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Integrate other apps</a>\n              <a href=\"/api-reference/\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Developer API</a>\n            </div>\n          </div>\n          <a href=\"/pricing/\" class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal\">Pricing</a>\n          <a href=\"/download/\" class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal\">Downloads</a>\n          <a href=\"/login/\" class=\"button primary no-underline\">Sign up / Log in</a>\n        </nav>\n      </div>\n    </div>\n  </div>\n\n  <script nonce=\"KFN3j43LE7821ksUyjwYHg==\">\n    (function () {\n      const button = document.getElementById(\"mobile-menu-button\");\n      const menu = document.getElementById(\"main-nav\");\n\n      if (button && menu) {\n        button.addEventListener(\"click\", function () {\n          const isHidden = menu.classList.contains(\"hidden\");\n          if (isHidden) {\n            menu.classList.remove(\"hidden\");\n            menu.classList.add(\"flex\");\n          } else {\n            menu.classList.add(\"hidden\");\n            menu.classList.remove(\"flex\");\n          }\n        });\n      }\n\n    })();\n  </script>\n\n  <style>\n    #main-nav a,\n    #main-nav button {\n      -webkit-tap-highlight-color: transparent;\n      tap-highlight-color: transparent;\n    }\n  </style>\n</div>\n  \n\n  \n  <div class=\"section flex flex-col my-4xl !gap-3xl\">\n    <div class=\"flex flex-col items-center text-center gap-2xl max-w-2xl\">\n      <h1 class=\"font-bold\">4O4.</h1>\n      <p class=\"!text-m text-tertiary\">Sorry, the page you\u2019re looking for is no longer there or you don&#39;t have permission to view it.</p>\n    </div>\n\n  </div>\n\n\n  \n    <div\n  class=\"\n    grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5\n    p-xl\n    md:p-3xl\n    gap-xl\n    mx-auto\n\n    border-t\n    border-solid\n    border-primary\n    !text-s\n\n    [&_li]:my-xs\n  \"\n>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Product</h5>\n    <ul>\n      <li><a href=\"/team-signup/\" title=\"Teams\">Teams</a></li>\n      <li><a href=\"/edu/\" title=\"Education\">Education</a></li>\n      <li><a href=\"/integrations/\" title=\"Integrations\">Integrations</a></li>\n      <li><a href=\"/whats-new/\" title=\"What's New\">What's New</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Resources</h5>\n    <ul>\n      <li><a href=\"/help/get-started\" title=\"Get Started\">Get Started</a></li>\n      <li><a href=\"/templates/\" title=\"Templates\">Templates</a></li>\n      <li><a href=\"/help/find-your-productivity-system\" title=\"Guides\">Guides</a></li>\n      <li><a href=\"https://community.workflowy.com\" title=\"Forum\">Community</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Use Cases</h5>\n    <ul>\n      <li><a href=\"/help/bullet-journal/\" title=\"Bullet Journaling\">Bullet Journaling</a></li>\n      <li><a href=\"/help/para-method/\" title=\"Using Kanban\">PARA Method</a></li>\n      <li><a href=\"/help/kanban-board/\" title=\"Using Kanban\">Using Kanban</a></li>\n      <li><a href=\"/list-maker/\" title=\"List Making\">List Making</a></li>\n      <li><a href=\"/help/checklist/\" title=\"Creating Checklists\">Creating Checklists</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>About</h5>\n    <ul>\n      <li><a href=\"https://blog.workflowy.com/\" title=\"Blog\">Blog</a></li>\n      <li><a href=\"/privacy-policy/\" title=\"Privacy\">Privacy</a></li>\n      <li><a href=\"/ai-terms/\" title=\"Workflowy AI\">Workflowy AI</a></li>\n      <li><a href=\"/affiliates/\" title=\"Affiliates\">Affiliates</a></li>\n      <li><a href=\"https://status.workflowy.com/\" title=\"System Status\">System Status</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Follow us</h5>\n    <ul>\n      <li><a href=\"https://www.youtube.com/user/workflowy\" title=\"YouTube\">YouTube</a></li>\n      <li><a href=\"https://twitter.com/workflowy\" title=\"X/Twitter\">X/Twitter</a></li>\n      <li><a href=\"https://www.reddit.com/r/Workflowy/\" title=\"Reddit\">Reddit</a></li>\n      <li><a href=\"https://join.slack.com/t/workflowyusergroup/shared_invite/zt-1d4al6zv8-~rSCkIaobbMm~GmnhyWjjA\" title=\"Slack Group\">Slack Group</a></li>\n      <li><a href=\"https://www.linkedin.com/company/workflowy/\" title=\"LinkedIn\">LinkedIn</a></li>\n      <li><a href=\"https://www.tiktok.com/@workflowyapp\" title=\"TikTok\">TikTok</a></li>\n      <li><a href=\"https://t.me/workflowy\" title=\"Telegram\">Telegram</a></li>\n    </ul>\n  </div>\n</div>\n  \n\n  \n</body>\n</html>"

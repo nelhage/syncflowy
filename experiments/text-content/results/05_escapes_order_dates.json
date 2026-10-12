@@ -1,0 +1,1456 @@
+{
+ "batch": "05_escapes_order_dates",
+ "fields": [
+  "name"
+ ],
+ "cases": [
+  {
+   "label": "esc-tilde",
+   "input": "\\~\\~x\\~\\~",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "437fd8e9-d10d-4ab3-8f0c-33257161c50e"
+   },
+   "create_id": "437fd8e9-d10d-4ab3-8f0c-33257161c50e",
+   "create_node": {
+    "id": "437fd8e9-d10d-4ab3-8f0c-33257161c50e",
+    "name": "\\~\\~x\\~\\~",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 100,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834591,
+    "modifiedAt": 1791834591,
+    "completedAt": null
+   },
+   "create_name": "\\~\\~x\\~\\~"
+  },
+  {
+   "label": "esc-underscore",
+   "input": "\\_x\\_",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "56e46278-02b7-40c1-9651-551140914015"
+   },
+   "create_id": "56e46278-02b7-40c1-9651-551140914015",
+   "create_node": {
+    "id": "56e46278-02b7-40c1-9651-551140914015",
+    "name": "\\_x\\_",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 200,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834591,
+    "modifiedAt": 1791834591,
+    "completedAt": null
+   },
+   "create_name": "\\_x\\_"
+  },
+  {
+   "label": "esc-parens",
+   "input": "\\(x\\)",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "9429f5b7-252a-4269-9467-4b7bd972528a"
+   },
+   "create_id": "9429f5b7-252a-4269-9467-4b7bd972528a",
+   "create_node": {
+    "id": "9429f5b7-252a-4269-9467-4b7bd972528a",
+    "name": "(x)",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 300,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834591,
+    "modifiedAt": 1791834591,
+    "completedAt": null
+   },
+   "create_name": "(x)"
+  },
+  {
+   "label": "esc-bang",
+   "input": "\\!x",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "78238b6b-08ac-470f-937d-dfaaf955b6db"
+   },
+   "create_id": "78238b6b-08ac-470f-937d-dfaaf955b6db",
+   "create_node": {
+    "id": "78238b6b-08ac-470f-937d-dfaaf955b6db",
+    "name": "\\!x",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 400,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834591,
+    "modifiedAt": 1791834591,
+    "completedAt": null
+   },
+   "create_name": "\\!x"
+  },
+  {
+   "label": "esc-close-bracket",
+   "input": "a\\]b",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "a81d68cc-ac5d-42cb-8d5f-3744faaa0e29"
+   },
+   "create_id": "a81d68cc-ac5d-42cb-8d5f-3744faaa0e29",
+   "create_node": {
+    "id": "a81d68cc-ac5d-42cb-8d5f-3744faaa0e29",
+    "name": "a]b",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 500,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834591,
+    "modifiedAt": 1791834591,
+    "completedAt": null
+   },
+   "create_name": "a]b"
+  },
+  {
+   "label": "esc-gt",
+   "input": "\\>x",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "025a2573-4701-4db7-9755-0a6b970fb372"
+   },
+   "create_id": "025a2573-4701-4db7-9755-0a6b970fb372",
+   "create_node": {
+    "id": "025a2573-4701-4db7-9755-0a6b970fb372",
+    "name": "\\>x",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 600,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834592,
+    "modifiedAt": 1791834592,
+    "completedAt": null
+   },
+   "create_name": "\\>x"
+  },
+  {
+   "label": "esc-minus",
+   "input": "\\-x",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "7d38dff9-b253-410a-8d0f-8ee60c410981"
+   },
+   "create_id": "7d38dff9-b253-410a-8d0f-8ee60c410981",
+   "create_node": {
+    "id": "7d38dff9-b253-410a-8d0f-8ee60c410981",
+    "name": "\\-x",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 700,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834592,
+    "modifiedAt": 1791834592,
+    "completedAt": null
+   },
+   "create_name": "\\-x"
+  },
+  {
+   "label": "esc-dot",
+   "input": "\\.x",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "18af9b3f-9900-48f5-9d5f-1bee067ee2f9"
+   },
+   "create_id": "18af9b3f-9900-48f5-9d5f-1bee067ee2f9",
+   "create_node": {
+    "id": "18af9b3f-9900-48f5-9d5f-1bee067ee2f9",
+    "name": "\\.x",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 800,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834592,
+    "modifiedAt": 1791834592,
+    "completedAt": null
+   },
+   "create_name": "\\.x"
+  },
+  {
+   "label": "esc-amp",
+   "input": "\\&amp;",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "4e2da7eb-5fb6-429b-8ba4-bd38f886f393"
+   },
+   "create_id": "4e2da7eb-5fb6-429b-8ba4-bd38f886f393",
+   "create_node": {
+    "id": "4e2da7eb-5fb6-429b-8ba4-bd38f886f393",
+    "name": "\\&",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 900,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834592,
+    "modifiedAt": 1791834592,
+    "completedAt": null
+   },
+   "create_name": "\\&"
+  },
+  {
+   "label": "esc-star-in-code",
+   "input": "`\\*x\\*`",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "7f76b35f-61d3-4fdf-acb6-f02cf805f3a0"
+   },
+   "create_id": "7f76b35f-61d3-4fdf-acb6-f02cf805f3a0",
+   "create_node": {
+    "id": "7f76b35f-61d3-4fdf-acb6-f02cf805f3a0",
+    "name": "<code>*x*</code>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 1000,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834593,
+    "modifiedAt": 1791834593,
+    "completedAt": null
+   },
+   "create_name": "<code>*x*</code>"
+  },
+  {
+   "label": "esc-link",
+   "input": "\\[t](https://e.com)",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "3f340bd5-aa4e-4c5e-9a60-4d972815fbe5"
+   },
+   "create_id": "3f340bd5-aa4e-4c5e-9a60-4d972815fbe5",
+   "create_node": {
+    "id": "3f340bd5-aa4e-4c5e-9a60-4d972815fbe5",
+    "name": "[t](https://e.com)",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 1100,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834593,
+    "modifiedAt": 1791834593,
+    "completedAt": null
+   },
+   "create_name": "[t](https://e.com)"
+  },
+  {
+   "label": "esc-at-end",
+   "input": "x\\",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "81685adf-7d76-41cb-a942-3a73e83b9dec"
+   },
+   "create_id": "81685adf-7d76-41cb-a942-3a73e83b9dec",
+   "create_node": {
+    "id": "81685adf-7d76-41cb-a942-3a73e83b9dec",
+    "name": "x\\",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 1200,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834593,
+    "modifiedAt": 1791834593,
+    "completedAt": null
+   },
+   "create_name": "x\\"
+  },
+  {
+   "label": "entity-star",
+   "input": "&#42;x&#42;",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "0b575e98-9ccd-4841-b437-4c7249168bfd"
+   },
+   "create_id": "0b575e98-9ccd-4841-b437-4c7249168bfd",
+   "create_node": {
+    "id": "0b575e98-9ccd-4841-b437-4c7249168bfd",
+    "name": "<i>x</i>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 1300,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834593,
+    "modifiedAt": 1791834593,
+    "completedAt": null
+   },
+   "create_name": "<i>x</i>"
+  },
+  {
+   "label": "entity-backtick",
+   "input": "&#96;x&#96;",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "161b0ae3-3fd8-4120-9010-5f5eb83dc4ae"
+   },
+   "create_id": "161b0ae3-3fd8-4120-9010-5f5eb83dc4ae",
+   "create_node": {
+    "id": "161b0ae3-3fd8-4120-9010-5f5eb83dc4ae",
+    "name": "<code>x</code>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 1400,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834593,
+    "modifiedAt": 1791834593,
+    "completedAt": null
+   },
+   "create_name": "<code>x</code>"
+  },
+  {
+   "label": "entity-bracket-date",
+   "input": "&#91;2026-01-15&#93;",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "87b57cd4-bb51-4ab7-b26f-826060816911"
+   },
+   "create_id": "87b57cd4-bb51-4ab7-b26f-826060816911",
+   "create_node": {
+    "id": "87b57cd4-bb51-4ab7-b26f-826060816911",
+    "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 1500,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834594,
+    "modifiedAt": 1791834594,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time>"
+  },
+  {
+   "label": "entity-in-bold",
+   "input": "**&amp;**",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "2e787c3b-829e-4a70-87ff-b009fa9ada4a"
+   },
+   "create_id": "2e787c3b-829e-4a70-87ff-b009fa9ada4a",
+   "create_node": {
+    "id": "2e787c3b-829e-4a70-87ff-b009fa9ada4a",
+    "name": "<b>&</b>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 1600,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834594,
+    "modifiedAt": 1791834594,
+    "completedAt": null
+   },
+   "create_name": "<b>&</b>"
+  },
+  {
+   "label": "date-midnight",
+   "input": "[2026-01-15 00:00]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "7717dac1-ec11-4338-9548-cbf9e1cb5f15"
+   },
+   "create_id": "7717dac1-ec11-4338-9548-cbf9e1cb5f15",
+   "create_node": {
+    "id": "7717dac1-ec11-4338-9548-cbf9e1cb5f15",
+    "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"0\" startMinute=\"0\">Thu, Jan 15, 2026 at 12:00 AM</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 1700,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834594,
+    "modifiedAt": 1791834594,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"0\" startMinute=\"0\">Thu, Jan 15, 2026 at 12:00 AM</time>"
+  },
+  {
+   "label": "date-noon",
+   "input": "[2026-01-15 12:00]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "389a1259-6a02-4470-ab35-d66387bb527e"
+   },
+   "create_id": "389a1259-6a02-4470-ab35-d66387bb527e",
+   "create_node": {
+    "id": "389a1259-6a02-4470-ab35-d66387bb527e",
+    "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"12\" startMinute=\"0\">Thu, Jan 15, 2026 at 12:00 PM</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 1800,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834594,
+    "modifiedAt": 1791834594,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"12\" startMinute=\"0\">Thu, Jan 15, 2026 at 12:00 PM</time>"
+  },
+  {
+   "label": "date-morning",
+   "input": "[2026-01-15 09:05]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "204854c6-77e5-4332-89f9-14d02222f730"
+   },
+   "create_id": "204854c6-77e5-4332-89f9-14d02222f730",
+   "create_node": {
+    "id": "204854c6-77e5-4332-89f9-14d02222f730",
+    "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"9\" startMinute=\"5\">Thu, Jan 15, 2026 at 9:05 AM</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 1900,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834595,
+    "modifiedAt": 1791834595,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"9\" startMinute=\"5\">Thu, Jan 15, 2026 at 9:05 AM</time>"
+  },
+  {
+   "label": "date-2359",
+   "input": "[2026-01-15 23:59]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "49e1aacb-8723-46af-8b9e-ab2fff9327a6"
+   },
+   "create_id": "49e1aacb-8723-46af-8b9e-ab2fff9327a6",
+   "create_node": {
+    "id": "49e1aacb-8723-46af-8b9e-ab2fff9327a6",
+    "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"23\" startMinute=\"59\">Thu, Jan 15, 2026 at 11:59 PM</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 2000,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834595,
+    "modifiedAt": 1791834595,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"23\" startMinute=\"59\">Thu, Jan 15, 2026 at 11:59 PM</time>"
+  },
+  {
+   "label": "date-hour24",
+   "input": "[2026-01-15 24:00]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "00870c89-38c5-46e9-ad17-df3a1606d6ed"
+   },
+   "create_id": "00870c89-38c5-46e9-ad17-df3a1606d6ed",
+   "create_node": {
+    "id": "00870c89-38c5-46e9-ad17-df3a1606d6ed",
+    "name": "[2026-01-15 24:00]",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 2100,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834595,
+    "modifiedAt": 1791834595,
+    "completedAt": null
+   },
+   "create_name": "[2026-01-15 24:00]"
+  },
+  {
+   "label": "date-min60",
+   "input": "[2026-01-15 12:60]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "106cb282-0c09-4afc-8af2-ed50ee4e580b"
+   },
+   "create_id": "106cb282-0c09-4afc-8af2-ed50ee4e580b",
+   "create_node": {
+    "id": "106cb282-0c09-4afc-8af2-ed50ee4e580b",
+    "name": "[2026-01-15 12:60]",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 2200,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834596,
+    "modifiedAt": 1791834596,
+    "completedAt": null
+   },
+   "create_name": "[2026-01-15 12:60]"
+  },
+  {
+   "label": "date-single-digit-hour",
+   "input": "[2026-01-15 9:05]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "30813d1d-5f6f-4534-a01d-eaf237fa1c17"
+   },
+   "create_id": "30813d1d-5f6f-4534-a01d-eaf237fa1c17",
+   "create_node": {
+    "id": "30813d1d-5f6f-4534-a01d-eaf237fa1c17",
+    "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"9\" startMinute=\"5\">Thu, Jan 15, 2026 at 9:05 AM</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 2300,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834596,
+    "modifiedAt": 1791834596,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"9\" startMinute=\"5\">Thu, Jan 15, 2026 at 9:05 AM</time>"
+  },
+  {
+   "label": "date-seconds",
+   "input": "[2026-01-15 12:00:30]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "a633ada1-a2df-41f3-8833-51f337622370"
+   },
+   "create_id": "a633ada1-a2df-41f3-8833-51f337622370",
+   "create_node": {
+    "id": "a633ada1-a2df-41f3-8833-51f337622370",
+    "name": "[2026-01-15 12:00:30]",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 2400,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834596,
+    "modifiedAt": 1791834596,
+    "completedAt": null
+   },
+   "create_name": "[2026-01-15 12:00:30]"
+  },
+  {
+   "label": "date-leap-valid",
+   "input": "[2024-02-29]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "56264658-9b15-4ff3-925f-31118e2aa7e8"
+   },
+   "create_id": "56264658-9b15-4ff3-925f-31118e2aa7e8",
+   "create_node": {
+    "id": "56264658-9b15-4ff3-925f-31118e2aa7e8",
+    "name": "<time startYear=\"2024\" startMonth=\"2\" startDay=\"29\">Thu, Feb 29, 2024</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 2500,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834596,
+    "modifiedAt": 1791834596,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2024\" startMonth=\"2\" startDay=\"29\">Thu, Feb 29, 2024</time>"
+  },
+  {
+   "label": "date-leap-invalid",
+   "input": "[2025-02-29]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "33b2be1e-c37f-42d7-8e18-7f96a5658955"
+   },
+   "create_id": "33b2be1e-c37f-42d7-8e18-7f96a5658955",
+   "create_node": {
+    "id": "33b2be1e-c37f-42d7-8e18-7f96a5658955",
+    "name": "[2025-02-29]",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 2600,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834596,
+    "modifiedAt": 1791834596,
+    "completedAt": null
+   },
+   "create_name": "[2025-02-29]"
+  },
+  {
+   "label": "date-apr31",
+   "input": "[2026-04-31]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "eb786c4f-edfc-472b-a712-22e3487873b5"
+   },
+   "create_id": "eb786c4f-edfc-472b-a712-22e3487873b5",
+   "create_node": {
+    "id": "eb786c4f-edfc-472b-a712-22e3487873b5",
+    "name": "[2026-04-31]",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 2700,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834597,
+    "modifiedAt": 1791834597,
+    "completedAt": null
+   },
+   "create_name": "[2026-04-31]"
+  },
+  {
+   "label": "date-old",
+   "input": "[1999-12-31]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "b3a3c999-a398-421e-beda-2cdaac115232"
+   },
+   "create_id": "b3a3c999-a398-421e-beda-2cdaac115232",
+   "create_node": {
+    "id": "b3a3c999-a398-421e-beda-2cdaac115232",
+    "name": "<time startYear=\"1999\" startMonth=\"12\" startDay=\"31\">Fri, Dec 31, 1999</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 2800,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834597,
+    "modifiedAt": 1791834597,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"1999\" startMonth=\"12\" startDay=\"31\">Fri, Dec 31, 1999</time>"
+  },
+  {
+   "label": "date-far",
+   "input": "[9999-12-31]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "f674688e-42a8-423e-a7c4-b570b51ab98d"
+   },
+   "create_id": "f674688e-42a8-423e-a7c4-b570b51ab98d",
+   "create_node": {
+    "id": "f674688e-42a8-423e-a7c4-b570b51ab98d",
+    "name": "<time startYear=\"9999\" startMonth=\"12\" startDay=\"31\">Fri, Dec 31, 9999</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 2900,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834597,
+    "modifiedAt": 1791834597,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"9999\" startMonth=\"12\" startDay=\"31\">Fri, Dec 31, 9999</time>"
+  },
+  {
+   "label": "date-year0",
+   "input": "[0001-01-01]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "496fd507-99ca-4b6c-8294-9b49a229c27b"
+   },
+   "create_id": "496fd507-99ca-4b6c-8294-9b49a229c27b",
+   "create_node": {
+    "id": "496fd507-99ca-4b6c-8294-9b49a229c27b",
+    "name": "<time startYear=\"1\" startMonth=\"1\" startDay=\"1\">Mon, Jan 1, 1</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 3000,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834597,
+    "modifiedAt": 1791834597,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"1\" startMonth=\"1\" startDay=\"1\">Mon, Jan 1, 1</time>"
+  },
+  {
+   "label": "date-short-month",
+   "input": "[2026-1-5]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "690d0a7a-46dd-44a5-bda5-8f31822bce83"
+   },
+   "create_id": "690d0a7a-46dd-44a5-bda5-8f31822bce83",
+   "create_node": {
+    "id": "690d0a7a-46dd-44a5-bda5-8f31822bce83",
+    "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"5\">Mon, Jan 5, 2026</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 3100,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834597,
+    "modifiedAt": 1791834597,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"5\">Mon, Jan 5, 2026</time>"
+  },
+  {
+   "label": "date-T",
+   "input": "[2026-01-15T14:30]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "fecf0224-aa24-43a6-881d-492727770438"
+   },
+   "create_id": "fecf0224-aa24-43a6-881d-492727770438",
+   "create_node": {
+    "id": "fecf0224-aa24-43a6-881d-492727770438",
+    "name": "[2026-01-15T14:30]",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 3200,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834598,
+    "modifiedAt": 1791834598,
+    "completedAt": null
+   },
+   "create_name": "[2026-01-15T14:30]"
+  },
+  {
+   "label": "date-ampm",
+   "input": "[2026-01-15 2:30 PM]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "d3eb3786-e2e0-4821-8eff-9447dd682619"
+   },
+   "create_id": "d3eb3786-e2e0-4821-8eff-9447dd682619",
+   "create_node": {
+    "id": "d3eb3786-e2e0-4821-8eff-9447dd682619",
+    "name": "[2026-01-15 2:30 PM]",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 3300,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834598,
+    "modifiedAt": 1791834598,
+    "completedAt": null
+   },
+   "create_name": "[2026-01-15 2:30 PM]"
+  },
+  {
+   "label": "date-in-bold",
+   "input": "**[2026-01-15]**",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "c6801aeb-1112-4799-8868-7f7a309f2491"
+   },
+   "create_id": "c6801aeb-1112-4799-8868-7f7a309f2491",
+   "create_node": {
+    "id": "c6801aeb-1112-4799-8868-7f7a309f2491",
+    "name": "<b><time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time></b>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 3400,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834598,
+    "modifiedAt": 1791834598,
+    "completedAt": null
+   },
+   "create_name": "<b><time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time></b>"
+  },
+  {
+   "label": "date-as-link-text",
+   "input": "[[2026-01-15]](https://e.com)",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "d1407473-0a2f-4f71-ac2b-633049fb0e17"
+   },
+   "create_id": "d1407473-0a2f-4f71-ac2b-633049fb0e17",
+   "create_node": {
+    "id": "d1407473-0a2f-4f71-ac2b-633049fb0e17",
+    "name": "<a href=\"https://e.com\"><time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time></a>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 3500,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834598,
+    "modifiedAt": 1791834598,
+    "completedAt": null
+   },
+   "create_name": "<a href=\"https://e.com\"><time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time></a>"
+  },
+  {
+   "label": "date-followed-paren",
+   "input": "[2026-01-15](https://e.com)",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "2a084568-48b1-46c6-a046-29ef2c7826f4"
+   },
+   "create_id": "2a084568-48b1-46c6-a046-29ef2c7826f4",
+   "create_node": {
+    "id": "2a084568-48b1-46c6-a046-29ef2c7826f4",
+    "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time>(https://e.com)",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 3600,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834599,
+    "modifiedAt": 1791834599,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time>(https://e.com)"
+  },
+  {
+   "label": "date-current-year",
+   "input": "[2026-10-12]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "89e1f2a0-22f4-4a98-9b03-6c25bb452f91"
+   },
+   "create_id": "89e1f2a0-22f4-4a98-9b03-6c25bb452f91",
+   "create_node": {
+    "id": "89e1f2a0-22f4-4a98-9b03-6c25bb452f91",
+    "name": "<time startYear=\"2026\" startMonth=\"10\" startDay=\"12\">Mon, Oct 12, 2026</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 3700,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834599,
+    "modifiedAt": 1791834599,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2026\" startMonth=\"10\" startDay=\"12\">Mon, Oct 12, 2026</time>"
+  },
+  {
+   "label": "date-each-month",
+   "input": "[2026-01-01] [2026-02-01] [2026-03-01] [2026-04-01] [2026-05-01] [2026-06-01] [2026-07-01] [2026-08-01] [2026-09-01] [2026-10-01] [2026-11-01] [2026-12-01]",
+   "create_status": 200,
+   "create_resp": {
+    "item_id": "9eef0102-c259-496e-b653-072a950459d5"
+   },
+   "create_id": "9eef0102-c259-496e-b653-072a950459d5",
+   "create_node": {
+    "id": "9eef0102-c259-496e-b653-072a950459d5",
+    "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"1\">Thu, Jan 1, 2026</time> <time startYear=\"2026\" startMonth=\"2\" startDay=\"1\">Sun, Feb 1, 2026</time> <time startYear=\"2026\" startMonth=\"3\" startDay=\"1\">Sun, Mar 1, 2026</time> <time startYear=\"2026\" startMonth=\"4\" startDay=\"1\">Wed, Apr 1, 2026</time> <time startYear=\"2026\" startMonth=\"5\" startDay=\"1\">Fri, May 1, 2026</time> <time startYear=\"2026\" startMonth=\"6\" startDay=\"1\">Mon, Jun 1, 2026</time> <time startYear=\"2026\" startMonth=\"7\" startDay=\"1\">Wed, Jul 1, 2026</time> <time startYear=\"2026\" startMonth=\"8\" startDay=\"1\">Sat, Aug 1, 2026</time> <time startYear=\"2026\" startMonth=\"9\" startDay=\"1\">Tue, Sep 1, 2026</time> <time startYear=\"2026\" startMonth=\"10\" startDay=\"1\">Thu, Oct 1, 2026</time> <time startYear=\"2026\" startMonth=\"11\" startDay=\"1\">Sun, Nov 1, 2026</time> <time startYear=\"2026\" startMonth=\"12\" startDay=\"1\">Tue, Dec 1, 2026</time>",
+    "note": null,
+    "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+    "priority": 3800,
+    "completed": false,
+    "data": {
+     "layoutMode": "bullets"
+    },
+    "createdAt": 1791834599,
+    "modifiedAt": 1791834599,
+    "completedAt": null
+   },
+   "create_name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"1\">Thu, Jan 1, 2026</time> <time startYear=\"2026\" startMonth=\"2\" startDay=\"1\">Sun, Feb 1, 2026</time> <time startYear=\"2026\" startMonth=\"3\" startDay=\"1\">Sun, Mar 1, 2026</time> <time startYear=\"2026\" startMonth=\"4\" startDay=\"1\">Wed, Apr 1, 2026</time> <time startYear=\"2026\" startMonth=\"5\" startDay=\"1\">Fri, May 1, 2026</time> <time startYear=\"2026\" startMonth=\"6\" startDay=\"1\">Mon, Jun 1, 2026</time> <time startYear=\"2026\" startMonth=\"7\" startDay=\"1\">Wed, Jul 1, 2026</time> <time startYear=\"2026\" startMonth=\"8\" startDay=\"1\">Sat, Aug 1, 2026</time> <time startYear=\"2026\" startMonth=\"9\" startDay=\"1\">Tue, Sep 1, 2026</time> <time startYear=\"2026\" startMonth=\"10\" startDay=\"1\">Thu, Oct 1, 2026</time> <time startYear=\"2026\" startMonth=\"11\" startDay=\"1\">Sun, Nov 1, 2026</time> <time startYear=\"2026\" startMonth=\"12\" startDay=\"1\">Tue, Dec 1, 2026</time>"
+  }
+ ],
+ "sandbox_create": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+ "sandbox_update": null,
+ "all_children_create": [
+  {
+   "id": "437fd8e9-d10d-4ab3-8f0c-33257161c50e",
+   "name": "\\~\\~x\\~\\~",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834591,
+   "modifiedAt": 1791834591,
+   "completedAt": null
+  },
+  {
+   "id": "56e46278-02b7-40c1-9651-551140914015",
+   "name": "\\_x\\_",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834591,
+   "modifiedAt": 1791834591,
+   "completedAt": null
+  },
+  {
+   "id": "9429f5b7-252a-4269-9467-4b7bd972528a",
+   "name": "(x)",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 300,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834591,
+   "modifiedAt": 1791834591,
+   "completedAt": null
+  },
+  {
+   "id": "78238b6b-08ac-470f-937d-dfaaf955b6db",
+   "name": "\\!x",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 400,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834591,
+   "modifiedAt": 1791834591,
+   "completedAt": null
+  },
+  {
+   "id": "a81d68cc-ac5d-42cb-8d5f-3744faaa0e29",
+   "name": "a]b",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 500,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834591,
+   "modifiedAt": 1791834591,
+   "completedAt": null
+  },
+  {
+   "id": "025a2573-4701-4db7-9755-0a6b970fb372",
+   "name": "\\>x",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 600,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834592,
+   "modifiedAt": 1791834592,
+   "completedAt": null
+  },
+  {
+   "id": "7d38dff9-b253-410a-8d0f-8ee60c410981",
+   "name": "\\-x",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 700,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834592,
+   "modifiedAt": 1791834592,
+   "completedAt": null
+  },
+  {
+   "id": "18af9b3f-9900-48f5-9d5f-1bee067ee2f9",
+   "name": "\\.x",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 800,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834592,
+   "modifiedAt": 1791834592,
+   "completedAt": null
+  },
+  {
+   "id": "4e2da7eb-5fb6-429b-8ba4-bd38f886f393",
+   "name": "\\&",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 900,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834592,
+   "modifiedAt": 1791834592,
+   "completedAt": null
+  },
+  {
+   "id": "7f76b35f-61d3-4fdf-acb6-f02cf805f3a0",
+   "name": "<code>*x*</code>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 1000,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834593,
+   "modifiedAt": 1791834593,
+   "completedAt": null
+  },
+  {
+   "id": "3f340bd5-aa4e-4c5e-9a60-4d972815fbe5",
+   "name": "[t](https://e.com)",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 1100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834593,
+   "modifiedAt": 1791834593,
+   "completedAt": null
+  },
+  {
+   "id": "81685adf-7d76-41cb-a942-3a73e83b9dec",
+   "name": "x\\",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 1200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834593,
+   "modifiedAt": 1791834593,
+   "completedAt": null
+  },
+  {
+   "id": "0b575e98-9ccd-4841-b437-4c7249168bfd",
+   "name": "<i>x</i>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 1300,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834593,
+   "modifiedAt": 1791834593,
+   "completedAt": null
+  },
+  {
+   "id": "161b0ae3-3fd8-4120-9010-5f5eb83dc4ae",
+   "name": "<code>x</code>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 1400,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834593,
+   "modifiedAt": 1791834593,
+   "completedAt": null
+  },
+  {
+   "id": "87b57cd4-bb51-4ab7-b26f-826060816911",
+   "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 1500,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834594,
+   "modifiedAt": 1791834594,
+   "completedAt": null
+  },
+  {
+   "id": "2e787c3b-829e-4a70-87ff-b009fa9ada4a",
+   "name": "<b>&</b>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 1600,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834594,
+   "modifiedAt": 1791834594,
+   "completedAt": null
+  },
+  {
+   "id": "7717dac1-ec11-4338-9548-cbf9e1cb5f15",
+   "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"0\" startMinute=\"0\">Thu, Jan 15, 2026 at 12:00 AM</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 1700,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834594,
+   "modifiedAt": 1791834594,
+   "completedAt": null
+  },
+  {
+   "id": "389a1259-6a02-4470-ab35-d66387bb527e",
+   "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"12\" startMinute=\"0\">Thu, Jan 15, 2026 at 12:00 PM</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 1800,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834594,
+   "modifiedAt": 1791834594,
+   "completedAt": null
+  },
+  {
+   "id": "204854c6-77e5-4332-89f9-14d02222f730",
+   "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"9\" startMinute=\"5\">Thu, Jan 15, 2026 at 9:05 AM</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 1900,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834595,
+   "modifiedAt": 1791834595,
+   "completedAt": null
+  },
+  {
+   "id": "49e1aacb-8723-46af-8b9e-ab2fff9327a6",
+   "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"23\" startMinute=\"59\">Thu, Jan 15, 2026 at 11:59 PM</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 2000,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834595,
+   "modifiedAt": 1791834595,
+   "completedAt": null
+  },
+  {
+   "id": "00870c89-38c5-46e9-ad17-df3a1606d6ed",
+   "name": "[2026-01-15 24:00]",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 2100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834595,
+   "modifiedAt": 1791834595,
+   "completedAt": null
+  },
+  {
+   "id": "106cb282-0c09-4afc-8af2-ed50ee4e580b",
+   "name": "[2026-01-15 12:60]",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 2200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834596,
+   "modifiedAt": 1791834596,
+   "completedAt": null
+  },
+  {
+   "id": "30813d1d-5f6f-4534-a01d-eaf237fa1c17",
+   "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"9\" startMinute=\"5\">Thu, Jan 15, 2026 at 9:05 AM</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 2300,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834596,
+   "modifiedAt": 1791834596,
+   "completedAt": null
+  },
+  {
+   "id": "a633ada1-a2df-41f3-8833-51f337622370",
+   "name": "[2026-01-15 12:00:30]",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 2400,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834596,
+   "modifiedAt": 1791834596,
+   "completedAt": null
+  },
+  {
+   "id": "56264658-9b15-4ff3-925f-31118e2aa7e8",
+   "name": "<time startYear=\"2024\" startMonth=\"2\" startDay=\"29\">Thu, Feb 29, 2024</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 2500,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834596,
+   "modifiedAt": 1791834596,
+   "completedAt": null
+  },
+  {
+   "id": "33b2be1e-c37f-42d7-8e18-7f96a5658955",
+   "name": "[2025-02-29]",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 2600,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834596,
+   "modifiedAt": 1791834596,
+   "completedAt": null
+  },
+  {
+   "id": "eb786c4f-edfc-472b-a712-22e3487873b5",
+   "name": "[2026-04-31]",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 2700,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834597,
+   "modifiedAt": 1791834597,
+   "completedAt": null
+  },
+  {
+   "id": "b3a3c999-a398-421e-beda-2cdaac115232",
+   "name": "<time startYear=\"1999\" startMonth=\"12\" startDay=\"31\">Fri, Dec 31, 1999</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 2800,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834597,
+   "modifiedAt": 1791834597,
+   "completedAt": null
+  },
+  {
+   "id": "f674688e-42a8-423e-a7c4-b570b51ab98d",
+   "name": "<time startYear=\"9999\" startMonth=\"12\" startDay=\"31\">Fri, Dec 31, 9999</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 2900,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834597,
+   "modifiedAt": 1791834597,
+   "completedAt": null
+  },
+  {
+   "id": "496fd507-99ca-4b6c-8294-9b49a229c27b",
+   "name": "<time startYear=\"1\" startMonth=\"1\" startDay=\"1\">Mon, Jan 1, 1</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 3000,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834597,
+   "modifiedAt": 1791834597,
+   "completedAt": null
+  },
+  {
+   "id": "690d0a7a-46dd-44a5-bda5-8f31822bce83",
+   "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"5\">Mon, Jan 5, 2026</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 3100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834597,
+   "modifiedAt": 1791834597,
+   "completedAt": null
+  },
+  {
+   "id": "fecf0224-aa24-43a6-881d-492727770438",
+   "name": "[2026-01-15T14:30]",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 3200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834598,
+   "modifiedAt": 1791834598,
+   "completedAt": null
+  },
+  {
+   "id": "d3eb3786-e2e0-4821-8eff-9447dd682619",
+   "name": "[2026-01-15 2:30 PM]",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 3300,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834598,
+   "modifiedAt": 1791834598,
+   "completedAt": null
+  },
+  {
+   "id": "c6801aeb-1112-4799-8868-7f7a309f2491",
+   "name": "<b><time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time></b>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 3400,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834598,
+   "modifiedAt": 1791834598,
+   "completedAt": null
+  },
+  {
+   "id": "d1407473-0a2f-4f71-ac2b-633049fb0e17",
+   "name": "<a href=\"https://e.com\"><time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time></a>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 3500,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834598,
+   "modifiedAt": 1791834598,
+   "completedAt": null
+  },
+  {
+   "id": "2a084568-48b1-46c6-a046-29ef2c7826f4",
+   "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time>(https://e.com)",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 3600,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834599,
+   "modifiedAt": 1791834599,
+   "completedAt": null
+  },
+  {
+   "id": "89e1f2a0-22f4-4a98-9b03-6c25bb452f91",
+   "name": "<time startYear=\"2026\" startMonth=\"10\" startDay=\"12\">Mon, Oct 12, 2026</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 3700,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834599,
+   "modifiedAt": 1791834599,
+   "completedAt": null
+  },
+  {
+   "id": "9eef0102-c259-496e-b653-072a950459d5",
+   "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"1\">Thu, Jan 1, 2026</time> <time startYear=\"2026\" startMonth=\"2\" startDay=\"1\">Sun, Feb 1, 2026</time> <time startYear=\"2026\" startMonth=\"3\" startDay=\"1\">Sun, Mar 1, 2026</time> <time startYear=\"2026\" startMonth=\"4\" startDay=\"1\">Wed, Apr 1, 2026</time> <time startYear=\"2026\" startMonth=\"5\" startDay=\"1\">Fri, May 1, 2026</time> <time startYear=\"2026\" startMonth=\"6\" startDay=\"1\">Mon, Jun 1, 2026</time> <time startYear=\"2026\" startMonth=\"7\" startDay=\"1\">Wed, Jul 1, 2026</time> <time startYear=\"2026\" startMonth=\"8\" startDay=\"1\">Sat, Aug 1, 2026</time> <time startYear=\"2026\" startMonth=\"9\" startDay=\"1\">Tue, Sep 1, 2026</time> <time startYear=\"2026\" startMonth=\"10\" startDay=\"1\">Thu, Oct 1, 2026</time> <time startYear=\"2026\" startMonth=\"11\" startDay=\"1\">Sun, Nov 1, 2026</time> <time startYear=\"2026\" startMonth=\"12\" startDay=\"1\">Tue, Dec 1, 2026</time>",
+   "note": null,
+   "parent_id": "244722f7-8c49-426a-8c02-e02b11ad40f7",
+   "priority": 3800,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834599,
+   "modifiedAt": 1791834599,
+   "completedAt": null
+  }
+ ]
+}

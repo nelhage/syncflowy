@@ -1,0 +1,301 @@
+sandbox 532a07fa-2a20-477d-86df-0d721ef92956
+--- create 'A (mirror dest)'
+    POST /api/v1/nodes
+    req: {"parent_id":"532a07fa-2a20-477d-86df-0d721ef92956","name":"A (mirror dest)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "b9a4d80a-6e77-4d44-bf69-d94dc6c48729"}
+--- create 'B (origin container)'
+    POST /api/v1/nodes
+    req: {"parent_id":"532a07fa-2a20-477d-86df-0d721ef92956","name":"B (origin container)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "5a117ed4-3d3a-4ec1-a1aa-0fec2ac3d78b"}
+--- create 'C (second mirror dest)'
+    POST /api/v1/nodes
+    req: {"parent_id":"532a07fa-2a20-477d-86df-0d721ef92956","name":"C (second mirror dest)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "29c8eedd-d4ef-4ae7-b66d-a9ac54948b98"}
+--- create 'O origin'
+    POST /api/v1/nodes
+    req: {"parent_id":"5a117ed4-3d3a-4ec1-a1aa-0fec2ac3d78b","name":"O origin"}
+    -> 200 content-type=application/json
+    {"item_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3"}
+--- create 'oc1'
+    POST /api/v1/nodes
+    req: {"parent_id":"66590f9d-4ea3-4768-b34c-d85e10fb45a3","name":"oc1","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "73cc4887-c896-41d8-8ad3-27522c5cbcf0"}
+--- create 'occ'
+    POST /api/v1/nodes
+    req: {"parent_id":"73cc4887-c896-41d8-8ad3-27522c5cbcf0","name":"occ","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "d6e5fe4b-29ce-4b15-8e69-d8719f8363ca"}
+--- MIRROR O -> A
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {"parent_id":"b9a4d80a-6e77-4d44-bf69-d94dc6c48729"}
+    -> 200 content-type=application/json
+    {"item_id": "339a0a43-1802-42ad-a675-d282a865192b", "origin_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3"}
+
+== mirror of a mirror
+--- MIRROR M1 -> C
+    POST /api/v1/nodes/339a0a43-1802-42ad-a675-d282a865192b/mirror
+    req: {"parent_id":"29c8eedd-d4ef-4ae7-b66d-a9ac54948b98"}
+    -> 200 content-type=application/json
+    {"item_id": "b4583754-d5be-4ed1-9331-80b6f8f37a17", "origin_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3"}
+--- list C
+    GET /api/v1/nodes?parent_id=29c8eedd-d4ef-4ae7-b66d-a9ac54948b98
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834522, "data": {"layoutMode": "bullets"}, "id": "b4583754-d5be-4ed1-9331-80b6f8f37a17", "modifiedAt": 1791834522, "name": "", "note": "", "parent_id": "29c8eedd-d4ef-4ae7-b66d-a9ac54948b98", "priority": 100}]}
+
+== mirror short-id / URL forms for :id and parent_id
+--- MIRROR O(short) -> C
+    POST /api/v1/nodes/d85e10fb45a3/mirror
+    req: {"parent_id":"29c8eedd-d4ef-4ae7-b66d-a9ac54948b98","position":"bottom"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- MIRROR O -> C(short)
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {"parent_id":"a9ac54948b98","position":"bottom"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Parent item not found"}
+--- MIRROR O -> C(url)
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {"parent_id":"https://workflowy.com/#/a9ac54948b98","position":"bottom"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Parent item not found"}
+--- list C
+    GET /api/v1/nodes?parent_id=29c8eedd-d4ef-4ae7-b66d-a9ac54948b98
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834522, "data": {"layoutMode": "bullets"}, "id": "b4583754-d5be-4ed1-9331-80b6f8f37a17", "modifiedAt": 1791834522, "name": "", "note": "", "parent_id": "29c8eedd-d4ef-4ae7-b66d-a9ac54948b98", "priority": 100}]}
+
+== parent_id is a mirror
+--- create 'X (to be mirrored into a mirror)'
+    POST /api/v1/nodes
+    req: {"parent_id":"532a07fa-2a20-477d-86df-0d721ef92956","name":"X (to be mirrored into a mirror)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "1d2eb798-ba3a-4e5e-bdc0-09af0917f7f0"}
+--- MIRROR X -> M1 (parent is a mirror)
+    POST /api/v1/nodes/1d2eb798-ba3a-4e5e-bdc0-09af0917f7f0/mirror
+    req: {"parent_id":"339a0a43-1802-42ad-a675-d282a865192b"}
+    -> 200 content-type=application/json
+    {"item_id": "ff827bec-c085-45de-ba04-204ad020b1ae", "origin_id": "1d2eb798-ba3a-4e5e-bdc0-09af0917f7f0"}
+--- GET MX
+    GET /api/v1/nodes/ff827bec-c085-45de-ba04-204ad020b1ae
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834525, "data": {"layoutMode": "bullets"}, "id": "ff827bec-c085-45de-ba04-204ad020b1ae", "modifiedAt": 1791834525, "name": "", "note": "", "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 50}}
+--- list M1
+    GET /api/v1/nodes?parent_id=339a0a43-1802-42ad-a675-d282a865192b
+    -> 200 content-type=application/json
+    {"nodes": []}
+--- list O
+    GET /api/v1/nodes?parent_id=66590f9d-4ea3-4768-b34c-d85e10fb45a3
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834521, "data": {"layoutMode": "bullets"}, "id": "73cc4887-c896-41d8-8ad3-27522c5cbcf0", "modifiedAt": 1791834521, "name": "oc1", "note": null, "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834525, "data": {"layoutMode": "bullets"}, "id": "ff827bec-c085-45de-ba04-204ad020b1ae", "modifiedAt": 1791834525, "name": "", "note": "", "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 50}]}
+
+== mirror onto itself / into own subtree
+--- MIRROR O -> O
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {"parent_id":"66590f9d-4ea3-4768-b34c-d85e10fb45a3"}
+    -> 400 content-type=application/json
+    {"code": "invalid_request", "message": "Cannot mirror a node under itself"}
+--- MIRROR O -> oc1 (child of origin)
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {"parent_id":"73cc4887-c896-41d8-8ad3-27522c5cbcf0"}
+    -> 200 content-type=application/json
+    {"item_id": "d8f8adfd-e82a-4cbd-9f74-2ac0a446a1f4", "origin_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3"}
+--- MIRROR O -> occ (grandchild of origin)
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {"parent_id":"d6e5fe4b-29ce-4b15-8e69-d8719f8363ca"}
+    -> 200 content-type=application/json
+    {"item_id": "16256444-77f3-433b-ba40-f9e5235ee27b", "origin_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3"}
+--- MIRROR O -> M1 (its own mirror)
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {"parent_id":"339a0a43-1802-42ad-a675-d282a865192b"}
+    -> 400 content-type=application/json
+    {"code": "invalid_request", "message": "Cannot mirror a node under itself"}
+--- MIRROR M1 -> M1
+    POST /api/v1/nodes/339a0a43-1802-42ad-a675-d282a865192b/mirror
+    req: {"parent_id":"339a0a43-1802-42ad-a675-d282a865192b"}
+    -> 400 content-type=application/json
+    {"code": "invalid_request", "message": "Cannot mirror a node under itself"}
+--- MIRROR oc1 -> O (into its own parent)
+    POST /api/v1/nodes/73cc4887-c896-41d8-8ad3-27522c5cbcf0/mirror
+    req: {"parent_id":"66590f9d-4ea3-4768-b34c-d85e10fb45a3","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "a3776aa2-6333-4984-9c3a-98f0c24963f9", "origin_id": "73cc4887-c896-41d8-8ad3-27522c5cbcf0"}
+--- list O
+    GET /api/v1/nodes?parent_id=66590f9d-4ea3-4768-b34c-d85e10fb45a3
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834521, "data": {"layoutMode": "bullets"}, "id": "73cc4887-c896-41d8-8ad3-27522c5cbcf0", "modifiedAt": 1791834528, "name": "oc1", "note": null, "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834525, "data": {"layoutMode": "bullets"}, "id": "ff827bec-c085-45de-ba04-204ad020b1ae", "modifiedAt": 1791834525, "name": "", "note": "", "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 50}, {"completed": false, "completedAt": null, "createdAt": 1791834528, "data": {"layoutMode": "bullets"}, "id": "a3776aa2-6333-4984-9c3a-98f0c24963f9", "modifiedAt": 1791834528, "name": "", "note": "", "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 200}]}
+
+== bad inputs
+--- MIRROR missing parent_id
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {}
+    -> 400 content-type=application/json
+    {"errors": [{"input": {}, "loc": ["parent_id"], "msg": "Field required", "type": "missing"}]}
+--- MIRROR no body
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    -> 400 content-type=application/json
+    {"code": "invalid_json", "message": "Invalid JSON format in request body"}
+--- MIRROR nonexistent :id (unscoped)
+    POST /api/v1/nodes/925ba865-1ad8-49b9-9615-197b858fd6bb/mirror
+    req: {"parent_id":"b9a4d80a-6e77-4d44-bf69-d94dc6c48729"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- MIRROR to nonexistent parent (unscoped)
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {"parent_id":"cc754232-2f7b-4d4d-b646-fabd452b21b0"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Parent item not found"}
+
+== DELETE /mirror on non-mirror and nonexistent
+--- DELETE /mirror on origin O
+    DELETE /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    -> 400 content-type=application/json
+    {"code": "invalid_request", "message": "Node is not a mirror"}
+--- DELETE /mirror on plain node X
+    DELETE /api/v1/nodes/1d2eb798-ba3a-4e5e-bdc0-09af0917f7f0/mirror
+    -> 400 content-type=application/json
+    {"code": "invalid_request", "message": "Node is not a mirror"}
+--- DELETE /mirror on nonexistent (unscoped)
+    DELETE /api/v1/nodes/0e8de562-fb2c-4705-8b91-1f02024543fc/mirror
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- GET /mirror (wrong method)
+    GET /api/v1/nodes/339a0a43-1802-42ad-a675-d282a865192b/mirror
+    -> 405 content-type=application/json
+    {"allowed_methods": ["POST", "DELETE"], "error": "Method not allowed"}
+
+== DELETE /mirror on a real mirror that has a child
+--- MIRROR O -> C bottom
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {"parent_id":"29c8eedd-d4ef-4ae7-b66d-a9ac54948b98","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "3b1e3dca-b58e-46d4-98c1-dac71ce99af0", "origin_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3"}
+--- create 'child created under M3'
+    POST /api/v1/nodes
+    req: {"parent_id":"3b1e3dca-b58e-46d4-98c1-dac71ce99af0","name":"child created under M3"}
+    -> 200 content-type=application/json
+    {"item_id": "e4dc0e51-56d7-4b8f-a30c-54bdcc700e86"}
+--- DELETE /mirror on M3
+    DELETE /api/v1/nodes/3b1e3dca-b58e-46d4-98c1-dac71ce99af0/mirror
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M3
+    GET /api/v1/nodes/3b1e3dca-b58e-46d4-98c1-dac71ce99af0
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- GET M3's child
+    GET /api/v1/nodes/e4dc0e51-56d7-4b8f-a30c-54bdcc700e86
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- GET O (origin intact?)
+    GET /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834521, "data": {"layoutMode": "bullets"}, "id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "modifiedAt": 1791834532, "name": "O origin", "note": null, "parent_id": "5a117ed4-3d3a-4ec1-a1aa-0fec2ac3d78b", "priority": 100}}
+--- list O
+    GET /api/v1/nodes?parent_id=66590f9d-4ea3-4768-b34c-d85e10fb45a3
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834521, "data": {"layoutMode": "bullets"}, "id": "73cc4887-c896-41d8-8ad3-27522c5cbcf0", "modifiedAt": 1791834528, "name": "oc1", "note": null, "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834525, "data": {"layoutMode": "bullets"}, "id": "ff827bec-c085-45de-ba04-204ad020b1ae", "modifiedAt": 1791834525, "name": "", "note": "", "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 50}, {"completed": false, "completedAt": null, "createdAt": 1791834528, "data": {"layoutMode": "bullets"}, "id": "a3776aa2-6333-4984-9c3a-98f0c24963f9", "modifiedAt": 1791834528, "name": "", "note": "", "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 200}]}
+--- DELETE /mirror on M3 again
+    DELETE /api/v1/nodes/3b1e3dca-b58e-46d4-98c1-dac71ce99af0/mirror
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+
+== DELETE /nodes/:id on a mirror
+--- MIRROR O -> C bottom
+    POST /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3/mirror
+    req: {"parent_id":"29c8eedd-d4ef-4ae7-b66d-a9ac54948b98","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "c8cdb549-a2a4-4d65-9677-1904bce3cf2c", "origin_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3"}
+--- DELETE M4 via /nodes/:id
+    DELETE /api/v1/nodes/c8cdb549-a2a4-4d65-9677-1904bce3cf2c
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M4
+    GET /api/v1/nodes/c8cdb549-a2a4-4d65-9677-1904bce3cf2c
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- GET O
+    GET /api/v1/nodes/66590f9d-4ea3-4768-b34c-d85e10fb45a3
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834521, "data": {"layoutMode": "bullets"}, "id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "modifiedAt": 1791834535, "name": "O origin", "note": null, "parent_id": "5a117ed4-3d3a-4ec1-a1aa-0fec2ac3d78b", "priority": 100}}
+--- list O
+    GET /api/v1/nodes?parent_id=66590f9d-4ea3-4768-b34c-d85e10fb45a3
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834521, "data": {"layoutMode": "bullets"}, "id": "73cc4887-c896-41d8-8ad3-27522c5cbcf0", "modifiedAt": 1791834528, "name": "oc1", "note": null, "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834525, "data": {"layoutMode": "bullets"}, "id": "ff827bec-c085-45de-ba04-204ad020b1ae", "modifiedAt": 1791834525, "name": "", "note": "", "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 50}, {"completed": false, "completedAt": null, "createdAt": 1791834528, "data": {"layoutMode": "bullets"}, "id": "a3776aa2-6333-4984-9c3a-98f0c24963f9", "modifiedAt": 1791834528, "name": "", "note": "", "parent_id": "66590f9d-4ea3-4768-b34c-d85e10fb45a3", "priority": 200}]}
+
+== delete origin while mirrors exist
+--- create 'O2 origin to delete'
+    POST /api/v1/nodes
+    req: {"parent_id":"5a117ed4-3d3a-4ec1-a1aa-0fec2ac3d78b","name":"O2 origin to delete","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "56de5c42-3331-4e30-b9d9-f4b8079c7f2d"}
+--- create 'o2c'
+    POST /api/v1/nodes
+    req: {"parent_id":"56de5c42-3331-4e30-b9d9-f4b8079c7f2d","name":"o2c"}
+    -> 200 content-type=application/json
+    {"item_id": "aee38036-daa7-4ade-ab12-ae6c80aac079"}
+--- MIRROR O2 -> A
+    POST /api/v1/nodes/56de5c42-3331-4e30-b9d9-f4b8079c7f2d/mirror
+    req: {"parent_id":"b9a4d80a-6e77-4d44-bf69-d94dc6c48729","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "ab0f3d67-d9f4-4711-93b0-b73fbd4ce716", "origin_id": "56de5c42-3331-4e30-b9d9-f4b8079c7f2d"}
+--- MIRROR O2 -> C
+    POST /api/v1/nodes/56de5c42-3331-4e30-b9d9-f4b8079c7f2d/mirror
+    req: {"parent_id":"29c8eedd-d4ef-4ae7-b66d-a9ac54948b98","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "71206f9f-1240-44cf-bfc2-2180dc03c702", "origin_id": "56de5c42-3331-4e30-b9d9-f4b8079c7f2d"}
+--- create 'child under mirror N1'
+    POST /api/v1/nodes
+    req: {"parent_id":"ab0f3d67-d9f4-4711-93b0-b73fbd4ce716","name":"child under mirror N1"}
+    -> 200 content-type=application/json
+    {"item_id": "5ef2fd52-4ec6-44e3-a893-df8107b60280"}
+--- DELETE O2 (origin)
+    DELETE /api/v1/nodes/56de5c42-3331-4e30-b9d9-f4b8079c7f2d
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET O2
+    GET /api/v1/nodes/56de5c42-3331-4e30-b9d9-f4b8079c7f2d
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- GET N1 (mirror of deleted origin)
+    GET /api/v1/nodes/ab0f3d67-d9f4-4711-93b0-b73fbd4ce716
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834538, "data": {"layoutMode": "bullets"}, "id": "ab0f3d67-d9f4-4711-93b0-b73fbd4ce716", "modifiedAt": 1791834538, "name": "", "note": "", "parent_id": "b9a4d80a-6e77-4d44-bf69-d94dc6c48729", "priority": 200}}
+--- GET N2
+    GET /api/v1/nodes/71206f9f-1240-44cf-bfc2-2180dc03c702
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834539, "data": {"layoutMode": "bullets"}, "id": "71206f9f-1240-44cf-bfc2-2180dc03c702", "modifiedAt": 1791834539, "name": "", "note": "", "parent_id": "29c8eedd-d4ef-4ae7-b66d-a9ac54948b98", "priority": 200}}
+--- GET n1c (child of mirror)
+    GET /api/v1/nodes/5ef2fd52-4ec6-44e3-a893-df8107b60280
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834539, "data": {"layoutMode": "bullets"}, "id": "5ef2fd52-4ec6-44e3-a893-df8107b60280", "modifiedAt": 1791834539, "name": "child under mirror N1", "note": null, "parent_id": "ab0f3d67-d9f4-4711-93b0-b73fbd4ce716", "priority": 100}}
+--- list A
+    GET /api/v1/nodes?parent_id=b9a4d80a-6e77-4d44-bf69-d94dc6c48729
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834522, "data": {"layoutMode": "bullets"}, "id": "339a0a43-1802-42ad-a675-d282a865192b", "modifiedAt": 1791834522, "name": "", "note": "", "parent_id": "b9a4d80a-6e77-4d44-bf69-d94dc6c48729", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834538, "data": {"layoutMode": "bullets"}, "id": "ab0f3d67-d9f4-4711-93b0-b73fbd4ce716", "modifiedAt": 1791834538, "name": "", "note": "", "parent_id": "b9a4d80a-6e77-4d44-bf69-d94dc6c48729", "priority": 200}]}
+--- list C
+    GET /api/v1/nodes?parent_id=29c8eedd-d4ef-4ae7-b66d-a9ac54948b98
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834522, "data": {"layoutMode": "bullets"}, "id": "b4583754-d5be-4ed1-9331-80b6f8f37a17", "modifiedAt": 1791834522, "name": "", "note": "", "parent_id": "29c8eedd-d4ef-4ae7-b66d-a9ac54948b98", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834539, "data": {"layoutMode": "bullets"}, "id": "71206f9f-1240-44cf-bfc2-2180dc03c702", "modifiedAt": 1791834539, "name": "", "note": "", "parent_id": "29c8eedd-d4ef-4ae7-b66d-a9ac54948b98", "priority": 200}]}
+--- DELETE /mirror on N2 (orphan mirror)
+    DELETE /api/v1/nodes/71206f9f-1240-44cf-bfc2-2180dc03c702/mirror
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- MIRROR N1 (orphan) -> C
+    POST /api/v1/nodes/ab0f3d67-d9f4-4711-93b0-b73fbd4ce716/mirror
+    req: {"parent_id":"29c8eedd-d4ef-4ae7-b66d-a9ac54948b98","position":"bottom"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+
+FINAL
+S 532a07fa-2a20-477d-86df-0d721ef92956
+A b9a4d80a-6e77-4d44-bf69-d94dc6c48729
+B 5a117ed4-3d3a-4ec1-a1aa-0fec2ac3d78b
+C 29c8eedd-d4ef-4ae7-b66d-a9ac54948b98
+O 66590f9d-4ea3-4768-b34c-d85e10fb45a3
+M1 339a0a43-1802-42ad-a675-d282a865192b
+M2 b4583754-d5be-4ed1-9331-80b6f8f37a17
+X 1d2eb798-ba3a-4e5e-bdc0-09af0917f7f0
+MX ff827bec-c085-45de-ba04-204ad020b1ae

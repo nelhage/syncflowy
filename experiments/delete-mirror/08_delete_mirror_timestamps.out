@@ -1,0 +1,46 @@
+--- create 'O origin'
+    POST /api/v1/nodes
+    req: {"parent_id":"6a67dd40-c00d-4c47-affe-40b5d84705bd","name":"O origin"}
+    -> 200 content-type=application/json
+    {"item_id": "9d9031f2-ab0e-4038-aaf1-8f0f8c9bbd9c"}
+--- create 'A dest'
+    POST /api/v1/nodes
+    req: {"parent_id":"6a67dd40-c00d-4c47-affe-40b5d84705bd","name":"A dest","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "8e3f400a-33a1-49a4-8a8c-aabbae38eca5"}
+--- MIRROR O -> A
+    POST /api/v1/nodes/9d9031f2-ab0e-4038-aaf1-8f0f8c9bbd9c/mirror
+    req: {"parent_id":"8e3f400a-33a1-49a4-8a8c-aabbae38eca5"}
+    -> 200 content-type=application/json
+    {"item_id": "a10de3cf-c9fd-4e87-8993-006d3118f226", "origin_id": "9d9031f2-ab0e-4038-aaf1-8f0f8c9bbd9c"}
+--- MIRROR O -> A bottom
+    POST /api/v1/nodes/9d9031f2-ab0e-4038-aaf1-8f0f8c9bbd9c/mirror
+    req: {"parent_id":"8e3f400a-33a1-49a4-8a8c-aabbae38eca5","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "de2f1faa-02e2-4e55-969c-23a68cd43633", "origin_id": "9d9031f2-ab0e-4038-aaf1-8f0f8c9bbd9c"}
+--- GET O before
+    GET /api/v1/nodes/9d9031f2-ab0e-4038-aaf1-8f0f8c9bbd9c
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834675, "data": {"layoutMode": "bullets"}, "id": "9d9031f2-ab0e-4038-aaf1-8f0f8c9bbd9c", "modifiedAt": 1791834675, "name": "O origin", "note": null, "parent_id": "6a67dd40-c00d-4c47-affe-40b5d84705bd", "priority": 100}}
+--- DELETE M via /nodes/:id
+    DELETE /api/v1/nodes/a10de3cf-c9fd-4e87-8993-006d3118f226
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET O after
+    GET /api/v1/nodes/9d9031f2-ab0e-4038-aaf1-8f0f8c9bbd9c
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834675, "data": {"layoutMode": "bullets"}, "id": "9d9031f2-ab0e-4038-aaf1-8f0f8c9bbd9c", "modifiedAt": 1791834675, "name": "O origin", "note": null, "parent_id": "6a67dd40-c00d-4c47-affe-40b5d84705bd", "priority": 100}}
+O modifiedAt 1791834675 -> 1791834675
+--- GET M2 before origin delete
+    GET /api/v1/nodes/de2f1faa-02e2-4e55-969c-23a68cd43633
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834675, "data": {"layoutMode": "bullets"}, "id": "de2f1faa-02e2-4e55-969c-23a68cd43633", "modifiedAt": 1791834675, "name": "", "note": "", "parent_id": "8e3f400a-33a1-49a4-8a8c-aabbae38eca5", "priority": 200}}
+--- DELETE O (origin)
+    DELETE /api/v1/nodes/9d9031f2-ab0e-4038-aaf1-8f0f8c9bbd9c
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M2 after origin delete
+    GET /api/v1/nodes/de2f1faa-02e2-4e55-969c-23a68cd43633
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834675, "data": {"layoutMode": "bullets"}, "id": "de2f1faa-02e2-4e55-969c-23a68cd43633", "modifiedAt": 1791834675, "name": "", "note": "", "parent_id": "8e3f400a-33a1-49a4-8a8c-aabbae38eca5", "priority": 200}}
+M2 modifiedAt 1791834675 -> 1791834675

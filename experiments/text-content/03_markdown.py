@@ -1,0 +1,41 @@
+"""Batch 3: markdown inline syntax, dates, links, tags, mentions."""
+from common import run_batch
+
+CASES = [
+    ("md-bold", "x **bold** y"),
+    ("md-bold-underscore", "x __bold__ y"),
+    ("md-italic", "x *it* y"),
+    ("md-italic-underscore", "x _it_ y"),
+    ("md-strike", "x ~~st~~ y"),
+    ("md-single-tilde", "x ~st~ y"),
+    ("md-code", "x `co*de*` y"),
+    ("md-code-html", "x `<b>` y"),
+    ("md-link", "x [text](https://example.com/a?b=1&c=2) y"),
+    ("md-link-title", 'x [text](https://example.com "Title") y'),
+    ("md-link-relative", "[rel](/foo)"),
+    ("md-autolink-angle", "<https://example.com>"),
+    ("raw-url", "see https://example.com/path?q=1 here"),
+    ("raw-www", "see www.example.com here"),
+    ("email", "mail me@example.com"),
+    ("md-image", "![alt](https://example.com/x.png)"),
+    ("md-bold-italic", "***bi***"),
+    ("md-nested", "**bold *ital* bold**"),
+    ("md-unclosed-bold", "**unclosed"),
+    ("md-escaped", r"\*not italic\*"),
+    ("date", "due [2026-01-15] ok"),
+    ("datetime", "due [2026-01-15 14:30] ok"),
+    ("date-invalid", "due [2026-13-45] ok"),
+    ("date-alone", "[2026-01-15]"),
+    ("date-bare", "2026-01-15"),
+    ("date-range", "[2026-01-15] - [2026-01-20]"),
+    ("hashtag", "task #urgent #two-words #a_b"),
+    ("mention", "ping @alice and @bob.smith"),
+    ("hashtag-number", "issue #123"),
+    ("md-heading-midline", "a # b"),
+    ("md-list-dash-midline", "a - b"),
+    ("md-hr", "---"),
+    ("md-blockquote-inline", "a > b"),
+    ("md-html-mixed", "**<i>x</i>**"),
+]
+if __name__ == "__main__":
+    run_batch("03_markdown", CASES)

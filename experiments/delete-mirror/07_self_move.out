@@ -1,0 +1,40 @@
+--- create 'Q self-move subject'
+    POST /api/v1/nodes
+    req: {"parent_id":"aa8e96a4-717d-47af-91bf-f9e6301dc559","name":"Q self-move subject"}
+    -> 200 content-type=application/json
+    {"item_id": "ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60"}
+--- create 'q child of Q'
+    POST /api/v1/nodes
+    req: {"parent_id":"ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60","name":"q child of Q"}
+    -> 200 content-type=application/json
+    {"item_id": "9e7114bf-1f3f-4a6e-8666-1e17c9ab244b"}
+--- MOVE Q -> Q
+    POST /api/v1/nodes/ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60/move
+    req: {"parent_id":"ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET Q after self-move
+    GET /api/v1/nodes/ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834653, "data": {"layoutMode": "bullets"}, "id": "ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60", "modifiedAt": 1791834654, "name": "Q self-move subject", "note": null, "parent_id": "aa8e96a4-717d-47af-91bf-f9e6301dc559", "priority": 100}}
+--- list S
+    GET /api/v1/nodes?parent_id=aa8e96a4-717d-47af-91bf-f9e6301dc559
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834653, "data": {"layoutMode": "bullets"}, "id": "ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60", "modifiedAt": 1791834654, "name": "Q self-move subject", "note": null, "parent_id": "aa8e96a4-717d-47af-91bf-f9e6301dc559", "priority": 100}]}
+--- list Q
+    GET /api/v1/nodes?parent_id=ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834653, "data": {"layoutMode": "bullets"}, "id": "9e7114bf-1f3f-4a6e-8666-1e17c9ab244b", "modifiedAt": 1791834653, "name": "q child of Q", "note": null, "parent_id": "ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60", "priority": 100}]}
+--- REPAIR MOVE Q -> S
+    POST /api/v1/nodes/ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60/move
+    req: {"parent_id":"aa8e96a4-717d-47af-91bf-f9e6301dc559"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET Q after repair
+    GET /api/v1/nodes/ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834653, "data": {"layoutMode": "bullets"}, "id": "ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60", "modifiedAt": 1791834657, "name": "Q self-move subject", "note": null, "parent_id": "aa8e96a4-717d-47af-91bf-f9e6301dc559", "priority": 100}}
+--- DELETE /nodes/Q with child still present (cleanup not done; just GET)
+    GET /api/v1/nodes/9e7114bf-1f3f-4a6e-8666-1e17c9ab244b
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834653, "data": {"layoutMode": "bullets"}, "id": "9e7114bf-1f3f-4a6e-8666-1e17c9ab244b", "modifiedAt": 1791834653, "name": "q child of Q", "note": null, "parent_id": "ee2ac909-ebb3-4c7d-b4ba-86d0a67a6e60", "priority": 100}}

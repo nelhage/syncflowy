@@ -1,0 +1,244 @@
+sandbox 1ad462f1-96e8-43b4-9c1d-eb495dd5c32e
+--- create 'A (mirror destination)'
+    POST /api/v1/nodes
+    req: {"parent_id":"1ad462f1-96e8-43b4-9c1d-eb495dd5c32e","name":"A (mirror destination)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "e2de8c62-914e-4714-b226-6617b0bcfaf9"}
+--- create 'B (origin container)'
+    POST /api/v1/nodes
+    req: {"parent_id":"1ad462f1-96e8-43b4-9c1d-eb495dd5c32e","name":"B (origin container)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "825e4232-b206-4d61-a112-1c37f2d973fa"}
+--- create 'D (move destination)'
+    POST /api/v1/nodes
+    req: {"parent_id":"1ad462f1-96e8-43b4-9c1d-eb495dd5c32e","name":"D (move destination)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "eb81e07b-1d40-4065-8a06-563cab2ff099"}
+--- create 'O origin'
+    POST /api/v1/nodes
+    req: {"parent_id":"825e4232-b206-4d61-a112-1c37f2d973fa","name":"O origin","note":"origin note"}
+    -> 200 content-type=application/json
+    {"item_id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc"}
+--- create 'oc1'
+    POST /api/v1/nodes
+    req: {"parent_id":"c60064cd-5db2-40fd-9e20-b1a827e9a5bc","name":"oc1","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "83c7d15a-5646-4fd9-887c-48d9be3b397e"}
+--- MIRROR O -> A
+    POST /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc/mirror
+    req: {"parent_id":"e2de8c62-914e-4714-b226-6617b0bcfaf9"}
+    -> 200 content-type=application/json
+    {"item_id": "df4441f5-0176-4146-ad60-a12993560042", "origin_id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc"}
+
+== edit origin name/note, observe mirror
+--- UPDATE O name+note
+    POST /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    req: {"name":"O renamed via origin","note":"note v2"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET O
+    GET /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "modifiedAt": 1791834472, "name": "O renamed via origin", "note": "note v2", "parent_id": "825e4232-b206-4d61-a112-1c37f2d973fa", "priority": 100}}
+--- GET M
+    GET /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "bullets"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834470, "name": "", "note": "", "parent_id": "e2de8c62-914e-4714-b226-6617b0bcfaf9", "priority": 100}}
+
+== edit mirror name, observe origin
+--- UPDATE M name
+    POST /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    req: {"name":"M renamed via mirror"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M after own rename
+    GET /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "bullets"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834475, "name": "M renamed via mirror", "note": "", "parent_id": "e2de8c62-914e-4714-b226-6617b0bcfaf9", "priority": 100}}
+--- GET O after mirror rename
+    GET /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "modifiedAt": 1791834472, "name": "O renamed via origin", "note": "note v2", "parent_id": "825e4232-b206-4d61-a112-1c37f2d973fa", "priority": 100}}
+--- list A
+    GET /api/v1/nodes?parent_id=e2de8c62-914e-4714-b226-6617b0bcfaf9
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "bullets"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834475, "name": "M renamed via mirror", "note": "", "parent_id": "e2de8c62-914e-4714-b226-6617b0bcfaf9", "priority": 100}]}
+
+== edit mirror note
+--- UPDATE M note
+    POST /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    req: {"note":"mirror note"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M
+    GET /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "bullets"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834476, "name": "M renamed via mirror", "note": "mirror note", "parent_id": "e2de8c62-914e-4714-b226-6617b0bcfaf9", "priority": 100}}
+--- GET O
+    GET /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "modifiedAt": 1791834472, "name": "O renamed via origin", "note": "note v2", "parent_id": "825e4232-b206-4d61-a112-1c37f2d973fa", "priority": 100}}
+
+== layoutMode on mirror
+--- UPDATE M layoutMode=h1
+    POST /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    req: {"layoutMode":"h1"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M
+    GET /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "h1"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834477, "name": "M renamed via mirror", "note": "mirror note", "parent_id": "e2de8c62-914e-4714-b226-6617b0bcfaf9", "priority": 100}}
+--- GET O
+    GET /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "modifiedAt": 1791834472, "name": "O renamed via origin", "note": "note v2", "parent_id": "825e4232-b206-4d61-a112-1c37f2d973fa", "priority": 100}}
+
+== complete mirror
+--- COMPLETE M
+    POST /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042/complete
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M
+    GET /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"node": {"completed": true, "completedAt": 1791834479, "createdAt": 1791834470, "data": {"layoutMode": "h1"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834479, "name": "M renamed via mirror", "note": "mirror note", "parent_id": "e2de8c62-914e-4714-b226-6617b0bcfaf9", "priority": 100}}
+--- GET O
+    GET /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "modifiedAt": 1791834472, "name": "O renamed via origin", "note": "note v2", "parent_id": "825e4232-b206-4d61-a112-1c37f2d973fa", "priority": 100}}
+--- UNCOMPLETE M
+    POST /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042/uncomplete
+    -> 200 content-type=application/json
+    {"status": "ok"}
+
+== complete origin
+--- COMPLETE O
+    POST /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc/complete
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M
+    GET /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "h1"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834480, "name": "M renamed via mirror", "note": "mirror note", "parent_id": "e2de8c62-914e-4714-b226-6617b0bcfaf9", "priority": 100}}
+--- GET O
+    GET /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"node": {"completed": true, "completedAt": 1791834480, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "modifiedAt": 1791834480, "name": "O renamed via origin", "note": "note v2", "parent_id": "825e4232-b206-4d61-a112-1c37f2d973fa", "priority": 100}}
+--- UNCOMPLETE O
+    POST /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc/uncomplete
+    -> 200 content-type=application/json
+    {"status": "ok"}
+
+== add child under mirror
+--- create 'child created under mirror M'
+    POST /api/v1/nodes
+    req: {"parent_id":"df4441f5-0176-4146-ad60-a12993560042","name":"child created under mirror M"}
+    -> 200 content-type=application/json
+    {"item_id": "c078119e-66cd-41ba-95a6-da87468972ff"}
+--- GET child-under-mirror
+    GET /api/v1/nodes/c078119e-66cd-41ba-95a6-da87468972ff
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834482, "data": {"layoutMode": "bullets"}, "id": "c078119e-66cd-41ba-95a6-da87468972ff", "modifiedAt": 1791834482, "name": "child created under mirror M", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 100}}
+--- list M
+    GET /api/v1/nodes?parent_id=df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834482, "data": {"layoutMode": "bullets"}, "id": "c078119e-66cd-41ba-95a6-da87468972ff", "modifiedAt": 1791834482, "name": "child created under mirror M", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 100}]}
+--- list O
+    GET /api/v1/nodes?parent_id=c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "83c7d15a-5646-4fd9-887c-48d9be3b397e", "modifiedAt": 1791834469, "name": "oc1", "note": null, "parent_id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "priority": 100}]}
+--- create 'child created under mirror M (bottom)'
+    POST /api/v1/nodes
+    req: {"parent_id":"df4441f5-0176-4146-ad60-a12993560042","name":"child created under mirror M (bottom)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "ac4672f2-4265-4690-8345-899de6e0daa7"}
+--- GET child-under-mirror (bottom)
+    GET /api/v1/nodes/ac4672f2-4265-4690-8345-899de6e0daa7
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834483, "data": {"layoutMode": "bullets"}, "id": "ac4672f2-4265-4690-8345-899de6e0daa7", "modifiedAt": 1791834483, "name": "child created under mirror M (bottom)", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 200}}
+--- list O again
+    GET /api/v1/nodes?parent_id=c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "83c7d15a-5646-4fd9-887c-48d9be3b397e", "modifiedAt": 1791834469, "name": "oc1", "note": null, "parent_id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "priority": 100}]}
+
+== add child under origin, observe mirror
+--- create 'oc2 created under origin'
+    POST /api/v1/nodes
+    req: {"parent_id":"c60064cd-5db2-40fd-9e20-b1a827e9a5bc","name":"oc2 created under origin","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "ff68c91e-477a-43b7-85f0-f45646cecd3a"}
+--- list M after origin child add
+    GET /api/v1/nodes?parent_id=df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834482, "data": {"layoutMode": "bullets"}, "id": "c078119e-66cd-41ba-95a6-da87468972ff", "modifiedAt": 1791834482, "name": "child created under mirror M", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834483, "data": {"layoutMode": "bullets"}, "id": "ac4672f2-4265-4690-8345-899de6e0daa7", "modifiedAt": 1791834483, "name": "child created under mirror M (bottom)", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 200}]}
+
+== move a node INTO mirror
+--- create 'loose node to move into mirror'
+    POST /api/v1/nodes
+    req: {"parent_id":"1ad462f1-96e8-43b4-9c1d-eb495dd5c32e","name":"loose node to move into mirror","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "c77eeaca-9c2b-4d54-9010-be3873d082fe"}
+--- MOVE loose -> M
+    POST /api/v1/nodes/c77eeaca-9c2b-4d54-9010-be3873d082fe/move
+    req: {"parent_id":"df4441f5-0176-4146-ad60-a12993560042"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET loose after move into mirror
+    GET /api/v1/nodes/c77eeaca-9c2b-4d54-9010-be3873d082fe
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834484, "data": {"layoutMode": "bullets"}, "id": "c77eeaca-9c2b-4d54-9010-be3873d082fe", "modifiedAt": 1791834485, "name": "loose node to move into mirror", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 50}}
+--- list M
+    GET /api/v1/nodes?parent_id=df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834482, "data": {"layoutMode": "bullets"}, "id": "c078119e-66cd-41ba-95a6-da87468972ff", "modifiedAt": 1791834482, "name": "child created under mirror M", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834483, "data": {"layoutMode": "bullets"}, "id": "ac4672f2-4265-4690-8345-899de6e0daa7", "modifiedAt": 1791834483, "name": "child created under mirror M (bottom)", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 200}, {"completed": false, "completedAt": null, "createdAt": 1791834484, "data": {"layoutMode": "bullets"}, "id": "c77eeaca-9c2b-4d54-9010-be3873d082fe", "modifiedAt": 1791834485, "name": "loose node to move into mirror", "note": null, "parent_id": "df4441f5-0176-4146-ad60-a12993560042", "priority": 50}]}
+--- list O
+    GET /api/v1/nodes?parent_id=c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "83c7d15a-5646-4fd9-887c-48d9be3b397e", "modifiedAt": 1791834469, "name": "oc1", "note": null, "parent_id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834484, "data": {"layoutMode": "bullets"}, "id": "ff68c91e-477a-43b7-85f0-f45646cecd3a", "modifiedAt": 1791834484, "name": "oc2 created under origin", "note": null, "parent_id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "priority": 200}]}
+
+== move mirror M to D
+--- MOVE M -> D
+    POST /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042/move
+    req: {"parent_id":"eb81e07b-1d40-4065-8a06-563cab2ff099"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET M after move
+    GET /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "h1"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834486, "name": "M renamed via mirror", "note": "mirror note", "parent_id": "eb81e07b-1d40-4065-8a06-563cab2ff099", "priority": 100}}
+--- list D
+    GET /api/v1/nodes?parent_id=eb81e07b-1d40-4065-8a06-563cab2ff099
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "h1"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834486, "name": "M renamed via mirror", "note": "mirror note", "parent_id": "eb81e07b-1d40-4065-8a06-563cab2ff099", "priority": 100}]}
+--- list A
+    GET /api/v1/nodes?parent_id=e2de8c62-914e-4714-b226-6617b0bcfaf9
+    -> 200 content-type=application/json
+    {"nodes": []}
+--- GET O after mirror move
+    GET /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "modifiedAt": 1791834481, "name": "O renamed via origin", "note": "note v2", "parent_id": "825e4232-b206-4d61-a112-1c37f2d973fa", "priority": 100}}
+
+== move origin O to D
+--- MOVE O -> D bottom
+    POST /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc/move
+    req: {"parent_id":"eb81e07b-1d40-4065-8a06-563cab2ff099","position":"bottom"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET O after move
+    GET /api/v1/nodes/c60064cd-5db2-40fd-9e20-b1a827e9a5bc
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "modifiedAt": 1791834488, "name": "O renamed via origin", "note": "note v2", "parent_id": "eb81e07b-1d40-4065-8a06-563cab2ff099", "priority": 200}}
+--- GET M after origin move
+    GET /api/v1/nodes/df4441f5-0176-4146-ad60-a12993560042
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "h1"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834486, "name": "M renamed via mirror", "note": "mirror note", "parent_id": "eb81e07b-1d40-4065-8a06-563cab2ff099", "priority": 100}}
+--- list B
+    GET /api/v1/nodes?parent_id=825e4232-b206-4d61-a112-1c37f2d973fa
+    -> 200 content-type=application/json
+    {"nodes": []}
+--- list D
+    GET /api/v1/nodes?parent_id=eb81e07b-1d40-4065-8a06-563cab2ff099
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834469, "data": {"layoutMode": "bullets"}, "id": "c60064cd-5db2-40fd-9e20-b1a827e9a5bc", "modifiedAt": 1791834488, "name": "O renamed via origin", "note": "note v2", "parent_id": "eb81e07b-1d40-4065-8a06-563cab2ff099", "priority": 200}, {"completed": false, "completedAt": null, "createdAt": 1791834470, "data": {"layoutMode": "h1"}, "id": "df4441f5-0176-4146-ad60-a12993560042", "modifiedAt": 1791834486, "name": "M renamed via mirror", "note": "mirror note", "parent_id": "eb81e07b-1d40-4065-8a06-563cab2ff099", "priority": 100}]}

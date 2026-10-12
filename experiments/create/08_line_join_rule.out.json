@@ -1,0 +1,597 @@
+[
+ {
+  "input": "ab\nc\nd",
+  "status": 200,
+  "tree": [
+   {
+    "name": "ab c",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "d",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\nbc\nd",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a bc d",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "a\n\n\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a b",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "a\nB",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "B",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n1",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "1",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a1\n2b",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a1",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "2b",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n#tag",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "#tag",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n(b)",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "(b)",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\nété",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "été",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a.\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a.",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "b",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a \nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a  b",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "a\n*b*",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "<i>b</i>",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n**b**",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "<b>b</b>",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n[link](https://x.com)",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "<a href=\"https://x.com\">link</a>",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n_b",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "_b",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n`b`",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "<code>b</code>",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n\"q\"",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "\"q\"",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n@b",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "@b",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\nb\nc\nd\ne\nf",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a b",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "c d",
+      "pri": 0,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "e f",
+      "pri": 1,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "aa\nbb\ncc",
+  "status": 200,
+  "tree": [
+   {
+    "name": "aa bb cc",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "aa\n\nbb\n\ncc",
+  "status": 200,
+  "tree": [
+   {
+    "name": "aa bb cc",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "p\n\n- [x] done\n\nplain\n\n- [ ] open\n\nplain2\n\n# h",
+  "status": 200,
+  "tree": [
+   {
+    "name": "p",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "done plain",
+      "pri": 0,
+      "lm": "todo",
+      "completed": true,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "open plain2",
+      "pri": 1,
+      "lm": "todo",
+      "completed": true,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "h",
+      "pri": 2,
+      "lm": "h1",
+      "completed": true,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "p\n\n- one\n\n  - two\n\n- three",
+  "status": 200,
+  "tree": [
+   {
+    "name": "p",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "one",
+      "pri": 0,
+      "lm": "bullets",
+      "completed": false,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "two",
+      "pri": 1,
+      "lm": "bullets",
+      "completed": false,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "three",
+      "pri": 2,
+      "lm": "bullets",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "p\n\n# h1\n\n## h2\n\n### h3\n\n#### h4\n\n- [ ] t\n\n```c```\n\n> q",
+  "status": 200,
+  "tree": [
+   {
+    "name": "p",
+    "pri": 100,
+    "lm": "bullets",
+    "completed": false,
+    "note": null,
+    "children": [
+     {
+      "name": "h1",
+      "pri": 0,
+      "lm": "h1",
+      "completed": false,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "h2",
+      "pri": 1,
+      "lm": "h2",
+      "completed": false,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "h3",
+      "pri": 2,
+      "lm": "h3",
+      "completed": false,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "<b> h4</b>",
+      "pri": 3,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "t",
+      "pri": 4,
+      "lm": "todo",
+      "completed": false,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "c",
+      "pri": 5,
+      "lm": "code-block",
+      "completed": false,
+      "note": "",
+      "children": []
+     },
+     {
+      "name": "> q",
+      "pri": 6,
+      "lm": "p",
+      "completed": false,
+      "note": "",
+      "children": []
+     }
+    ]
+   }
+  ]
+ }
+]

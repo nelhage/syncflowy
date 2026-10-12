@@ -1,0 +1,112 @@
+sandbox 44da10e1-e3a5-42a2-a130-f113a6799f13
+--- create 'A (mirror destination)'
+    POST /api/v1/nodes
+    req: {"parent_id":"44da10e1-e3a5-42a2-a130-f113a6799f13","name":"A (mirror destination)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "b4e9a9a4-1592-4890-b09d-a960731f384b"}
+--- create 'B (origin container)'
+    POST /api/v1/nodes
+    req: {"parent_id":"44da10e1-e3a5-42a2-a130-f113a6799f13","name":"B (origin container)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "925de234-22cf-49a0-8b01-e644e88e42d8"}
+--- create 'x1 (pre-existing in A)'
+    POST /api/v1/nodes
+    req: {"parent_id":"b4e9a9a4-1592-4890-b09d-a960731f384b","name":"x1 (pre-existing in A)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "58b55047-e821-43dd-b1c1-107beb4f7bf4"}
+--- create 'x2 (pre-existing in A)'
+    POST /api/v1/nodes
+    req: {"parent_id":"b4e9a9a4-1592-4890-b09d-a960731f384b","name":"x2 (pre-existing in A)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "7c515425-5bdb-4667-b682-0b5a8f8b19a4"}
+--- create 'O origin **bold**'
+    POST /api/v1/nodes
+    req: {"parent_id":"925de234-22cf-49a0-8b01-e644e88e42d8","name":"O origin **bold**","note":"origin note","layoutMode":"todo"}
+    -> 200 content-type=application/json
+    {"item_id": "de8f2b83-e578-4c33-9ecd-83d7c7fee7de"}
+--- create 'oc1'
+    POST /api/v1/nodes
+    req: {"parent_id":"de8f2b83-e578-4c33-9ecd-83d7c7fee7de","name":"oc1","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "51e52a5f-5d48-4569-b3be-74a36cbd897c"}
+--- create 'oc2'
+    POST /api/v1/nodes
+    req: {"parent_id":"de8f2b83-e578-4c33-9ecd-83d7c7fee7de","name":"oc2","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "f8df4a36-5597-426a-85c0-38e7c1cca397"}
+--- create 'occ (grandchild)'
+    POST /api/v1/nodes
+    req: {"parent_id":"51e52a5f-5d48-4569-b3be-74a36cbd897c","name":"occ (grandchild)"}
+    -> 200 content-type=application/json
+    {"item_id": "287d595e-f55a-4086-bfe7-e4ae5d6081bf"}
+--- GET O before mirror
+    GET /api/v1/nodes/de8f2b83-e578-4c33-9ecd-83d7c7fee7de
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834442, "data": {"layoutMode": "todo"}, "id": "de8f2b83-e578-4c33-9ecd-83d7c7fee7de", "modifiedAt": 1791834442, "name": "O origin <b>bold</b>", "note": "origin note", "parent_id": "925de234-22cf-49a0-8b01-e644e88e42d8", "priority": 100}}
+--- MIRROR O -> A (default position)
+    POST /api/v1/nodes/de8f2b83-e578-4c33-9ecd-83d7c7fee7de/mirror
+    req: {"parent_id":"b4e9a9a4-1592-4890-b09d-a960731f384b"}
+    -> 200 content-type=application/json
+    {"item_id": "52d397bd-bca3-4fbe-9dd7-75f4161f4d4b", "origin_id": "de8f2b83-e578-4c33-9ecd-83d7c7fee7de"}
+response headers: {"server": "nginx", "date": "Mon, 12 Oct 2026 19:47:25 GMT", "content-type": "application/json", "transfer-encoding": "chunked", "connection": "keep-alive", "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'", "referrer-policy": "same-origin", "service-worker-allowed": "/", "vary": "Accept-Encoding, Cookie, Origin", "x-content-type-options": "nosniff", "x-frame-options": "SAMEORIGIN", "x-xss-protection": "1; mode=block", "strict-transport-security": "max-age=63072000; includeSubDomains; preload", "content-encoding": "gzip"}
+--- GET M immediately
+    GET /api/v1/nodes/52d397bd-bca3-4fbe-9dd7-75f4161f4d4b
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834445, "data": {"layoutMode": "bullets"}, "id": "52d397bd-bca3-4fbe-9dd7-75f4161f4d4b", "modifiedAt": 1791834445, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 50}}
+--- GET M by short id
+    GET /api/v1/nodes/75f4161f4d4b
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834445, "data": {"layoutMode": "bullets"}, "id": "52d397bd-bca3-4fbe-9dd7-75f4161f4d4b", "modifiedAt": 1791834445, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 50}}
+--- GET O after mirror
+    GET /api/v1/nodes/de8f2b83-e578-4c33-9ecd-83d7c7fee7de
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834442, "data": {"layoutMode": "todo"}, "id": "de8f2b83-e578-4c33-9ecd-83d7c7fee7de", "modifiedAt": 1791834445, "name": "O origin <b>bold</b>", "note": "origin note", "parent_id": "925de234-22cf-49a0-8b01-e644e88e42d8", "priority": 100}}
+--- list A (contains mirror?)
+    GET /api/v1/nodes?parent_id=b4e9a9a4-1592-4890-b09d-a960731f384b
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834441, "data": {"layoutMode": "bullets"}, "id": "58b55047-e821-43dd-b1c1-107beb4f7bf4", "modifiedAt": 1791834441, "name": "x1 (pre-existing in A)", "note": null, "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834442, "data": {"layoutMode": "bullets"}, "id": "7c515425-5bdb-4667-b682-0b5a8f8b19a4", "modifiedAt": 1791834442, "name": "x2 (pre-existing in A)", "note": null, "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 200}, {"completed": false, "completedAt": null, "createdAt": 1791834445, "data": {"layoutMode": "bullets"}, "id": "52d397bd-bca3-4fbe-9dd7-75f4161f4d4b", "modifiedAt": 1791834445, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 50}]}
+--- list B (origin parent)
+    GET /api/v1/nodes?parent_id=925de234-22cf-49a0-8b01-e644e88e42d8
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834442, "data": {"layoutMode": "todo"}, "id": "de8f2b83-e578-4c33-9ecd-83d7c7fee7de", "modifiedAt": 1791834445, "name": "O origin <b>bold</b>", "note": "origin note", "parent_id": "925de234-22cf-49a0-8b01-e644e88e42d8", "priority": 100}]}
+--- list children of mirror M
+    GET /api/v1/nodes?parent_id=52d397bd-bca3-4fbe-9dd7-75f4161f4d4b
+    -> 200 content-type=application/json
+    {"nodes": []}
+--- list children of origin O
+    GET /api/v1/nodes?parent_id=de8f2b83-e578-4c33-9ecd-83d7c7fee7de
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834442, "data": {"layoutMode": "bullets"}, "id": "51e52a5f-5d48-4569-b3be-74a36cbd897c", "modifiedAt": 1791834442, "name": "oc1", "note": null, "parent_id": "de8f2b83-e578-4c33-9ecd-83d7c7fee7de", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834442, "data": {"layoutMode": "bullets"}, "id": "f8df4a36-5597-426a-85c0-38e7c1cca397", "modifiedAt": 1791834442, "name": "oc2", "note": null, "parent_id": "de8f2b83-e578-4c33-9ecd-83d7c7fee7de", "priority": 200}]}
+--- MIRROR O -> A position=bottom
+    POST /api/v1/nodes/de8f2b83-e578-4c33-9ecd-83d7c7fee7de/mirror
+    req: {"parent_id":"b4e9a9a4-1592-4890-b09d-a960731f384b","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "da166e9d-4e70-4538-912a-8a5532e24b76", "origin_id": "de8f2b83-e578-4c33-9ecd-83d7c7fee7de"}
+--- list A after second mirror at bottom
+    GET /api/v1/nodes?parent_id=b4e9a9a4-1592-4890-b09d-a960731f384b
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834441, "data": {"layoutMode": "bullets"}, "id": "58b55047-e821-43dd-b1c1-107beb4f7bf4", "modifiedAt": 1791834441, "name": "x1 (pre-existing in A)", "note": null, "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834442, "data": {"layoutMode": "bullets"}, "id": "7c515425-5bdb-4667-b682-0b5a8f8b19a4", "modifiedAt": 1791834442, "name": "x2 (pre-existing in A)", "note": null, "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 200}, {"completed": false, "completedAt": null, "createdAt": 1791834445, "data": {"layoutMode": "bullets"}, "id": "52d397bd-bca3-4fbe-9dd7-75f4161f4d4b", "modifiedAt": 1791834445, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 50}, {"completed": false, "completedAt": null, "createdAt": 1791834446, "data": {"layoutMode": "bullets"}, "id": "da166e9d-4e70-4538-912a-8a5532e24b76", "modifiedAt": 1791834446, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 300}]}
+--- MIRROR O -> A position=top explicit
+    POST /api/v1/nodes/de8f2b83-e578-4c33-9ecd-83d7c7fee7de/mirror
+    req: {"parent_id":"b4e9a9a4-1592-4890-b09d-a960731f384b","position":"top"}
+    -> 200 content-type=application/json
+    {"item_id": "5ed2a64d-0104-4853-adba-53f6af2a2232", "origin_id": "de8f2b83-e578-4c33-9ecd-83d7c7fee7de"}
+--- list A after third mirror at top
+    GET /api/v1/nodes?parent_id=b4e9a9a4-1592-4890-b09d-a960731f384b
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834441, "data": {"layoutMode": "bullets"}, "id": "58b55047-e821-43dd-b1c1-107beb4f7bf4", "modifiedAt": 1791834441, "name": "x1 (pre-existing in A)", "note": null, "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834442, "data": {"layoutMode": "bullets"}, "id": "7c515425-5bdb-4667-b682-0b5a8f8b19a4", "modifiedAt": 1791834442, "name": "x2 (pre-existing in A)", "note": null, "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 200}, {"completed": false, "completedAt": null, "createdAt": 1791834445, "data": {"layoutMode": "bullets"}, "id": "52d397bd-bca3-4fbe-9dd7-75f4161f4d4b", "modifiedAt": 1791834445, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 50}, {"completed": false, "completedAt": null, "createdAt": 1791834446, "data": {"layoutMode": "bullets"}, "id": "da166e9d-4e70-4538-912a-8a5532e24b76", "modifiedAt": 1791834446, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 300}, {"completed": false, "completedAt": null, "createdAt": 1791834447, "data": {"layoutMode": "bullets"}, "id": "5ed2a64d-0104-4853-adba-53f6af2a2232", "modifiedAt": 1791834447, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 25}]}
+--- MIRROR with invalid position
+    POST /api/v1/nodes/de8f2b83-e578-4c33-9ecd-83d7c7fee7de/mirror
+    req: {"parent_id":"44da10e1-e3a5-42a2-a130-f113a6799f13","position":"middle"}
+    -> 400 content-type=application/json
+    {"errors": [{"input": "middle", "loc": ["position"], "msg": "Input should be 'top' or 'bottom'", "type": "enum"}]}
+--- MIRROR a child (oc1) of origin into A
+    POST /api/v1/nodes/51e52a5f-5d48-4569-b3be-74a36cbd897c/mirror
+    req: {"parent_id":"b4e9a9a4-1592-4890-b09d-a960731f384b","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "6405505c-4020-47ee-969f-41c239223b1d", "origin_id": "51e52a5f-5d48-4569-b3be-74a36cbd897c"}
+--- final list A
+    GET /api/v1/nodes?parent_id=b4e9a9a4-1592-4890-b09d-a960731f384b
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834441, "data": {"layoutMode": "bullets"}, "id": "58b55047-e821-43dd-b1c1-107beb4f7bf4", "modifiedAt": 1791834441, "name": "x1 (pre-existing in A)", "note": null, "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834442, "data": {"layoutMode": "bullets"}, "id": "7c515425-5bdb-4667-b682-0b5a8f8b19a4", "modifiedAt": 1791834442, "name": "x2 (pre-existing in A)", "note": null, "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 200}, {"completed": false, "completedAt": null, "createdAt": 1791834445, "data": {"layoutMode": "bullets"}, "id": "52d397bd-bca3-4fbe-9dd7-75f4161f4d4b", "modifiedAt": 1791834445, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 50}, {"completed": false, "completedAt": null, "createdAt": 1791834446, "data": {"layoutMode": "bullets"}, "id": "da166e9d-4e70-4538-912a-8a5532e24b76", "modifiedAt": 1791834446, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 300}, {"completed": false, "completedAt": null, "createdAt": 1791834447, "data": {"layoutMode": "bullets"}, "id": "5ed2a64d-0104-4853-adba-53f6af2a2232", "modifiedAt": 1791834447, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 25}, {"completed": false, "completedAt": null, "createdAt": 1791834447, "data": {"layoutMode": "bullets"}, "id": "6405505c-4020-47ee-969f-41c239223b1d", "modifiedAt": 1791834447, "name": "", "note": "", "parent_id": "b4e9a9a4-1592-4890-b09d-a960731f384b", "priority": 400}]}
+IDS {"S": "44da10e1-e3a5-42a2-a130-f113a6799f13", "A": "b4e9a9a4-1592-4890-b09d-a960731f384b", "B": "925de234-22cf-49a0-8b01-e644e88e42d8", "O": "de8f2b83-e578-4c33-9ecd-83d7c7fee7de", "oc1": "51e52a5f-5d48-4569-b3be-74a36cbd897c", "oc2": "f8df4a36-5597-426a-85c0-38e7c1cca397", "occ": "287d595e-f55a-4086-bfe7-e4ae5d6081bf", "M": "52d397bd-bca3-4fbe-9dd7-75f4161f4d4b", "M2": "da166e9d-4e70-4538-912a-8a5532e24b76", "M3": "5ed2a64d-0104-4853-adba-53f6af2a2232"}

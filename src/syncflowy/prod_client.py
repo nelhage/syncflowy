@@ -147,6 +147,7 @@ class AllowList:
         self._locked(go)
 
     def contains(self, node_id: str) -> bool:
+        node_id = node_id.lower()
         ids = self.ids()
         if node_id in ids:
             return True

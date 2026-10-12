@@ -1,0 +1,426 @@
+[
+ {
+  "input": "> quote",
+  "name": "> quote",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "> quote",
+  "name": "> quote",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": ">  two spaces",
+  "name": ">  two spaces",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "> **bold quote**",
+  "name": "> <b>bold quote</b>",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "\n> quote after newline",
+  "name": "> quote after newline",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "> line1\n> line2",
+  "name": "> line1",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": [
+   [
+    "> line2",
+    {
+     "layoutMode": "p"
+    }
+   ]
+  ]
+ },
+ {
+  "input": "#### Header four",
+  "name": "<b> Header four</b>",
+  "data": {
+   "layoutMode": "p"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "##### Header five",
+  "name": "##### Header five",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "###### Header six",
+  "name": "###### Header six",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "####### Header seven",
+  "name": "####### Header seven",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "#### **already bold**",
+  "name": "<b> <b>already bold</b></b>",
+  "data": {
+   "layoutMode": "p"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "***bold italic***",
+  "name": "<b><i>bold italic</b></i>",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "**unterminated bold",
+  "name": "<i></i>unterminated bold",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "*unterminated italic",
+  "name": "*unterminated italic",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "a * b * c",
+  "name": "a <i> b </i> c",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "&amp; entity",
+  "name": "& entity",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "&lt;b&gt;not bold&lt;/b&gt;",
+  "name": "<b>not bold</b>",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "&quot;q&quot; &#39;a&#39; &nbsp;nb",
+  "name": "\"q\" 'a'  nb",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "AT&T",
+  "name": "AT&T",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "``` ```",
+  "name": " ",
+  "data": {
+   "layoutMode": "code-block"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "```",
+  "name": "",
+  "data": {
+   "layoutMode": "code-block"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "`unterminated code",
+  "name": "`unterminated code",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "~~unterminated strike",
+  "name": "~~unterminated strike",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "[text](not a url)",
+  "name": "<a href=\"not a url\">text</a>",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "[text](javascript:alert(1))",
+  "name": "<a href=\"javascript:alert(1\">text</a>)",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "[](https://empty.text)",
+  "name": "<a href=\"https://empty.text\"></a>",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "![img](https://example.com/a.png)",
+  "name": "!<a href=\"https://example.com/a.png\">img</a>",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "- [ ]",
+  "name": "",
+  "data": {
+   "layoutMode": "todo"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "- [x]",
+  "name": "",
+  "data": {
+   "layoutMode": "todo"
+  },
+  "completed": true,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "-  [ ] two spaces",
+  "name": " [ ] two spaces",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "- [ ]no space after",
+  "name": "o space after",
+  "data": {
+   "layoutMode": "todo"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "-no space",
+  "name": "-no space",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "# ",
+  "name": "#",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "#",
+  "name": "#",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "-",
+  "name": "-",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "- ",
+  "name": "-",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "    indented four spaces",
+  "name": "indented four spaces",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": " nbsp leading",
+  "name": "nbsp leading",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "​zero width",
+  "name": "​zero width",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "line\rwith cr",
+  "name": "line with cr",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "a b line sep",
+  "name": "a",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "note": null,
+  "children": [
+   [
+    "b line sep",
+    {
+     "layoutMode": "p"
+    }
+   ]
+  ]
+ }
+]

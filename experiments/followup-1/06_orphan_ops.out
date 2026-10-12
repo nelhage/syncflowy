@@ -1,0 +1,127 @@
+[0mdirenv: loading ~/code/syncflowy/.envrc
+[0mdirenv: using flake
+[0mdirenv: nix-direnv: Using cached dev shell
+[0mdirenv: loading ~/code/syncflowy/.envrc.local
+--- create 'O origin (will be deleted)'  [t=1791835740.64]
+    POST /api/v1/nodes
+    req: {"parent_id":"701c64ae-5633-4076-bed3-9340013cf12a","name":"O origin (will be deleted)","position":"bottom"}
+    -> 200 {"item_id": "fed7d5e8-c77a-471f-a357-00626c5c1627"}
+--- create 'H'  [t=1791835740.89]
+    POST /api/v1/nodes
+    req: {"parent_id":"701c64ae-5633-4076-bed3-9340013cf12a","name":"H","position":"bottom"}
+    -> 200 {"item_id": "01a0d3fa-f590-41a3-8109-a1298dbdaaaa"}
+--- create 'H2'  [t=1791835741.10]
+    POST /api/v1/nodes
+    req: {"parent_id":"701c64ae-5633-4076-bed3-9340013cf12a","name":"H2","position":"bottom"}
+    -> 200 {"item_id": "44b9b6cc-a073-4bef-a62d-b6d777e4c27c"}
+--- create 'L loose'  [t=1791835741.39]
+    POST /api/v1/nodes
+    req: {"parent_id":"701c64ae-5633-4076-bed3-9340013cf12a","name":"L loose","position":"bottom"}
+    -> 200 {"item_id": "62c697ee-9528-444b-99d1-df240aa4c76d"}
+--- mirror 00626c5c1627 -> a1298dbdaaaa  [t=1791835741.66]
+    POST /api/v1/nodes/fed7d5e8-c77a-471f-a357-00626c5c1627/mirror
+    req: {"parent_id":"01a0d3fa-f590-41a3-8109-a1298dbdaaaa"}
+    -> 200 {"item_id": "1a5f906b-7b61-41e3-95f3-19686b930be3", "origin_id": "fed7d5e8-c77a-471f-a357-00626c5c1627"}
+--- mirror 00626c5c1627 -> a1298dbdaaaa  [t=1791835741.97]
+    POST /api/v1/nodes/fed7d5e8-c77a-471f-a357-00626c5c1627/mirror
+    req: {"parent_id":"01a0d3fa-f590-41a3-8109-a1298dbdaaaa","position":"bottom"}
+    -> 200 {"item_id": "11ba1089-8c16-41ce-b543-24a141ac0c4c", "origin_id": "fed7d5e8-c77a-471f-a357-00626c5c1627"}
+--- create 'nc child of N'  [t=1791835742.18]
+    POST /api/v1/nodes
+    req: {"parent_id":"1a5f906b-7b61-41e3-95f3-19686b930be3","name":"nc child of N"}
+    -> 200 {"item_id": "e3addeec-0dcd-49bf-81b4-5d1833d44b3f"}
+--- DELETE O  [t=1791835742.41]
+    DELETE /api/v1/nodes/fed7d5e8-c77a-471f-a357-00626c5c1627
+    -> 200 {"status": "ok"}
+--- move N->H2  [t=1791835745.47]
+    POST /api/v1/nodes/1a5f906b-7b61-41e3-95f3-19686b930be3/move
+    req: {"parent_id":"44b9b6cc-a073-4bef-a62d-b6d777e4c27c","position":"bottom"}
+    -> 200 {"status": "ok"}
+=== move orphan N -> H2: action at 1791835745.29
+      H              1791835740 -> 1791835740  same
+      H2             1791835740 -> 1791835745  BUMPED
+      N              1791835741 -> 1791835745  BUMPED
+      nc             1791835742 -> 1791835742  same
+      L              1791835741 -> 1791835741  same
+    SUMMARY move orphan N -> H2: bumped=['H2', 'N']
+--- GET N  [t=1791835746.36]
+    GET /api/v1/nodes/1a5f906b-7b61-41e3-95f3-19686b930be3
+    -> 200 {"node": {"id": "1a5f906b-7b61-41e3-95f3-19686b930be3", "name": "", "note": "", "parent_id": "44b9b6cc-a073-4bef-a62d-b6d777e4c27c", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835741, "modifiedAt": 1791835745, "completedAt": null}}
+--- list N  [t=1791835746.50]
+    GET /api/v1/nodes?parent_id=1a5f906b-7b61-41e3-95f3-19686b930be3
+    -> 200 {"nodes": [{"id": "e3addeec-0dcd-49bf-81b4-5d1833d44b3f", "name": "nc child of N", "note": null, "parent_id": "1a5f906b-7b61-41e3-95f3-19686b930be3", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835742, "modifiedAt": 1791835742, "completedAt": null}]}
+--- list H2  [t=1791835746.65]
+    GET /api/v1/nodes?parent_id=44b9b6cc-a073-4bef-a62d-b6d777e4c27c
+    -> 200 {"nodes": [{"id": "1a5f906b-7b61-41e3-95f3-19686b930be3", "name": "", "note": "", "parent_id": "44b9b6cc-a073-4bef-a62d-b6d777e4c27c", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835741, "modifiedAt": 1791835745, "completedAt": null}]}
+--- move L->N  [t=1791835749.71]
+    POST /api/v1/nodes/62c697ee-9528-444b-99d1-df240aa4c76d/move
+    req: {"parent_id":"1a5f906b-7b61-41e3-95f3-19686b930be3"}
+    -> 200 {"status": "ok"}
+=== move L -> N (into orphan): action at 1791835749.52
+      H              1791835740 -> 1791835740  same
+      H2             1791835745 -> 1791835745  same
+      N              1791835745 -> 1791835749  BUMPED
+      nc             1791835742 -> 1791835742  same
+      L              1791835741 -> 1791835749  BUMPED
+    SUMMARY move L -> N (into orphan): bumped=['N', 'L']
+--- create  [t=1791835753.54]
+    POST /api/v1/nodes
+    req: {"parent_id":"1a5f906b-7b61-41e3-95f3-19686b930be3","name":"created under orphan"}
+    -> 200 {"item_id": "b8875b5b-c1fd-42fc-9a0b-77ce976bd7b0"}
+=== create under orphan N: action at 1791835753.33
+      H              1791835740 -> 1791835740  same
+      H2             1791835745 -> 1791835745  same
+      N              1791835749 -> 1791835749  same
+      nc             1791835742 -> 1791835742  same
+      L              1791835749 -> 1791835749  same
+    SUMMARY create under orphan N: bumped=[]
+--- list N  [t=1791835754.43]
+    GET /api/v1/nodes?parent_id=1a5f906b-7b61-41e3-95f3-19686b930be3
+    -> 200 {"nodes": [{"id": "62c697ee-9528-444b-99d1-df240aa4c76d", "name": "L loose", "note": null, "parent_id": "1a5f906b-7b61-41e3-95f3-19686b930be3", "priority": 50, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835741, "modifiedAt": 1791835749, "completedAt": null}, {"id": "e3addeec-0dcd-49bf-81b4-5d1833d44b3f", "name": "nc child of N", "note": null, "parent_id": "1a5f906b-7b61-41e3-95f3-19686b930be3", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835742, "modifiedAt": 1791835742, "completedAt": null}, {"id": "b8875b5b-c1fd-42fc-9a0b-77ce976bd7b0", "name": "created under orphan", "note": null, "parent_id": "1a5f906b-7b61-41e3-95f3-19686b930be3", "priority": 25, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835753, "modifiedAt": 1791835753, "completedAt": null}]}
+--- update  [t=1791835757.60]
+    POST /api/v1/nodes/1a5f906b-7b61-41e3-95f3-19686b930be3
+    req: {"name":"orphan renamed","note":"n"}
+    -> 200 {"status": "ok"}
+=== update orphan N: action at 1791835757.35
+      H              1791835740 -> 1791835740  same
+      H2             1791835745 -> 1791835745  same
+      N              1791835749 -> 1791835757  BUMPED
+      nc             1791835742 -> 1791835742  same
+      L              1791835749 -> 1791835749  same
+    SUMMARY update orphan N: bumped=['N']
+--- complete  [t=1791835761.44]
+    POST /api/v1/nodes/1a5f906b-7b61-41e3-95f3-19686b930be3/complete
+    -> 200 {"status": "ok"}
+=== complete orphan N: action at 1791835761.28
+      H              1791835740 -> 1791835740  same
+      H2             1791835745 -> 1791835745  same
+      N              1791835757 -> 1791835761  BUMPED
+      nc             1791835742 -> 1791835742  same
+      L              1791835749 -> 1791835749  same
+    SUMMARY complete orphan N: bumped=['N']
+--- GET N  [t=1791835762.38]
+    GET /api/v1/nodes/1a5f906b-7b61-41e3-95f3-19686b930be3
+    -> 200 {"node": {"id": "1a5f906b-7b61-41e3-95f3-19686b930be3", "name": "orphan renamed", "note": "n", "parent_id": "44b9b6cc-a073-4bef-a62d-b6d777e4c27c", "priority": 100, "completed": true, "data": {"layoutMode": "bullets"}, "createdAt": 1791835741, "modifiedAt": 1791835761, "completedAt": 1791835761}}
+--- mirror X -> N2 (orphan parent, recheck)  [t=1791835762.54]
+    POST /api/v1/nodes/62c697ee-9528-444b-99d1-df240aa4c76d/mirror
+    req: {"parent_id":"11ba1089-8c16-41ce-b543-24a141ac0c4c"}
+    -> 404 {"code": "not_found", "message": "Parent item not found"}
+--- DELETE N2/mirror (orphan)  [t=1791835762.75]
+    DELETE /api/v1/nodes/11ba1089-8c16-41ce-b543-24a141ac0c4c/mirror
+    -> 200 {"status": "ok"}
+--- DELETE N  [t=1791835765.85]
+    DELETE /api/v1/nodes/1a5f906b-7b61-41e3-95f3-19686b930be3
+    -> 200 {"status": "ok"}
+=== plain DELETE orphan N: action at 1791835765.63
+      H              1791835740 -> 1791835740  same
+      H2             1791835745 -> 1791835745  same
+      N              1791835761 -> None  BUMPED
+      nc             1791835742 -> None  BUMPED
+      L              1791835749 -> None  BUMPED
+    SUMMARY plain DELETE orphan N: bumped=['N', 'nc', 'L']
+--- GET nc after  [t=1791835766.78]
+    GET /api/v1/nodes/e3addeec-0dcd-49bf-81b4-5d1833d44b3f
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- GET L after  [t=1791835766.93]
+    GET /api/v1/nodes/62c697ee-9528-444b-99d1-df240aa4c76d
+    -> 404 {"code": "not_found", "message": "Item not found"}

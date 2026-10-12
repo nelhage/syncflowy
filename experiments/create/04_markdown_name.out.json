@@ -1,0 +1,698 @@
+[
+ {
+  "input": "plain text",
+  "name": "plain text",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "**bold**",
+  "name": "<b>bold</b>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "*italic*",
+  "name": "<i>italic</i>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "_underscore italic_",
+  "name": "_underscore italic_",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "__double underscore__",
+  "name": "__double underscore__",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "~~strike~~",
+  "name": "<s>strike</s>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "`code`",
+  "name": "<code>code</code>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "[link text](https://example.com)",
+  "name": "<a href=\"https://example.com\">link text</a>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "<https://example.com>",
+  "name": "<https://example.com>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "https://example.com bare url",
+  "name": "https://example.com bare url",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "mixed **bold** and *italic* and `code` here",
+  "name": "mixed <b>bold</b> and <i>italic</i> and <code>code</code> here",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "***bold italic***",
+  "name": "<b><i>bold italic</b></i>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "**unterminated bold",
+  "name": "<i></i>unterminated bold",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "a * b * c",
+  "name": "a <i> b </i> c",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "2 * 3 = 6",
+  "name": "2 * 3 = 6",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "snake_case_name",
+  "name": "snake_case_name",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "\\*escaped\\*",
+  "name": "*escaped*",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "**`code in bold`**",
+  "name": "<b><code>code in bold</code></b>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "`**bold in code**`",
+  "name": "<code><b>bold in code</b></code>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "[2026-01-15]",
+  "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "meeting [2026-01-15] notes",
+  "name": "meeting <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time> notes",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "[2026-01-15 14:30]",
+  "name": "<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"14\" startMinute=\"30\">Thu, Jan 15, 2026 at 2:30 PM</time>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "[2026-13-45]",
+  "name": "[2026-13-45]",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "[2026-01]",
+  "name": "[2026-01]",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "# Header one",
+  "name": "Header one",
+  "layoutMode": "h1",
+  "data": {
+   "layoutMode": "h1"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "## Header two",
+  "name": "Header two",
+  "layoutMode": "h2",
+  "data": {
+   "layoutMode": "h2"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "### Header three",
+  "name": "Header three",
+  "layoutMode": "h3",
+  "data": {
+   "layoutMode": "h3"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "#### Header four",
+  "name": "<b> Header four</b>",
+  "layoutMode": "p",
+  "data": {
+   "layoutMode": "p"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "#nospace",
+  "name": "#nospace",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "#tag at start",
+  "name": "#tag at start",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "text with #tag and @person",
+  "name": "text with #tag and @person",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "- bullet",
+  "name": "bullet",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "* star bullet",
+  "name": "* star bullet",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "+ plus bullet",
+  "name": "+ plus bullet",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "1. numbered",
+  "name": "1. numbered",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "- [ ] todo open",
+  "name": "todo open",
+  "layoutMode": "todo",
+  "data": {
+   "layoutMode": "todo"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "- [x] todo done",
+  "name": "todo done",
+  "layoutMode": "todo",
+  "data": {
+   "layoutMode": "todo"
+  },
+  "completed": true,
+  "completedAt": 1791834496,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "- [X] todo done caps",
+  "name": "[X] todo done caps",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "[ ] bare checkbox",
+  "name": "[ ] bare checkbox",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "[x] bare checkbox done",
+  "name": "[x] bare checkbox done",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "```code fence```",
+  "name": "code fence",
+  "layoutMode": "code-block",
+  "data": {
+   "layoutMode": "code-block"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "```\nfenced\n```",
+  "name": "fenced",
+  "layoutMode": "code-block",
+  "data": {
+   "layoutMode": "code-block"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "```python\nprint(1)\n```",
+  "name": "python\nprint(1)",
+  "layoutMode": "code-block",
+  "data": {
+   "layoutMode": "code-block"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "> quote",
+  "name": "> quote",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": ">quote nospace",
+  "name": ">quote nospace",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "  leading spaces",
+  "name": "leading spaces",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "trailing spaces   ",
+  "name": "trailing spaces",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "<b>raw html bold</b>",
+  "name": "<b>raw html bold</b>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "<i>i</i> <s>s</s> <code>c</code> <a href=\"https://x.com\">a</a>",
+  "name": "<i>i</i> <s>s</s> <code>c</code> <a href=\"https://x.com\">a</a>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "<u>underline</u>",
+  "name": "<u>underline</u>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "<script>alert(1)</script>",
+  "name": "<script>alert(1)</script>",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "a < b > c & d",
+  "name": "a < b > c & d",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "&amp; entity",
+  "name": "& entity",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "emoji 😀 and unicode é中",
+  "name": "emoji 😀 and unicode é中",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "tab\there",
+  "name": "tab\there",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "- # header after bullet",
+  "name": "# header after bullet",
+  "layoutMode": "bullets",
+  "data": {
+   "layoutMode": "bullets"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "# - bullet after header",
+  "name": "- bullet after header",
+  "layoutMode": "h1",
+  "data": {
+   "layoutMode": "h1"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ },
+ {
+  "input": "- [ ] # todo header",
+  "name": "# todo header",
+  "layoutMode": "todo",
+  "data": {
+   "layoutMode": "todo"
+  },
+  "completed": false,
+  "completedAt": null,
+  "note": null,
+  "children": []
+ }
+]

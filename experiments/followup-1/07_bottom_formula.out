@@ -1,0 +1,291 @@
+[0mdirenv: loading ~/code/syncflowy/.envrc
+[0mdirenv: using flake
+[0mdirenv: nix-direnv: Using cached dev shell
+[0mdirenv: loading ~/code/syncflowy/.envrc.local
+--- create 'O mirror source'  [t=1791835793.97]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"O mirror source","position":"bottom"}
+    -> 200 {"item_id": "4f6cc662-ac59-4760-81be-f4673ad0d156"}
+--- create 'loose0'  [t=1791835794.18]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"loose0","position":"bottom"}
+    -> 200 {"item_id": "f7062be7-e4f1-4887-b1bf-37044f86a115"}
+--- create 'loose1'  [t=1791835794.40]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"loose1","position":"bottom"}
+    -> 200 {"item_id": "701f1e9c-ef7c-44b2-91ff-6804977eb0b6"}
+--- create 'P max=50'  [t=1791835794.59]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"P max=50","position":"bottom"}
+    -> 200 {"item_id": "fd728c57-83bd-4b51-97ff-4a70c4938af2"}
+--- create 'a'  [t=1791835794.80]
+    POST /api/v1/nodes
+    req: {"parent_id":"fd728c57-83bd-4b51-97ff-4a70c4938af2","name":"a","position":"bottom"}
+    -> 200 {"item_id": "dfbadd9d-d4d4-492b-8621-bb389c819f9b"}
+--- create 'b top'  [t=1791835795.02]
+    POST /api/v1/nodes
+    req: {"parent_id":"fd728c57-83bd-4b51-97ff-4a70c4938af2","name":"b top"}
+    -> 200 {"item_id": "7af176a2-fd68-4004-a8ef-d641228a85e2"}
+--- delete a  [t=1791835795.23]
+    DELETE /api/v1/nodes/dfbadd9d-d4d4-492b-8621-bb389c819f9b
+    -> 200 {"status": "ok"}
+    P live priorities: [50]
+--- create 'new bottom'  [t=1791835795.58]
+    POST /api/v1/nodes
+    req: {"parent_id":"fd728c57-83bd-4b51-97ff-4a70c4938af2","name":"new bottom","position":"bottom"}
+    -> 200 {"item_id": "21981340-b4b4-4a1a-ab01-f9a4e55db400"}
+RESULT max=50 op=create -> 200  (max+100=150)
+--- create 'P max=50'  [t=1791835795.96]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"P max=50","position":"bottom"}
+    -> 200 {"item_id": "20c178d0-21a4-4809-8bf8-feb1fcb1b2ff"}
+--- create 'a'  [t=1791835796.16]
+    POST /api/v1/nodes
+    req: {"parent_id":"20c178d0-21a4-4809-8bf8-feb1fcb1b2ff","name":"a","position":"bottom"}
+    -> 200 {"item_id": "09a30d87-d740-4df0-b272-0be3e5a79c48"}
+--- create 'b top'  [t=1791835796.38]
+    POST /api/v1/nodes
+    req: {"parent_id":"20c178d0-21a4-4809-8bf8-feb1fcb1b2ff","name":"b top"}
+    -> 200 {"item_id": "15b95364-67d6-4c8c-9e09-56160a67dd14"}
+--- delete a  [t=1791835796.57]
+    DELETE /api/v1/nodes/09a30d87-d740-4df0-b272-0be3e5a79c48
+    -> 200 {"status": "ok"}
+    P live priorities: [50]
+--- move bottom  [t=1791835796.92]
+    POST /api/v1/nodes/701f1e9c-ef7c-44b2-91ff-6804977eb0b6/move
+    req: {"parent_id":"20c178d0-21a4-4809-8bf8-feb1fcb1b2ff","position":"bottom"}
+    -> 200 {"status": "ok"}
+RESULT max=50 op=move -> 200  (max+100=150)
+--- create 'P max=50'  [t=1791835797.28]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"P max=50","position":"bottom"}
+    -> 200 {"item_id": "fe85b551-cf18-419f-a599-3135a8b5f920"}
+--- create 'a'  [t=1791835797.47]
+    POST /api/v1/nodes
+    req: {"parent_id":"fe85b551-cf18-419f-a599-3135a8b5f920","name":"a","position":"bottom"}
+    -> 200 {"item_id": "4ac3483d-07dc-42bd-80ed-22e7088e9e35"}
+--- create 'b top'  [t=1791835797.67]
+    POST /api/v1/nodes
+    req: {"parent_id":"fe85b551-cf18-419f-a599-3135a8b5f920","name":"b top"}
+    -> 200 {"item_id": "245daf3e-122c-4a4c-9e37-f53ff089cc4d"}
+--- delete a  [t=1791835797.91]
+    DELETE /api/v1/nodes/4ac3483d-07dc-42bd-80ed-22e7088e9e35
+    -> 200 {"status": "ok"}
+    P live priorities: [50]
+--- mirror bottom  [t=1791835798.30]
+    POST /api/v1/nodes/4f6cc662-ac59-4760-81be-f4673ad0d156/mirror
+    req: {"parent_id":"fe85b551-cf18-419f-a599-3135a8b5f920","position":"bottom"}
+    -> 200 {"item_id": "408693e1-d393-4bd0-a267-3c32749a2ebd", "origin_id": "4f6cc662-ac59-4760-81be-f4673ad0d156"}
+RESULT max=50 op=mirror -> 200  (max+100=150)
+--- create 'P max=150'  [t=1791835798.66]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"P max=150","position":"bottom"}
+    -> 200 {"item_id": "02ad35e0-1c20-4444-9005-b347af36d58e"}
+--- create 'a'  [t=1791835798.88]
+    POST /api/v1/nodes
+    req: {"parent_id":"02ad35e0-1c20-4444-9005-b347af36d58e","name":"a","position":"bottom"}
+    -> 200 {"item_id": "451ea223-4752-4e24-8e72-08a6d6bdcdd8"}
+--- create 'b'  [t=1791835799.09]
+    POST /api/v1/nodes
+    req: {"parent_id":"02ad35e0-1c20-4444-9005-b347af36d58e","name":"b","position":"bottom"}
+    -> 200 {"item_id": "a0086529-6651-4394-b3eb-2e4e4f60332f"}
+--- create 'c'  [t=1791835799.31]
+    POST /api/v1/nodes
+    req: {"parent_id":"02ad35e0-1c20-4444-9005-b347af36d58e","name":"c","position":"bottom"}
+    -> 200 {"item_id": "08cc84e0-42dc-4ec5-ac0f-fbf3aea0742f"}
+--- delete a  [t=1791835799.50]
+    DELETE /api/v1/nodes/451ea223-4752-4e24-8e72-08a6d6bdcdd8
+    -> 200 {"status": "ok"}
+--- delete b  [t=1791835799.69]
+    DELETE /api/v1/nodes/a0086529-6651-4394-b3eb-2e4e4f60332f
+    -> 200 {"status": "ok"}
+--- create 't top'  [t=1791835799.93]
+    POST /api/v1/nodes
+    req: {"parent_id":"02ad35e0-1c20-4444-9005-b347af36d58e","name":"t top"}
+    -> 200 {"item_id": "c3146db2-75e9-4535-90e0-48fda59d25fa"}
+--- delete c  [t=1791835800.28]
+    DELETE /api/v1/nodes/08cc84e0-42dc-4ec5-ac0f-fbf3aea0742f
+    -> 200 {"status": "ok"}
+    P live priorities: [150]
+--- create 'new bottom'  [t=1791835800.70]
+    POST /api/v1/nodes
+    req: {"parent_id":"02ad35e0-1c20-4444-9005-b347af36d58e","name":"new bottom","position":"bottom"}
+    -> 200 {"item_id": "248b6248-c3dc-434d-89bb-bacf2dd2c408"}
+RESULT max=150 op=create -> 300  (max+100=250)
+--- create 'P max=150'  [t=1791835801.09]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"P max=150","position":"bottom"}
+    -> 200 {"item_id": "135f0c8a-35af-4e2a-9c32-c5a0ca6046ac"}
+--- create 'a'  [t=1791835801.36]
+    POST /api/v1/nodes
+    req: {"parent_id":"135f0c8a-35af-4e2a-9c32-c5a0ca6046ac","name":"a","position":"bottom"}
+    -> 200 {"item_id": "418f37a5-473a-42d4-ba10-b2e245b21422"}
+--- create 'b'  [t=1791835801.86]
+    POST /api/v1/nodes
+    req: {"parent_id":"135f0c8a-35af-4e2a-9c32-c5a0ca6046ac","name":"b","position":"bottom"}
+    -> 200 {"item_id": "3f33a35c-a9dc-46c2-b44e-04ac0bb3554a"}
+--- create 'c'  [t=1791835802.20]
+    POST /api/v1/nodes
+    req: {"parent_id":"135f0c8a-35af-4e2a-9c32-c5a0ca6046ac","name":"c","position":"bottom"}
+    -> 200 {"item_id": "87ef1016-62a4-45ba-a7fa-e2686b151511"}
+--- delete a  [t=1791835802.40]
+    DELETE /api/v1/nodes/418f37a5-473a-42d4-ba10-b2e245b21422
+    -> 200 {"status": "ok"}
+--- delete b  [t=1791835802.67]
+    DELETE /api/v1/nodes/3f33a35c-a9dc-46c2-b44e-04ac0bb3554a
+    -> 200 {"status": "ok"}
+--- create 't top'  [t=1791835802.94]
+    POST /api/v1/nodes
+    req: {"parent_id":"135f0c8a-35af-4e2a-9c32-c5a0ca6046ac","name":"t top"}
+    -> 200 {"item_id": "31b7a74d-1c83-46ae-abe5-11cca3dc5e7e"}
+--- delete c  [t=1791835803.18]
+    DELETE /api/v1/nodes/87ef1016-62a4-45ba-a7fa-e2686b151511
+    -> 200 {"status": "ok"}
+    P live priorities: [150]
+--- move bottom  [t=1791835803.57]
+    POST /api/v1/nodes/f7062be7-e4f1-4887-b1bf-37044f86a115/move
+    req: {"parent_id":"135f0c8a-35af-4e2a-9c32-c5a0ca6046ac","position":"bottom"}
+    -> 200 {"status": "ok"}
+RESULT max=150 op=move -> 300  (max+100=250)
+--- create 'P max=150'  [t=1791835803.93]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"P max=150","position":"bottom"}
+    -> 200 {"item_id": "26eecd71-e29c-4de9-bbae-f5a2208bdecc"}
+--- create 'a'  [t=1791835804.12]
+    POST /api/v1/nodes
+    req: {"parent_id":"26eecd71-e29c-4de9-bbae-f5a2208bdecc","name":"a","position":"bottom"}
+    -> 200 {"item_id": "166b6d0d-6513-4130-9105-94e94fbd2b45"}
+--- create 'b'  [t=1791835804.34]
+    POST /api/v1/nodes
+    req: {"parent_id":"26eecd71-e29c-4de9-bbae-f5a2208bdecc","name":"b","position":"bottom"}
+    -> 200 {"item_id": "ddd9476e-5664-420a-ae31-c970095d6c2e"}
+--- create 'c'  [t=1791835804.55]
+    POST /api/v1/nodes
+    req: {"parent_id":"26eecd71-e29c-4de9-bbae-f5a2208bdecc","name":"c","position":"bottom"}
+    -> 200 {"item_id": "1a305b24-672e-4b07-9aab-a693ff5c8083"}
+--- delete a  [t=1791835804.75]
+    DELETE /api/v1/nodes/166b6d0d-6513-4130-9105-94e94fbd2b45
+    -> 200 {"status": "ok"}
+--- delete b  [t=1791835804.94]
+    DELETE /api/v1/nodes/ddd9476e-5664-420a-ae31-c970095d6c2e
+    -> 200 {"status": "ok"}
+--- create 't top'  [t=1791835805.16]
+    POST /api/v1/nodes
+    req: {"parent_id":"26eecd71-e29c-4de9-bbae-f5a2208bdecc","name":"t top"}
+    -> 200 {"item_id": "3ecb1d6c-e83c-426f-8ab9-34f5276b0ef5"}
+--- delete c  [t=1791835805.35]
+    DELETE /api/v1/nodes/1a305b24-672e-4b07-9aab-a693ff5c8083
+    -> 200 {"status": "ok"}
+    P live priorities: [150]
+--- mirror bottom  [t=1791835805.70]
+    POST /api/v1/nodes/4f6cc662-ac59-4760-81be-f4673ad0d156/mirror
+    req: {"parent_id":"26eecd71-e29c-4de9-bbae-f5a2208bdecc","position":"bottom"}
+    -> 200 {"item_id": "7eedda77-c616-49ad-99ca-9b4837c97682", "origin_id": "4f6cc662-ac59-4760-81be-f4673ad0d156"}
+RESULT max=150 op=mirror -> 300  (max+100=250)
+--- create 'P max=250'  [t=1791835806.04]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"P max=250","position":"bottom"}
+    -> 200 {"item_id": "730c8f36-d6f2-4050-b875-f35c82a88fd4"}
+--- create 'a'  [t=1791835806.27]
+    POST /api/v1/nodes
+    req: {"parent_id":"730c8f36-d6f2-4050-b875-f35c82a88fd4","name":"a","position":"bottom"}
+    -> 200 {"item_id": "903ef1e5-6dcc-4fc3-b06a-b2eb1a71b373"}
+--- create 'x'  [t=1791835806.49]
+    POST /api/v1/nodes
+    req: {"parent_id":"730c8f36-d6f2-4050-b875-f35c82a88fd4","name":"x","position":"bottom"}
+    -> 200 {"item_id": "1ff4a40e-cc30-416a-9067-8f6477ec9b7c"}
+--- create 'x'  [t=1791835806.69]
+    POST /api/v1/nodes
+    req: {"parent_id":"730c8f36-d6f2-4050-b875-f35c82a88fd4","name":"x","position":"bottom"}
+    -> 200 {"item_id": "4b203418-bb8f-4f47-81d2-eba9a689bdce"}
+--- create 'x'  [t=1791835806.96]
+    POST /api/v1/nodes
+    req: {"parent_id":"730c8f36-d6f2-4050-b875-f35c82a88fd4","name":"x","position":"bottom"}
+    -> 200 {"item_id": "d99274bd-0e5c-4f73-b5ca-f0aa8eb98366"}
+--- create 'x'  [t=1791835807.19]
+    POST /api/v1/nodes
+    req: {"parent_id":"730c8f36-d6f2-4050-b875-f35c82a88fd4","name":"x","position":"bottom"}
+    -> 200 {"item_id": "f3d01ac4-e8ab-410f-b8a4-f0567a3ece8b"}
+--- create 't top'  [t=1791835808.42]
+    POST /api/v1/nodes
+    req: {"parent_id":"730c8f36-d6f2-4050-b875-f35c82a88fd4","name":"t top"}
+    -> 200 {"item_id": "6a6565ef-70e8-421c-bb41-7018b8ed294c"}
+    P live priorities: [250]
+--- create 'new bottom'  [t=1791835808.99]
+    POST /api/v1/nodes
+    req: {"parent_id":"730c8f36-d6f2-4050-b875-f35c82a88fd4","name":"new bottom","position":"bottom"}
+    -> 200 {"item_id": "3b6d1746-42c1-4ded-9e62-0c6fb1eab4e1"}
+RESULT max=250 op=create -> 400  (max+100=350)
+--- create 'P max=250'  [t=1791835809.38]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"P max=250","position":"bottom"}
+    -> 200 {"item_id": "8a13e6ea-2c67-4b96-94a0-718c4b743cee"}
+--- create 'a'  [t=1791835809.57]
+    POST /api/v1/nodes
+    req: {"parent_id":"8a13e6ea-2c67-4b96-94a0-718c4b743cee","name":"a","position":"bottom"}
+    -> 200 {"item_id": "efc59c10-29de-4428-bffc-85a6fdb1199e"}
+--- create 'x'  [t=1791835809.80]
+    POST /api/v1/nodes
+    req: {"parent_id":"8a13e6ea-2c67-4b96-94a0-718c4b743cee","name":"x","position":"bottom"}
+    -> 200 {"item_id": "76d2e17a-cf87-4719-bc29-95ecbcc0d01f"}
+--- create 'x'  [t=1791835810.04]
+    POST /api/v1/nodes
+    req: {"parent_id":"8a13e6ea-2c67-4b96-94a0-718c4b743cee","name":"x","position":"bottom"}
+    -> 200 {"item_id": "f05f6ba0-7682-4b7c-a52a-f88376c9d430"}
+--- create 'x'  [t=1791835810.25]
+    POST /api/v1/nodes
+    req: {"parent_id":"8a13e6ea-2c67-4b96-94a0-718c4b743cee","name":"x","position":"bottom"}
+    -> 200 {"item_id": "1ec6612c-b665-467f-8e65-e095033f1d7c"}
+--- create 'x'  [t=1791835810.44]
+    POST /api/v1/nodes
+    req: {"parent_id":"8a13e6ea-2c67-4b96-94a0-718c4b743cee","name":"x","position":"bottom"}
+    -> 200 {"item_id": "b673ef54-79a6-4417-a158-c75d7e497746"}
+--- create 't top'  [t=1791835811.64]
+    POST /api/v1/nodes
+    req: {"parent_id":"8a13e6ea-2c67-4b96-94a0-718c4b743cee","name":"t top"}
+    -> 200 {"item_id": "b509249f-f0ca-4077-a33e-741b1853a1df"}
+    P live priorities: [250]
+--- create 'loose'  [t=1791835812.19]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"loose","position":"bottom"}
+    -> 200 {"item_id": "197519bc-a494-4d62-aa10-12c0b7b18fb6"}
+--- move bottom  [t=1791835812.41]
+    POST /api/v1/nodes/197519bc-a494-4d62-aa10-12c0b7b18fb6/move
+    req: {"parent_id":"8a13e6ea-2c67-4b96-94a0-718c4b743cee","position":"bottom"}
+    -> 200 {"status": "ok"}
+RESULT max=250 op=move -> 400  (max+100=350)
+--- create 'P max=250'  [t=1791835812.79]
+    POST /api/v1/nodes
+    req: {"parent_id":"845155fe-8e21-4026-b1ab-275cf67b3bf1","name":"P max=250","position":"bottom"}
+    -> 200 {"item_id": "cc3f092a-0fdb-416b-af05-208027e12a50"}
+--- create 'a'  [t=1791835813.33]
+    POST /api/v1/nodes
+    req: {"parent_id":"cc3f092a-0fdb-416b-af05-208027e12a50","name":"a","position":"bottom"}
+    -> 200 {"item_id": "55ea16e6-9599-4a8b-96f1-3f3917dd5775"}
+--- create 'x'  [t=1791835813.53]
+    POST /api/v1/nodes
+    req: {"parent_id":"cc3f092a-0fdb-416b-af05-208027e12a50","name":"x","position":"bottom"}
+    -> 200 {"item_id": "b37b415d-daa5-4dda-9553-d32fc3ae0fe9"}
+--- create 'x'  [t=1791835813.73]
+    POST /api/v1/nodes
+    req: {"parent_id":"cc3f092a-0fdb-416b-af05-208027e12a50","name":"x","position":"bottom"}
+    -> 200 {"item_id": "6c19951c-a986-41a7-931b-333226629efb"}
+--- create 'x'  [t=1791835813.97]
+    POST /api/v1/nodes
+    req: {"parent_id":"cc3f092a-0fdb-416b-af05-208027e12a50","name":"x","position":"bottom"}
+    -> 200 {"item_id": "c6c17fd4-68d6-4606-a0c7-fed016fc3a36"}
+--- create 'x'  [t=1791835814.18]
+    POST /api/v1/nodes
+    req: {"parent_id":"cc3f092a-0fdb-416b-af05-208027e12a50","name":"x","position":"bottom"}
+    -> 200 {"item_id": "12ed37f2-fc18-4086-9e0c-4e4bcf9754b7"}
+--- create 't top'  [t=1791835815.39]
+    POST /api/v1/nodes
+    req: {"parent_id":"cc3f092a-0fdb-416b-af05-208027e12a50","name":"t top"}
+    -> 200 {"item_id": "b482db5d-55a0-45b0-9755-fc11ad137a7c"}
+    P live priorities: [250]
+--- mirror bottom  [t=1791835815.98]
+    POST /api/v1/nodes/4f6cc662-ac59-4760-81be-f4673ad0d156/mirror
+    req: {"parent_id":"cc3f092a-0fdb-416b-af05-208027e12a50","position":"bottom"}
+    -> 200 {"item_id": "9f8a95c4-bd67-41ba-88bb-e1e7cd812def", "origin_id": "4f6cc662-ac59-4760-81be-f4673ad0d156"}
+RESULT max=250 op=mirror -> 400  (max+100=350)
+{(50, 'create'): 200, (50, 'move'): 200, (50, 'mirror'): 200, (150, 'create'): 300, (150, 'move'): 300, (150, 'mirror'): 300, (250, 'create'): 400, (250, 'move'): 400, (250, 'mirror'): 400}

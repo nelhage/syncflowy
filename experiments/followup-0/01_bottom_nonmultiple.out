@@ -1,0 +1,67 @@
+[0mdirenv: loading ~/code/syncflowy/.envrc
+[0mdirenv: using flake
+[0mdirenv: nix-direnv: Using cached dev shell
+[0mdirenv: loading ~/code/syncflowy/.envrc.local
+===== move =====
+  A multiline 0,1,2 before: list order=[('k0', 0), ('k1', 1), ('k2', 2)]
+                            sorted     =[('k0', 0), ('k1', 1), ('k2', 2)]
+  move bottom -> 200 {"status": "ok"}
+  A multiline 0,1,2 after : list order=[('mv0', 200), ('k0', 0), ('k1', 1), ('k2', 2)]
+                            sorted     =[('k0', 0), ('k1', 1), ('k2', 2), ('mv0', 200)]
+  A multiline 0,1,2 after 2nd: list order=[('mv0', 200), ('mv1', 300), ('k0', 0), ('k1', 1), ('k2', 2)]
+                               sorted     =[('k0', 0), ('k1', 1), ('k2', 2), ('mv0', 200), ('mv1', 300)]
+  B 25,50 after deleting 100 before: list order=[('t1', 50), ('t2', 25)]
+                                     sorted     =[('t2', 25), ('t1', 50)]
+  move bottom -> 200 {"status": "ok"}
+  B 25,50 after deleting 100 after : list order=[('mv2', 200), ('t1', 50), ('t2', 25)]
+                                     sorted     =[('t2', 25), ('t1', 50), ('mv2', 200)]
+  B 25,50 after deleting 100 after 2nd: list order=[('mv2', 200), ('mv3', 300), ('t1', 50), ('t2', 25)]
+                                        sorted     =[('t2', 25), ('t1', 50), ('mv2', 200), ('mv3', 300)]
+  C only 3 (others deleted) before: list order=[('t5', 3)]
+                                    sorted     =[('t5', 3)]
+  move bottom -> 200 {"status": "ok"}
+  C only 3 (others deleted) after : list order=[('mv4', 200), ('t5', 3)]
+                                    sorted     =[('t5', 3), ('mv4', 200)]
+  C only 3 (others deleted) after 2nd: list order=[('mv4', 200), ('mv5', 300), ('t5', 3)]
+                                       sorted     =[('t5', 3), ('mv4', 200), ('mv5', 300)]
+  D only child at 0 before: list order=[('k0', 0)]
+                            sorted     =[('k0', 0)]
+  move bottom -> 200 {"status": "ok"}
+  D only child at 0 after : list order=[('mv6', 100), ('k0', 0)]
+                            sorted     =[('k0', 0), ('mv6', 100)]
+  D only child at 0 after 2nd: list order=[('mv6', 100), ('mv7', 200), ('k0', 0)]
+                               sorted     =[('k0', 0), ('mv6', 100), ('mv7', 200)]
+===== mirror =====
+  A multiline 0,1,2 before: list order=[('k0', 0), ('k1', 1), ('k2', 2)]
+                            sorted     =[('k0', 0), ('k1', 1), ('k2', 2)]
+  mirror bottom -> 200 {"item_id": "b1c0bbf6-14fa-47b1-bc67-e142969d9de8", "origin_id": "9d0a23ce-13b4-4021-88a3-0eb62407aa12"}
+  A multiline 0,1,2 after : list order=[('k0', 0), ('k1', 1), ('k2', 2), ('<mirror 9d9de8>', 200)]
+                            sorted     =[('k0', 0), ('k1', 1), ('k2', 2), ('<mirror 9d9de8>', 200)]
+  A multiline 0,1,2 after 2nd: list order=[('k0', 0), ('k1', 1), ('k2', 2), ('<mirror 9d9de8>', 200), ('<mirror e3a7d7>', 300)]
+                               sorted     =[('k0', 0), ('k1', 1), ('k2', 2), ('<mirror 9d9de8>', 200), ('<mirror e3a7d7>', 300)]
+  B 25,50 after deleting 100 before: list order=[('t1', 50), ('t2', 25)]
+                                     sorted     =[('t2', 25), ('t1', 50)]
+  mirror bottom -> 200 {"item_id": "fe31afbd-9b97-475a-89b5-aad61cceaaa8", "origin_id": "9d0a23ce-13b4-4021-88a3-0eb62407aa12"}
+  B 25,50 after deleting 100 after : list order=[('t1', 50), ('t2', 25), ('<mirror ceaaa8>', 200)]
+                                     sorted     =[('t2', 25), ('t1', 50), ('<mirror ceaaa8>', 200)]
+  B 25,50 after deleting 100 after 2nd: list order=[('t1', 50), ('t2', 25), ('<mirror ceaaa8>', 200), ('<mirror 53d391>', 300)]
+                                        sorted     =[('t2', 25), ('t1', 50), ('<mirror ceaaa8>', 200), ('<mirror 53d391>', 300)]
+  C only 3 (others deleted) before: list order=[('t5', 3)]
+                                    sorted     =[('t5', 3)]
+  mirror bottom -> 200 {"item_id": "7e8ac1c7-a28a-4730-8425-53fcf9f73be0", "origin_id": "9d0a23ce-13b4-4021-88a3-0eb62407aa12"}
+  C only 3 (others deleted) after : list order=[('t5', 3), ('<mirror f73be0>', 200)]
+                                    sorted     =[('t5', 3), ('<mirror f73be0>', 200)]
+  C only 3 (others deleted) after 2nd: list order=[('t5', 3), ('<mirror f73be0>', 200), ('<mirror 4872bd>', 300)]
+                                       sorted     =[('t5', 3), ('<mirror f73be0>', 200), ('<mirror 4872bd>', 300)]
+  D only child at 0 before: list order=[('k0', 0)]
+                            sorted     =[('k0', 0)]
+  mirror bottom -> 200 {"item_id": "c06ea8ab-2ba6-4a20-b1f6-bd0384d55225", "origin_id": "9d0a23ce-13b4-4021-88a3-0eb62407aa12"}
+  D only child at 0 after : list order=[('k0', 0), ('<mirror d55225>', 100)]
+                            sorted     =[('k0', 0), ('<mirror d55225>', 100)]
+  D only child at 0 after 2nd: list order=[('k0', 0), ('<mirror d55225>', 100), ('<mirror 7cd3f1>', 200)]
+                               sorted     =[('k0', 0), ('<mirror d55225>', 100), ('<mirror 7cd3f1>', 200)]
+===== same-parent move-to-bottom of kid at max (others max 1) =====
+  E before: list order=[('k0', 0), ('k1', 1), ('k2', 2)]
+            sorted     =[('k0', 0), ('k1', 1), ('k2', 2)]
+  E after moving k2(2) bottom: list order=[('k0', 0), ('k1', 1), ('k2', 200)]
+                               sorted     =[('k0', 0), ('k1', 1), ('k2', 200)]

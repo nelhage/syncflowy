@@ -1,0 +1,142 @@
+[0mdirenv: loading ~/code/syncflowy/.envrc
+[0mdirenv: using flake
+[0mdirenv: nix-direnv: Using cached dev shell
+[0mdirenv: loading ~/code/syncflowy/.envrc.local
+--- create 'D dest'  [t=1791835634.31]
+    POST /api/v1/nodes
+    req: {"parent_id":"d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17","name":"D dest","position":"bottom"}
+    -> 200 {"item_id": "6a6c1627-1a39-46f7-aa41-ecdf94b148b3"}
+--- create 'O0-plain'  [t=1791835634.53]
+    POST /api/v1/nodes
+    req: {"parent_id":"d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17","name":"O0-plain","position":"bottom"}
+    -> 200 {"item_id": "37a48256-2756-489e-ab08-e220156c2a76"}
+--- mirror e220156c2a76 -> ecdf94b148b3  [t=1791835634.73]
+    POST /api/v1/nodes/37a48256-2756-489e-ab08-e220156c2a76/mirror
+    req: {"parent_id":"6a6c1627-1a39-46f7-aa41-ecdf94b148b3","position":"bottom"}
+    -> 200 {"item_id": "5b7a44e7-e8b0-497f-9f86-fe98c1ed7971", "origin_id": "37a48256-2756-489e-ab08-e220156c2a76"}
+--- DELETE /nodes/M  [t=1791835637.47]
+    DELETE /api/v1/nodes/5b7a44e7-e8b0-497f-9f86-fe98c1ed7971
+    -> 200 {"status": "ok"}
+=== trial0 plain: action at 1791835637.29
+      O              1791835634 -> 1791835634  same
+      D              1791835634 -> 1791835634  same
+      S              1791835633 -> 1791835633  same
+    SUMMARY trial0 plain: bumped=[]
+--- GET M after  [t=1791835638.07]
+    GET /api/v1/nodes/5b7a44e7-e8b0-497f-9f86-fe98c1ed7971
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- create 'O0-mirror'  [t=1791835638.35]
+    POST /api/v1/nodes
+    req: {"parent_id":"d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17","name":"O0-mirror","position":"bottom"}
+    -> 200 {"item_id": "fbc9f1e2-fdd6-490b-8886-01a8f6087fcf"}
+--- mirror 01a8f6087fcf -> ecdf94b148b3  [t=1791835638.57]
+    POST /api/v1/nodes/fbc9f1e2-fdd6-490b-8886-01a8f6087fcf/mirror
+    req: {"parent_id":"6a6c1627-1a39-46f7-aa41-ecdf94b148b3","position":"bottom"}
+    -> 200 {"item_id": "89cdb3d7-f5db-473c-b51c-c16a4b746e9b", "origin_id": "fbc9f1e2-fdd6-490b-8886-01a8f6087fcf"}
+--- DELETE /nodes/M/mirror  [t=1791835641.35]
+    DELETE /api/v1/nodes/89cdb3d7-f5db-473c-b51c-c16a4b746e9b/mirror
+    -> 200 {"status": "ok"}
+=== trial0 mirror: action at 1791835641.15
+      O              1791835638 -> 1791835641  BUMPED
+      D              1791835634 -> 1791835634  same
+      S              1791835633 -> 1791835633  same
+    SUMMARY trial0 mirror: bumped=['O']
+--- GET M after  [t=1791835641.94]
+    GET /api/v1/nodes/89cdb3d7-f5db-473c-b51c-c16a4b746e9b
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- create 'O1-plain'  [t=1791835642.17]
+    POST /api/v1/nodes
+    req: {"parent_id":"d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17","name":"O1-plain","position":"bottom"}
+    -> 200 {"item_id": "d2180fcd-d4c5-4923-a88c-a6e6e96651ff"}
+--- mirror a6e6e96651ff -> ecdf94b148b3  [t=1791835642.40]
+    POST /api/v1/nodes/d2180fcd-d4c5-4923-a88c-a6e6e96651ff/mirror
+    req: {"parent_id":"6a6c1627-1a39-46f7-aa41-ecdf94b148b3","position":"bottom"}
+    -> 200 {"item_id": "b9d736f8-4c70-4714-9f4d-fbbdd3ddd06d", "origin_id": "d2180fcd-d4c5-4923-a88c-a6e6e96651ff"}
+--- DELETE /nodes/M  [t=1791835645.18]
+    DELETE /api/v1/nodes/b9d736f8-4c70-4714-9f4d-fbbdd3ddd06d
+    -> 200 {"status": "ok"}
+=== trial1 plain: action at 1791835644.99
+      O              1791835642 -> 1791835642  same
+      D              1791835634 -> 1791835634  same
+      S              1791835633 -> 1791835633  same
+    SUMMARY trial1 plain: bumped=[]
+--- GET M after  [t=1791835645.76]
+    GET /api/v1/nodes/b9d736f8-4c70-4714-9f4d-fbbdd3ddd06d
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- create 'O1-mirror'  [t=1791835645.97]
+    POST /api/v1/nodes
+    req: {"parent_id":"d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17","name":"O1-mirror","position":"bottom"}
+    -> 200 {"item_id": "88a01fa7-28ab-4e11-b4a3-dc20184f7603"}
+--- mirror dc20184f7603 -> ecdf94b148b3  [t=1791835646.21]
+    POST /api/v1/nodes/88a01fa7-28ab-4e11-b4a3-dc20184f7603/mirror
+    req: {"parent_id":"6a6c1627-1a39-46f7-aa41-ecdf94b148b3","position":"bottom"}
+    -> 200 {"item_id": "552ee2a1-86aa-497c-9b84-4e3e43921607", "origin_id": "88a01fa7-28ab-4e11-b4a3-dc20184f7603"}
+--- DELETE /nodes/M/mirror  [t=1791835649.18]
+    DELETE /api/v1/nodes/552ee2a1-86aa-497c-9b84-4e3e43921607/mirror
+    -> 200 {"status": "ok"}
+=== trial1 mirror: action at 1791835648.90
+      O              1791835646 -> 1791835649  BUMPED
+      D              1791835634 -> 1791835634  same
+      S              1791835633 -> 1791835633  same
+    SUMMARY trial1 mirror: bumped=['O']
+--- GET M after  [t=1791835650.02]
+    GET /api/v1/nodes/552ee2a1-86aa-497c-9b84-4e3e43921607
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- create 'O2-plain'  [t=1791835650.28]
+    POST /api/v1/nodes
+    req: {"parent_id":"d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17","name":"O2-plain","position":"bottom"}
+    -> 200 {"item_id": "fd73be72-8abf-433a-93a2-afb7f29ac22f"}
+--- mirror afb7f29ac22f -> ecdf94b148b3  [t=1791835650.98]
+    POST /api/v1/nodes/fd73be72-8abf-433a-93a2-afb7f29ac22f/mirror
+    req: {"parent_id":"6a6c1627-1a39-46f7-aa41-ecdf94b148b3","position":"bottom"}
+    -> 200 {"item_id": "1cfb4ffb-8ca5-4efc-88c4-bff4fe134189", "origin_id": "fd73be72-8abf-433a-93a2-afb7f29ac22f"}
+--- DELETE /nodes/M  [t=1791835653.91]
+    DELETE /api/v1/nodes/1cfb4ffb-8ca5-4efc-88c4-bff4fe134189
+    -> 200 {"status": "ok"}
+=== trial2 plain: action at 1791835653.63
+      O              1791835650 -> 1791835650  same
+      D              1791835634 -> 1791835634  same
+      S              1791835633 -> 1791835633  same
+    SUMMARY trial2 plain: bumped=[]
+--- GET M after  [t=1791835655.19]
+    GET /api/v1/nodes/1cfb4ffb-8ca5-4efc-88c4-bff4fe134189
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- create 'O2-mirror'  [t=1791835655.59]
+    POST /api/v1/nodes
+    req: {"parent_id":"d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17","name":"O2-mirror","position":"bottom"}
+    -> 200 {"item_id": "7172d862-577a-4c77-aca9-9604becd621f"}
+--- mirror 9604becd621f -> ecdf94b148b3  [t=1791835655.82]
+    POST /api/v1/nodes/7172d862-577a-4c77-aca9-9604becd621f/mirror
+    req: {"parent_id":"6a6c1627-1a39-46f7-aa41-ecdf94b148b3","position":"bottom"}
+    -> 200 {"item_id": "126a573a-7ab2-4410-a02c-9269c1fd29a6", "origin_id": "7172d862-577a-4c77-aca9-9604becd621f"}
+--- DELETE /nodes/M/mirror  [t=1791835658.88]
+    DELETE /api/v1/nodes/126a573a-7ab2-4410-a02c-9269c1fd29a6/mirror
+    -> 200 {"status": "ok"}
+=== trial2 mirror: action at 1791835658.55
+      O              1791835655 -> 1791835658  BUMPED
+      D              1791835634 -> 1791835634  same
+      S              1791835633 -> 1791835633  same
+    SUMMARY trial2 mirror: bumped=['O']
+--- GET M after  [t=1791835659.69]
+    GET /api/v1/nodes/126a573a-7ab2-4410-a02c-9269c1fd29a6
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- create 'O-ancestor-case'  [t=1791835659.98]
+    POST /api/v1/nodes
+    req: {"parent_id":"d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17","name":"O-ancestor-case","position":"bottom"}
+    -> 200 {"item_id": "4a0399d6-2176-48c9-b90d-4348dca2bd91"}
+--- create 'H holder'  [t=1791835660.22]
+    POST /api/v1/nodes
+    req: {"parent_id":"d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17","name":"H holder","position":"bottom"}
+    -> 200 {"item_id": "b781ef43-bcb5-488b-930e-5e289e3a7a96"}
+--- mirror 4348dca2bd91 -> 5e289e3a7a96  [t=1791835661.10]
+    POST /api/v1/nodes/4a0399d6-2176-48c9-b90d-4348dca2bd91/mirror
+    req: {"parent_id":"b781ef43-bcb5-488b-930e-5e289e3a7a96"}
+    -> 200 {"item_id": "6df0f3d7-c7d3-4cdd-abe6-d45053f2eef3", "origin_id": "4a0399d6-2176-48c9-b90d-4348dca2bd91"}
+--- DELETE H  [t=1791835663.71]
+    DELETE /api/v1/nodes/b781ef43-bcb5-488b-930e-5e289e3a7a96
+    -> 200 {"status": "ok"}
+=== delete H (contains mirror of O): action at 1791835663.51
+      O              1791835660 -> 1791835660  same
+      S              1791835633 -> 1791835633  same
+    SUMMARY delete H (contains mirror of O): bumped=[]
+RESULTS [(0, 'plain', []), (0, 'mirror', ['O']), (1, 'plain', []), (1, 'mirror', ['O']), (2, 'plain', []), (2, 'mirror', ['O']), ('H', 'ancestor', [])]

@@ -1,0 +1,52 @@
+===== trial 0 =====
+  top creates: request windows (s, relative): [(0.0, 0.58, 200), (0.0, 0.47, 200), (0.0, 0.9, 200), (0.0, 0.67, 200), (0.0, 0.81, 200)]
+  top creates: list order=[('seed100', 100), ('top1', 50), ('top0', 25), ('top3', 12), ('top4', 6), ('top2', 3)]
+               sorted     =[('top2', 3), ('top4', 6), ('top3', 12), ('top0', 25), ('top1', 50), ('seed100', 100)]
+  no duplicates
+  bottom creates: request windows (s, relative): [(0.0, 0.43, 200), (0.0, 0.79, 200), (0.0, 0.54, 200), (0.0, 0.67, 200), (0.0, 0.35, 200)]
+  bottom creates: list order=[('seed100', 100), ('bot4', 200), ('bot0', 300), ('bot2', 400), ('bot3', 500), ('bot1', 600)]
+                  sorted     =[('seed100', 100), ('bot4', 200), ('bot0', 300), ('bot2', 400), ('bot3', 500), ('bot1', 600)]
+  no duplicates
+  top moves: request windows (s, relative): [(0.0, 0.2, 200), (0.0, 0.54, 200), (0.0, 0.32, 200), (0.0, 0.66, 200), (0.0, 0.42, 200)]
+  top moves: list order=[('m0', 50), ('m1', 6), ('m2', 25), ('m3', 3), ('m4', 12), ('seed100', 100)]
+             sorted     =[('m3', 3), ('m1', 6), ('m4', 12), ('m2', 25), ('m0', 50), ('seed100', 100)]
+  no duplicates
+  bottom mirrors: request windows (s, relative): [(0.0, 0.74, 200), (0.0, 0.21, 200), (0.0, 0.55, 200), (0.0, 0.32, 200), (0.0, 0.48, 200)]
+  bottom mirrors: list order=[('seed100', 100), ('<mirror 787a38>', 200), ('<mirror d642c5>', 300), ('<mirror 29a48b>', 400), ('<mirror 39e575>', 500), ('<mirror c97918>', 600)]
+                  sorted     =[('seed100', 100), ('<mirror 787a38>', 200), ('<mirror d642c5>', 300), ('<mirror 29a48b>', 400), ('<mirror 39e575>', 500), ('<mirror c97918>', 600)]
+  no duplicates
+===== trial 1 =====
+  top creates: request windows (s, relative): [(0.0, 0.46, 200), (0.0, 0.45, 200), (0.0, 0.59, 200), (0.0, 0.69, 200), (0.0, 0.27, 200)]
+  top creates: list order=[('seed100', 100), ('top4', 50), ('top1', 25), ('top0', 12), ('top2', 6), ('top3', 3)]
+               sorted     =[('top3', 3), ('top2', 6), ('top0', 12), ('top1', 25), ('top4', 50), ('seed100', 100)]
+  no duplicates
+  bottom creates: request windows (s, relative): [(0.0, 0.24, 200), (0.0, 0.67, 200), (0.0, 0.34, 200), (0.0, 0.45, 200), (0.0, 0.55, 200)]
+  bottom creates: list order=[('seed100', 100), ('bot0', 200), ('bot2', 300), ('bot3', 400), ('bot4', 500), ('bot1', 600)]
+                  sorted     =[('seed100', 100), ('bot0', 200), ('bot2', 300), ('bot3', 400), ('bot4', 500), ('bot1', 600)]
+  no duplicates
+  top moves: request windows (s, relative): [(0.0, 0.65, 200), (0.0, 0.43, 200), (0.0, 0.54, 200), (0.0, 0.33, 200), (0.0, 0.2, 200)]
+  top moves: list order=[('m0', 3), ('m1', 12), ('m2', 6), ('m3', 25), ('m4', 50), ('seed100', 100)]
+             sorted     =[('m0', 3), ('m2', 6), ('m1', 12), ('m3', 25), ('m4', 50), ('seed100', 100)]
+  no duplicates
+  bottom mirrors: request windows (s, relative): [(0.0, 0.44, 200), (0.0, 0.25, 200), (0.0, 0.66, 200), (0.0, 0.34, 200), (0.0, 0.58, 200)]
+  bottom mirrors: list order=[('seed100', 100), ('<mirror 1b05f6>', 200), ('<mirror 4bd9fe>', 300), ('<mirror 79b296>', 400), ('<mirror fbc1cc>', 500), ('<mirror f44ce8>', 600)]
+                  sorted     =[('seed100', 100), ('<mirror 1b05f6>', 200), ('<mirror 4bd9fe>', 300), ('<mirror 79b296>', 400), ('<mirror fbc1cc>', 500), ('<mirror f44ce8>', 600)]
+  no duplicates
+===== trial 2 =====
+  top creates: request windows (s, relative): [(0.0, 0.69, 200), (0.0, 0.44, 200), (0.0, 0.61, 200), (0.0, 0.33, 200), (0.0, 0.23, 200)]
+  top creates: list order=[('seed100', 100), ('top4', 50), ('top3', 25), ('top1', 12), ('top2', 6), ('top0', 3)]
+               sorted     =[('top0', 3), ('top2', 6), ('top1', 12), ('top3', 25), ('top4', 50), ('seed100', 100)]
+  no duplicates
+  bottom creates: request windows (s, relative): [(0.0, 0.65, 200), (0.0, 0.43, 200), (0.0, 0.25, 200), (0.0, 0.54, 200), (0.0, 0.32, 200)]
+  bottom creates: list order=[('seed100', 100), ('bot2', 200), ('bot4', 300), ('bot1', 400), ('bot3', 500), ('bot0', 600)]
+                  sorted     =[('seed100', 100), ('bot2', 200), ('bot4', 300), ('bot1', 400), ('bot3', 500), ('bot0', 600)]
+  no duplicates
+  top moves: request windows (s, relative): [(0.0, 0.18, 200), (0.0, 0.31, 200), (0.0, 0.7, 200), (0.0, 0.54, 200), (0.0, 0.42, 200)]
+  top moves: list order=[('m0', 50), ('m1', 25), ('m2', 3), ('m3', 6), ('m4', 12), ('seed100', 100)]
+             sorted     =[('m2', 3), ('m3', 6), ('m4', 12), ('m1', 25), ('m0', 50), ('seed100', 100)]
+  no duplicates
+  bottom mirrors: request windows (s, relative): [(0.0, 0.33, 200), (0.0, 0.22, 200), (0.0, 0.65, 200), (0.0, 0.46, 200), (0.0, 0.54, 200)]
+  bottom mirrors: list order=[('seed100', 100), ('<mirror d92a95>', 200), ('<mirror e112a7>', 300), ('<mirror 037287>', 400), ('<mirror bf601d>', 500), ('<mirror 4f751d>', 600)]
+                  sorted     =[('seed100', 100), ('<mirror d92a95>', 200), ('<mirror e112a7>', 300), ('<mirror 037287>', 400), ('<mirror bf601d>', 500), ('<mirror 4f751d>', 600)]
+  no duplicates
+parents with duplicates: []

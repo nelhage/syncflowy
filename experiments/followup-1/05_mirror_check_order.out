@@ -1,0 +1,126 @@
+[0mdirenv: loading ~/code/syncflowy/.envrc
+[0mdirenv: using flake
+[0mdirenv: nix-direnv: Using cached dev shell
+[0mdirenv: loading ~/code/syncflowy/.envrc.local
+--- create 'O origin'  [t=1791835722.67]
+    POST /api/v1/nodes
+    req: {"parent_id":"468bb6aa-5067-4224-98a2-a26cd59333e6","name":"O origin","position":"bottom"}
+    -> 200 {"item_id": "212bd5a1-96a8-473f-be20-f5c71816e164"}
+--- create 'D dest'  [t=1791835722.86]
+    POST /api/v1/nodes
+    req: {"parent_id":"468bb6aa-5067-4224-98a2-a26cd59333e6","name":"D dest","position":"bottom"}
+    -> 200 {"item_id": "b2cca772-6611-4d67-8dd1-8356c1904df4"}
+--- create 'X plain'  [t=1791835723.08]
+    POST /api/v1/nodes
+    req: {"parent_id":"468bb6aa-5067-4224-98a2-a26cd59333e6","name":"X plain","position":"bottom"}
+    -> 200 {"item_id": "56a62dd8-83f1-41dd-99e4-6a967fcc78a6"}
+--- mirror f5c71816e164 -> 8356c1904df4  [t=1791835723.33]
+    POST /api/v1/nodes/212bd5a1-96a8-473f-be20-f5c71816e164/mirror
+    req: {"parent_id":"b2cca772-6611-4d67-8dd1-8356c1904df4"}
+    -> 200 {"item_id": "f0f3d804-1941-4ab6-9648-427aff3896aa", "origin_id": "212bd5a1-96a8-473f-be20-f5c71816e164"}
+--- create 'K plain child of shell'  [t=1791835723.54]
+    POST /api/v1/nodes
+    req: {"parent_id":"f0f3d804-1941-4ab6-9648-427aff3896aa","name":"K plain child of shell"}
+    -> 200 {"item_id": "e18ca61b-2286-4e9c-88f8-12cd1a9c7fcd"}
+##### precedence
+--- random id + bad position + real parent  [t=1791835723.68]
+    POST /api/v1/nodes/ef4da563-b4bc-44bc-afc8-363dcdbda46c/mirror
+    req: {"parent_id":"b2cca772-6611-4d67-8dd1-8356c1904df4","position":"middle"}
+    -> 400 {"errors": [{"type": "enum", "loc": ["position"], "msg": "Input should be 'top' or 'bottom'", "input": "middle"}]}
+--- random id + random parent  [t=1791835723.86]
+    POST /api/v1/nodes/ef4da563-b4bc-44bc-afc8-363dcdbda46c/mirror
+    req: {"parent_id":"17706f85-b90b-4d28-b7e0-68f3f1c9e025"}
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- random id + random parent + bad position  [t=1791835724.00]
+    POST /api/v1/nodes/ef4da563-b4bc-44bc-afc8-363dcdbda46c/mirror
+    req: {"parent_id":"17706f85-b90b-4d28-b7e0-68f3f1c9e025","position":"middle"}
+    -> 400 {"errors": [{"type": "enum", "loc": ["position"], "msg": "Input should be 'top' or 'bottom'", "input": "middle"}]}
+--- random id + missing parent_id  [t=1791835724.14]
+    POST /api/v1/nodes/ef4da563-b4bc-44bc-afc8-363dcdbda46c/mirror
+    req: {}
+    -> 400 {"errors": [{"type": "missing", "loc": ["parent_id"], "msg": "Field required", "input": {}}]}
+--- random id + invalid json  [t=1791835724.30]
+    POST /api/v1/nodes/ef4da563-b4bc-44bc-afc8-363dcdbda46c/mirror
+    req: {nope
+    -> 400 {"code": "invalid_json", "message": "Invalid JSON format in request body"}
+--- random id + parent_id int  [t=1791835724.43]
+    POST /api/v1/nodes/ef4da563-b4bc-44bc-afc8-363dcdbda46c/mirror
+    req: {"parent_id":5}
+    -> 400 {"errors": [{"type": "string_type", "loc": ["parent_id"], "msg": "Input should be a valid string", "input": 5}]}
+--- real id + random parent + bad position  [t=1791835724.58]
+    POST /api/v1/nodes/56a62dd8-83f1-41dd-99e4-6a967fcc78a6/mirror
+    req: {"parent_id":"17706f85-b90b-4d28-b7e0-68f3f1c9e025","position":"middle"}
+    -> 400 {"errors": [{"type": "enum", "loc": ["position"], "msg": "Input should be 'top' or 'bottom'", "input": "middle"}]}
+--- real id + random parent  [t=1791835724.73]
+    POST /api/v1/nodes/56a62dd8-83f1-41dd-99e4-6a967fcc78a6/mirror
+    req: {"parent_id":"17706f85-b90b-4d28-b7e0-68f3f1c9e025"}
+    -> 404 {"code": "not_found", "message": "Parent item not found"}
+--- O -> O (self) + bad position  [t=1791835724.88]
+    POST /api/v1/nodes/212bd5a1-96a8-473f-be20-f5c71816e164/mirror
+    req: {"parent_id":"212bd5a1-96a8-473f-be20-f5c71816e164","position":"middle"}
+    -> 400 {"errors": [{"type": "enum", "loc": ["position"], "msg": "Input should be 'top' or 'bottom'", "input": "middle"}]}
+--- O -> O (self)  [t=1791835725.03]
+    POST /api/v1/nodes/212bd5a1-96a8-473f-be20-f5c71816e164/mirror
+    req: {"parent_id":"212bd5a1-96a8-473f-be20-f5c71816e164"}
+    -> 400 {"code": "invalid_request", "message": "Cannot mirror a node under itself"}
+--- orphan-src placeholder skipped  [t=1791835725.18]
+    POST /api/v1/nodes/56a62dd8-83f1-41dd-99e4-6a967fcc78a6/mirror
+    req: {"parent_id":"zzzz-not-an-id"}
+    -> 404 {"code": "not_found", "message": "Parent item not found"}
+##### DELETE /mirror on plain child of shell
+--- DELETE K/mirror  [t=1791835725.32]
+    DELETE /api/v1/nodes/e18ca61b-2286-4e9c-88f8-12cd1a9c7fcd/mirror
+    -> 400 {"code": "invalid_request", "message": "Node is not a mirror"}
+--- GET K after  [t=1791835725.48]
+    GET /api/v1/nodes/e18ca61b-2286-4e9c-88f8-12cd1a9c7fcd
+    -> 200 {"node": {"id": "e18ca61b-2286-4e9c-88f8-12cd1a9c7fcd", "name": "K plain child of shell", "note": null, "parent_id": "f0f3d804-1941-4ab6-9648-427aff3896aa", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835723, "modifiedAt": 1791835723, "completedAt": null}}
+--- DELETE X/mirror (plain, control)  [t=1791835725.64]
+    DELETE /api/v1/nodes/56a62dd8-83f1-41dd-99e4-6a967fcc78a6/mirror
+    -> 400 {"code": "invalid_request", "message": "Node is not a mirror"}
+##### orphan shell as parent_id / as source
+--- create 'O2 origin to be deleted'  [t=1791835725.84]
+    POST /api/v1/nodes
+    req: {"parent_id":"468bb6aa-5067-4224-98a2-a26cd59333e6","name":"O2 origin to be deleted","position":"bottom"}
+    -> 200 {"item_id": "e8f5b477-d4e6-463c-8b32-7c4696230505"}
+--- create 'H holds orphan'  [t=1791835726.06]
+    POST /api/v1/nodes
+    req: {"parent_id":"468bb6aa-5067-4224-98a2-a26cd59333e6","name":"H holds orphan","position":"bottom"}
+    -> 200 {"item_id": "03a0ff1b-500f-42d4-bc07-2e3fb3427543"}
+--- mirror 7c4696230505 -> 2e3fb3427543  [t=1791835726.27]
+    POST /api/v1/nodes/e8f5b477-d4e6-463c-8b32-7c4696230505/mirror
+    req: {"parent_id":"03a0ff1b-500f-42d4-bc07-2e3fb3427543"}
+    -> 200 {"item_id": "f30fefe9-053e-48d4-b18a-12f5f5a94434", "origin_id": "e8f5b477-d4e6-463c-8b32-7c4696230505"}
+--- create 'nc child of orphan-to-be'  [t=1791835726.46]
+    POST /api/v1/nodes
+    req: {"parent_id":"f30fefe9-053e-48d4-b18a-12f5f5a94434","name":"nc child of orphan-to-be"}
+    -> 200 {"item_id": "79c5a8be-0649-48c3-9cbd-691c684dacf6"}
+--- DELETE O2  [t=1791835726.65]
+    DELETE /api/v1/nodes/e8f5b477-d4e6-463c-8b32-7c4696230505
+    -> 200 {"status": "ok"}
+--- GET N (orphan)  [t=1791835726.80]
+    GET /api/v1/nodes/f30fefe9-053e-48d4-b18a-12f5f5a94434
+    -> 200 {"node": {"id": "f30fefe9-053e-48d4-b18a-12f5f5a94434", "name": "", "note": "", "parent_id": "03a0ff1b-500f-42d4-bc07-2e3fb3427543", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791835726, "modifiedAt": 1791835726, "completedAt": null}}
+--- mirror X -> N (orphan parent)  [t=1791835726.95]
+    POST /api/v1/nodes/56a62dd8-83f1-41dd-99e4-6a967fcc78a6/mirror
+    req: {"parent_id":"f30fefe9-053e-48d4-b18a-12f5f5a94434"}
+    -> 404 {"code": "not_found", "message": "Parent item not found"}
+--- mirror N (orphan) -> D  [t=1791835727.10]
+    POST /api/v1/nodes/f30fefe9-053e-48d4-b18a-12f5f5a94434/mirror
+    req: {"parent_id":"b2cca772-6611-4d67-8dd1-8356c1904df4"}
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- mirror N (orphan) -> D bad position  [t=1791835727.24]
+    POST /api/v1/nodes/f30fefe9-053e-48d4-b18a-12f5f5a94434/mirror
+    req: {"parent_id":"b2cca772-6611-4d67-8dd1-8356c1904df4","position":"middle"}
+    -> 400 {"errors": [{"type": "enum", "loc": ["position"], "msg": "Input should be 'top' or 'bottom'", "input": "middle"}]}
+--- mirror N (orphan) -> random parent  [t=1791835727.39]
+    POST /api/v1/nodes/f30fefe9-053e-48d4-b18a-12f5f5a94434/mirror
+    req: {"parent_id":"17706f85-b90b-4d28-b7e0-68f3f1c9e025"}
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- mirror N (orphan) -> N  [t=1791835727.54]
+    POST /api/v1/nodes/f30fefe9-053e-48d4-b18a-12f5f5a94434/mirror
+    req: {"parent_id":"f30fefe9-053e-48d4-b18a-12f5f5a94434"}
+    -> 404 {"code": "not_found", "message": "Item not found"}
+--- mirror nc (plain child of orphan) -> D  [t=1791835727.74]
+    POST /api/v1/nodes/79c5a8be-0649-48c3-9cbd-691c684dacf6/mirror
+    req: {"parent_id":"b2cca772-6611-4d67-8dd1-8356c1904df4"}
+    -> 200 {"item_id": "b36eff72-673f-4aa9-99d1-49f3500bfbae", "origin_id": "79c5a8be-0649-48c3-9cbd-691c684dacf6"}

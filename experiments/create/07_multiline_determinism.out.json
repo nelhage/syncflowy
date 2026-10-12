@@ -1,0 +1,193 @@
+[
+ {
+  "input": "a\n\nb\n\nc",
+  "extra": {},
+  "status": 200,
+  "tree": [
+   {
+    "name": "a b",
+    "pri": 100,
+    "lm": "bullets",
+    "children": [
+     {
+      "name": "c",
+      "pri": 0,
+      "lm": "p",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n\nb\n\nc",
+  "extra": {},
+  "status": 200,
+  "tree": [
+   {
+    "name": "a b",
+    "pri": 100,
+    "lm": "bullets",
+    "children": [
+     {
+      "name": "c",
+      "pri": 0,
+      "lm": "p",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "parent\n\nchild1\n\nchild2",
+  "extra": {},
+  "status": 200,
+  "tree": [
+   {
+    "name": "parent child1 child2",
+    "pri": 100,
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "parent\n\nchild1\n\nchild2",
+  "extra": {},
+  "status": 200,
+  "tree": [
+   {
+    "name": "parent child1 child2",
+    "pri": 100,
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "parent\n\nchild1\n\nchild2",
+  "extra": {
+   "layoutMode": "todo"
+  },
+  "status": 200,
+  "tree": [
+   {
+    "name": "parent child1 child2",
+    "pri": 100,
+    "lm": "todo",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "parent\n\nchild1\n\nchild2",
+  "extra": {
+   "note": "n"
+  },
+  "status": 200,
+  "tree": [
+   {
+    "name": "parent child1 child2",
+    "pri": 100,
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "a\n\nb\n\nc",
+  "extra": {
+   "layoutMode": "todo",
+   "note": "the note"
+  },
+  "status": 200,
+  "tree": [
+   {
+    "name": "a b",
+    "pri": 100,
+    "lm": "todo",
+    "children": [
+     {
+      "name": "c",
+      "pri": 0,
+      "lm": "p",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "p\n\nc1\nc1cont\n\nc2",
+  "extra": {},
+  "status": 200,
+  "tree": [
+   {
+    "name": "p c1 c1cont c2",
+    "pri": 100,
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "a\n\nb",
+  "extra": {},
+  "status": 200,
+  "tree": [
+   {
+    "name": "a b",
+    "pri": 100,
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x\n\ny\n\nz\n\nw",
+  "extra": {},
+  "status": 200,
+  "tree": [
+   {
+    "name": "x y",
+    "pri": 100,
+    "lm": "bullets",
+    "children": [
+     {
+      "name": "z w",
+      "pri": 0,
+      "lm": "p",
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "input": "x\n\ny\n\nz\n\nw\n\nv",
+  "extra": {},
+  "status": 200,
+  "tree": [
+   {
+    "name": "x y",
+    "pri": 100,
+    "lm": "bullets",
+    "children": [
+     {
+      "name": "z w",
+      "pri": 0,
+      "lm": "p",
+      "children": []
+     },
+     {
+      "name": "v",
+      "pri": 1,
+      "lm": "p",
+      "children": []
+     }
+    ]
+   }
+  ]
+ }
+]

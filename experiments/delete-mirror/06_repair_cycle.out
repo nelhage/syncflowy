@@ -1,0 +1,46 @@
+--- GET O (cycle state)
+    GET /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "modifiedAt": 1791834609, "name": "O renamed", "note": null, "parent_id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "priority": 100}}
+--- GET oc (cycle state)
+    GET /api/v1/nodes/3c90751a-6a74-4595-a51b-84c4bdae7801
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "modifiedAt": 1791834608, "name": "oc", "note": null, "parent_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "priority": 100}}
+--- list O
+    GET /api/v1/nodes?parent_id=f3b37cea-f495-4dba-9fd9-92fff33a02df
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "modifiedAt": 1791834608, "name": "oc", "note": null, "parent_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "priority": 100}]}
+--- list oc
+    GET /api/v1/nodes?parent_id=3c90751a-6a74-4595-a51b-84c4bdae7801
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "modifiedAt": 1791834609, "name": "O renamed", "note": null, "parent_id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834606, "data": {"layoutMode": "bullets"}, "id": "d2558515-4ca6-419f-a3b0-1a0a9c82e397", "modifiedAt": 1791834608, "name": "", "note": "", "parent_id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "priority": 50}]}
+--- MOVE oc -> O (child of its own child, whose parent is oc)
+    POST /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df/move
+    req: {"parent_id":"f3b37cea-f495-4dba-9fd9-92fff33a02df"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- REPAIR: MOVE O -> S bottom
+    POST /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df/move
+    req: {"parent_id":"2882eb89-25a3-4d38-94be-5335447681ab","position":"bottom"}
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET O after repair
+    GET /api/v1/nodes/f3b37cea-f495-4dba-9fd9-92fff33a02df
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "modifiedAt": 1791834638, "name": "O renamed", "note": null, "parent_id": "2882eb89-25a3-4d38-94be-5335447681ab", "priority": 300}}
+--- GET oc after repair
+    GET /api/v1/nodes/3c90751a-6a74-4595-a51b-84c4bdae7801
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "modifiedAt": 1791834608, "name": "oc", "note": null, "parent_id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "priority": 100}}
+--- GET M5
+    GET /api/v1/nodes/d2558515-4ca6-419f-a3b0-1a0a9c82e397
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834606, "data": {"layoutMode": "bullets"}, "id": "d2558515-4ca6-419f-a3b0-1a0a9c82e397", "modifiedAt": 1791834608, "name": "", "note": "", "parent_id": "3c90751a-6a74-4595-a51b-84c4bdae7801", "priority": 50}}
+--- GET B
+    GET /api/v1/nodes/2e96da4e-90f8-49fa-8a81-7e07799c160c
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "2e96da4e-90f8-49fa-8a81-7e07799c160c", "modifiedAt": 1791834607, "name": "B (origin container)", "note": null, "parent_id": "d2558515-4ca6-419f-a3b0-1a0a9c82e397", "priority": 50}}
+--- list sandbox
+    GET /api/v1/nodes?parent_id=2882eb89-25a3-4d38-94be-5335447681ab
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834586, "data": {"layoutMode": "bullets"}, "id": "1727b2c2-3976-488e-8e65-44d2b0b4fdd2", "modifiedAt": 1791834586, "name": "A (mirror dest)", "note": null, "parent_id": "2882eb89-25a3-4d38-94be-5335447681ab", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834587, "data": {"layoutMode": "bullets"}, "id": "f3b37cea-f495-4dba-9fd9-92fff33a02df", "modifiedAt": 1791834638, "name": "O renamed", "note": null, "parent_id": "2882eb89-25a3-4d38-94be-5335447681ab", "priority": 300}, {"completed": false, "completedAt": null, "createdAt": 1791834613, "data": {"layoutMode": "bullets"}, "id": "859b7a68-4039-4b49-a936-7dcddcc1dcb6", "modifiedAt": 1791834613, "name": "P priorities", "note": null, "parent_id": "2882eb89-25a3-4d38-94be-5335447681ab", "priority": 200}]}

@@ -1,0 +1,44 @@
+=== A: move to top into [0,1,2]
+  before: list order=[('k0', 0), ('k1', 1), ('k2', 2)]
+          sorted     =[('k0', 0), ('k1', 1), ('k2', 2)]
+  move -> {"status": "ok"}
+  after : list order=[('mv0', 100), ('k0', 200), ('k1', 300), ('k2', 400)]
+          sorted     =[('mv0', 100), ('k0', 200), ('k1', 300), ('k2', 400)]
+  modifiedAt before {'k0': 1791835555, 'k1': 1791835555, 'k2': 1791835555} after {'mv0': 1791835557, 'k0': 1791835555, 'k1': 1791835555, 'k2': 1791835555}
+=== B: mirror to top into [0,1,2]
+  before: list order=[('k0', 0), ('k1', 1), ('k2', 2)]
+          sorted     =[('k0', 0), ('k1', 1), ('k2', 2)]
+  mirror -> {"item_id": "cd5c7d83-a552-4acb-aafd-5f5d944acd17", "origin_id": "1cf21548-04c6-44ce-b9b0-97868f600100"}
+  after : list order=[('k0', 200), ('k1', 300), ('k2', 400), ('<mirror 4acd17>', 100)]
+          sorted     =[('<mirror 4acd17>', 100), ('k0', 200), ('k1', 300), ('k2', 400)]
+=== C: mirror shell as an existing sibling, then a top create renumbers
+  after bottom mirror: list order=[('k0', 0), ('k1', 1), ('k2', 2), ('<mirror 6f9167>', 200)]
+                       sorted     =[('k0', 0), ('k1', 1), ('k2', 2), ('<mirror 6f9167>', 200)]
+  after top create: list order=[('k0', 200), ('k1', 300), ('k2', 400), ('<mirror 6f9167>', 500), ('top-create', 100)]
+                    sorted     =[('top-create', 100), ('k0', 200), ('k1', 300), ('k2', 400), ('<mirror 6f9167>', 500)]
+=== C2: mirror shell sitting at priority 0 among others gets renumbered too?
+  shell at 0: list order=[('x100', 100), ('t0', 50), ('t1', 25), ('t2', 12), ('t3', 6), ('t4', 3), ('t5', 1), ('<mirror 238130>', 0)]
+              sorted     =[('<mirror 238130>', 0), ('t5', 1), ('t4', 3), ('t3', 6), ('t2', 12), ('t1', 25), ('t0', 50), ('x100', 100)]
+  after top move in: list order=[('mv1', 100), ('x100', 900), ('t0', 800), ('t1', 700), ('t2', 600), ('t3', 500), ('t4', 400), ('t5', 300), ('<mirror 238130>', 200)]
+                     sorted     =[('mv1', 100), ('<mirror 238130>', 200), ('t5', 300), ('t4', 400), ('t3', 500), ('t2', 600), ('t1', 700), ('t0', 800), ('x100', 900)]
+=== D: [self=0, 100, 200], move self top (same parent)
+  before: list order=[('b100', 100), ('b200', 200), ('t6', 0)]
+          sorted     =[('t6', 0), ('b100', 100), ('b200', 200)]
+  move self(0) top -> {"status": "ok"}
+  after : list order=[('b100', 100), ('b200', 200), ('t6', 50)]
+          sorted     =[('t6', 50), ('b100', 100), ('b200', 200)]
+=== E: [a=0, self=1, 100], move self top
+  before: list order=[('b100', 100), ('t5', 1), ('t6', 0)]
+          sorted     =[('t6', 0), ('t5', 1), ('b100', 100)]
+  move t5(1) top -> {"status": "ok"}
+  after : list order=[('b100', 300), ('t5', 100), ('t6', 200)]
+          sorted     =[('t5', 100), ('t6', 200), ('b100', 300)]
+=== F: [self=0] alone, move self top / bottom
+  before: list order=[('k0', 0)]
+          sorted     =[('k0', 0)]
+  move k0 top -> {"status": "ok"}
+  after top: list order=[('k0', 100)]
+             sorted     =[('k0', 100)]
+=== G: same-parent move-to-top of k2 in [0,1,2] (others min 0)
+  after k2 top: list order=[('k0', 200), ('k1', 300), ('k2', 100)]
+                sorted     =[('k2', 100), ('k0', 200), ('k1', 300)]

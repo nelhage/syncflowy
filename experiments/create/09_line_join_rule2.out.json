@@ -1,0 +1,313 @@
+[
+ {
+  "input": "x,\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x, b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x:\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x: b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x;\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x; b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x!\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x!",
+    "lm": "bullets",
+    "children": [
+     "b"
+    ]
+   }
+  ]
+ },
+ {
+  "input": "x?\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x?",
+    "lm": "bullets",
+    "children": [
+     "b"
+    ]
+   }
+  ]
+ },
+ {
+  "input": "x)\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x) b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x*\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x* b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x-\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x- b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x\"\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x\" b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x'\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x' b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x1\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x1 b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "xé\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "xé b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "xA\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "xA b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x]\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x] b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x>\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x> b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x`\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x` b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x~\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x~ b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x#\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x# b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x/\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x/ b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "x。\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "x。 b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "a\n \nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "lm": "bullets",
+    "children": [
+     "b"
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n\n\n\n\n\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a b",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "a.\n\nb",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a.",
+    "lm": "bullets",
+    "children": [
+     "b"
+    ]
+   }
+  ]
+ },
+ {
+  "input": "a\n\n b",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a",
+    "lm": "bullets",
+    "children": [
+     "b"
+    ]
+   }
+  ]
+ },
+ {
+  "input": "Hello world.\nthis is lowercase",
+  "status": 200,
+  "tree": [
+   {
+    "name": "Hello world.",
+    "lm": "bullets",
+    "children": [
+     "this is lowercase"
+    ]
+   }
+  ]
+ },
+ {
+  "input": "Hello world\nThis is upper",
+  "status": 200,
+  "tree": [
+   {
+    "name": "Hello world",
+    "lm": "bullets",
+    "children": [
+     "This is upper"
+    ]
+   }
+  ]
+ },
+ {
+  "input": "hello\nworld\nagain\nmore",
+  "status": 200,
+  "tree": [
+   {
+    "name": "hello world again more",
+    "lm": "bullets",
+    "children": []
+   }
+  ]
+ }
+]

@@ -1,0 +1,769 @@
+[
+ {
+  "label": "A1 update name,note,layoutMode all bad",
+  "req": "POST https://workflowy.com/api/v1/nodes/81f2b680-c161-4691-998a-45737d518b2c",
+  "sent": {
+   "name": 1,
+   "note": 2,
+   "layoutMode": 3
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"string_type\", \"loc\": [\"note\"], \"msg\": \"Input should be a valid string\", \"input\": 2}, {\"type\": \"string_type\", \"loc\": [\"layoutMode\"], \"msg\": \"Input should be a valid string\", \"input\": 3}]}"
+ },
+ {
+  "label": "A2 same, reversed key order",
+  "req": "POST https://workflowy.com/api/v1/nodes/81f2b680-c161-4691-998a-45737d518b2c",
+  "sent": {
+   "layoutMode": 3,
+   "note": 2,
+   "name": 1
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"string_type\", \"loc\": [\"note\"], \"msg\": \"Input should be a valid string\", \"input\": 2}, {\"type\": \"string_type\", \"loc\": [\"layoutMode\"], \"msg\": \"Input should be a valid string\", \"input\": 3}]}"
+ },
+ {
+  "label": "A3 update name+layoutMode bad",
+  "req": "POST https://workflowy.com/api/v1/nodes/81f2b680-c161-4691-998a-45737d518b2c",
+  "sent": {
+   "name": [
+    1
+   ],
+   "layoutMode": {
+    "a": 1
+   }
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": [1]}, {\"type\": \"string_type\", \"loc\": [\"layoutMode\"], \"msg\": \"Input should be a valid string\", \"input\": {\"a\": 1}}]}"
+ },
+ {
+  "label": "A4 update bad parent_id/position/completed (ignored fields?)",
+  "req": "POST https://workflowy.com/api/v1/nodes/81f2b680-c161-4691-998a-45737d518b2c",
+  "sent": {
+   "parent_id": 1,
+   "position": "q",
+   "completed": "x",
+   "priority": "z"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Item not found\"}"
+ },
+ {
+  "label": "A5 update name bad + bad position",
+  "req": "POST https://workflowy.com/api/v1/nodes/81f2b680-c161-4691-998a-45737d518b2c",
+  "sent": {
+   "name": 1,
+   "position": "q"
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": 1}]}"
+ },
+ {
+  "label": "A1-repeat",
+  "req": "POST https://workflowy.com/api/v1/nodes/81f2b680-c161-4691-998a-45737d518b2c",
+  "sent": {
+   "name": 1,
+   "note": 2,
+   "layoutMode": 3
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"string_type\", \"loc\": [\"note\"], \"msg\": \"Input should be a valid string\", \"input\": 2}, {\"type\": \"string_type\", \"loc\": [\"layoutMode\"], \"msg\": \"Input should be a valid string\", \"input\": 3}]}"
+ },
+ {
+  "label": "B move body [1]",
+  "req": "POST https://workflowy.com/api/v1/nodes/4da3c64c-01fc-4581-9eaa-6ce8be6324bb/move",
+  "sent": "[1]",
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MoveNodeRequest\", \"input\": [1]}]}"
+ },
+ {
+  "label": "B move body \"s\"",
+  "req": "POST https://workflowy.com/api/v1/nodes/28c3c169-39b0-448b-986e-973777416820/move",
+  "sent": "\"s\"",
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MoveNodeRequest\", \"input\": \"s\"}]}"
+ },
+ {
+  "label": "B move body null",
+  "req": "POST https://workflowy.com/api/v1/nodes/19d3aa03-7ad2-4f80-9ddf-d610cd9aa2c3/move",
+  "sent": "null",
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MoveNodeRequest\", \"input\": null}]}"
+ },
+ {
+  "label": "B move empty body",
+  "req": "POST https://workflowy.com/api/v1/nodes/fc362a3f-c8da-474a-97be-909c7ea57952/move",
+  "sent": "",
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"code\": \"invalid_json\", \"message\": \"Invalid JSON format in request body\"}"
+ },
+ {
+  "label": "B mirror body [1]",
+  "req": "POST https://workflowy.com/api/v1/nodes/ae357aaa-7750-467e-91c3-d390236a07da/mirror",
+  "sent": "[1]",
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MirrorNodeRequest\", \"input\": [1]}]}"
+ },
+ {
+  "label": "B mirror body \"s\"",
+  "req": "POST https://workflowy.com/api/v1/nodes/0fc8f75f-2217-44ec-90e6-31ea3da399ba/mirror",
+  "sent": "\"s\"",
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MirrorNodeRequest\", \"input\": \"s\"}]}"
+ },
+ {
+  "label": "B mirror body null",
+  "req": "POST https://workflowy.com/api/v1/nodes/d7183333-a071-4004-ad48-42edf2c2ff71/mirror",
+  "sent": "null",
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MirrorNodeRequest\", \"input\": null}]}"
+ },
+ {
+  "label": "B mirror empty body",
+  "req": "POST https://workflowy.com/api/v1/nodes/02297412-b6bf-4130-a96b-5f80b5962a32/mirror",
+  "sent": "",
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"code\": \"invalid_json\", \"message\": \"Invalid JSON format in request body\"}"
+ },
+ {
+  "label": "B create body [1] (recheck)",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": "[1]",
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of CreateItemRequest\", \"input\": [1]}]}"
+ },
+ {
+  "label": "B update body [1] (recheck)",
+  "req": "POST https://workflowy.com/api/v1/nodes/81f2b680-c161-4691-998a-45737d518b2c",
+  "sent": "[1]",
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of UpdateNodeRequest\", \"input\": [1]}]}"
+ },
+ {
+  "label": "C move {}",
+  "req": "POST https://workflowy.com/api/v1/nodes/63c0e92e-0129-4b29-9dea-3d1fa7deada4/move",
+  "sent": {},
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Item not found\"}"
+ },
+ {
+  "label": "C move parent_id null",
+  "req": "POST https://workflowy.com/api/v1/nodes/63c0e92e-0129-4b29-9dea-3d1fa7deada4/move",
+  "sent": {
+   "parent_id": null
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Item not found\"}"
+ },
+ {
+  "label": "C move parent_id ''",
+  "req": "POST https://workflowy.com/api/v1/nodes/63c0e92e-0129-4b29-9dea-3d1fa7deada4/move",
+  "sent": {
+   "parent_id": ""
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Item not found\"}"
+ },
+ {
+  "label": "C move parent_id 1",
+  "req": "POST https://workflowy.com/api/v1/nodes/63c0e92e-0129-4b29-9dea-3d1fa7deada4/move",
+  "sent": {
+   "parent_id": 1
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}]}"
+ },
+ {
+  "label": "C move parent_id 1 + position q",
+  "req": "POST https://workflowy.com/api/v1/nodes/63c0e92e-0129-4b29-9dea-3d1fa7deada4/move",
+  "sent": {
+   "parent_id": 1,
+   "position": "q"
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": \"q\"}]}"
+ },
+ {
+  "label": "C move position q + parent_id 1 (key order swapped)",
+  "req": "POST https://workflowy.com/api/v1/nodes/63c0e92e-0129-4b29-9dea-3d1fa7deada4/move",
+  "sent": {
+   "position": "q",
+   "parent_id": 1
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": \"q\"}]}"
+ },
+ {
+  "label": "C move {} + position q",
+  "req": "POST https://workflowy.com/api/v1/nodes/63c0e92e-0129-4b29-9dea-3d1fa7deada4/move",
+  "sent": {
+   "position": "q"
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": \"q\"}]}"
+ },
+ {
+  "label": "C move parent_id [x]",
+  "req": "POST https://workflowy.com/api/v1/nodes/63c0e92e-0129-4b29-9dea-3d1fa7deada4/move",
+  "sent": {
+   "parent_id": [
+    "x"
+   ]
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": [\"x\"]}]}"
+ },
+ {
+  "label": "C mirror {}",
+  "req": "POST https://workflowy.com/api/v1/nodes/e5b3cb9a-66df-4d95-85c9-60d9a9f33fd6/mirror",
+  "sent": {},
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"missing\", \"loc\": [\"parent_id\"], \"msg\": \"Field required\", \"input\": {}}]}"
+ },
+ {
+  "label": "C mirror parent_id null",
+  "req": "POST https://workflowy.com/api/v1/nodes/e5b3cb9a-66df-4d95-85c9-60d9a9f33fd6/mirror",
+  "sent": {
+   "parent_id": null
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": null}]}"
+ },
+ {
+  "label": "C mirror parent_id ''",
+  "req": "POST https://workflowy.com/api/v1/nodes/e5b3cb9a-66df-4d95-85c9-60d9a9f33fd6/mirror",
+  "sent": {
+   "parent_id": ""
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Item not found\"}"
+ },
+ {
+  "label": "C mirror parent_id 1",
+  "req": "POST https://workflowy.com/api/v1/nodes/e5b3cb9a-66df-4d95-85c9-60d9a9f33fd6/mirror",
+  "sent": {
+   "parent_id": 1
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}]}"
+ },
+ {
+  "label": "C mirror parent_id 1 + position q",
+  "req": "POST https://workflowy.com/api/v1/nodes/e5b3cb9a-66df-4d95-85c9-60d9a9f33fd6/mirror",
+  "sent": {
+   "parent_id": 1,
+   "position": "q"
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": \"q\"}]}"
+ },
+ {
+  "label": "C mirror position q + parent_id 1 (key order swapped)",
+  "req": "POST https://workflowy.com/api/v1/nodes/e5b3cb9a-66df-4d95-85c9-60d9a9f33fd6/mirror",
+  "sent": {
+   "position": "q",
+   "parent_id": 1
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": \"q\"}]}"
+ },
+ {
+  "label": "C mirror {} + position q",
+  "req": "POST https://workflowy.com/api/v1/nodes/e5b3cb9a-66df-4d95-85c9-60d9a9f33fd6/mirror",
+  "sent": {
+   "position": "q"
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"missing\", \"loc\": [\"parent_id\"], \"msg\": \"Field required\", \"input\": {\"position\": \"q\"}}, {\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": \"q\"}]}"
+ },
+ {
+  "label": "C mirror parent_id [x]",
+  "req": "POST https://workflowy.com/api/v1/nodes/e5b3cb9a-66df-4d95-85c9-60d9a9f33fd6/mirror",
+  "sent": {
+   "parent_id": [
+    "x"
+   ]
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": [\"x\"]}]}"
+ },
+ {
+  "label": "C create {name:1} (parent_id omitted)",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "name": 1
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": 1}]}"
+ },
+ {
+  "label": "C create {name:1, parent_id:null}",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "name": 1,
+   "parent_id": null
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": 1}]}"
+ },
+ {
+  "label": "C create {name:1, parent_id:''}",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "name": 1,
+   "parent_id": ""
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": 1}]}"
+ },
+ {
+  "label": "C create {parent_id:1, name:1}",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "parent_id": 1,
+   "name": 1
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}]}"
+ },
+ {
+  "label": "C create {name:1, parent_id:1} (key order swapped)",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "name": 1,
+   "parent_id": 1
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}]}"
+ },
+ {
+  "label": "C create {parent_id:1} (name missing)",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "parent_id": 1
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"missing\", \"loc\": [\"name\"], \"msg\": \"Field required\", \"input\": {\"parent_id\": 1}}, {\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}]}"
+ },
+ {
+  "label": "C create {} ",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {},
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"missing\", \"loc\": [\"name\"], \"msg\": \"Field required\", \"input\": {}}]}"
+ },
+ {
+  "label": "C create all bad incl parent",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "position": "q",
+   "layoutMode": 3,
+   "note": 2,
+   "name": 1,
+   "parent_id": 1
+  },
+  "status": 400,
+  "ctype": "application/json",
+  "body": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"name\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}, {\"type\": \"string_type\", \"loc\": [\"note\"], \"msg\": \"Input should be a valid string\", \"input\": 2}, {\"type\": \"string_type\", \"loc\": [\"layoutMode\"], \"msg\": \"Input should be a valid string\", \"input\": 3}, {\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": \"q\"}]}"
+ },
+ {
+  "label": "D sandbox list (before)",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=734b55d9-33cc-40cf-b377-82d0d2598ba1",
+  "sent": null,
+  "status": 200,
+  "ctype": "application/json",
+  "body": "{\"nodes\": [{\"id\": \"c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989\", \"name\": \"mover (should never actually move)\", \"note\": null, \"parent_id\": \"734b55d9-33cc-40cf-b377-82d0d2598ba1\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791835548, \"modifiedAt\": 1791835548, \"completedAt\": null}]}"
+ },
+ {
+  "label": "D list url-random-short",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=https%3A%2F%2Fworkflowy.com%2F%23%2F1abc9e30d5b8",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/1abc9e30d5b8"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D move-real url-random-short",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/move",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/1abc9e30d5b8"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D create url-random-short",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/1abc9e30d5b8",
+   "name": "should not exist"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D mirror-real url-random-short",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/mirror",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/1abc9e30d5b8"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D list bare-random-short",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=1abc9e30d5b8",
+  "sent": {
+   "parent_id": "1abc9e30d5b8"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location '1abc9e30d5b8' not found\"}"
+ },
+ {
+  "label": "D move-real bare-random-short",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/move",
+  "sent": {
+   "parent_id": "1abc9e30d5b8"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location '1abc9e30d5b8' not found\"}"
+ },
+ {
+  "label": "D create bare-random-short",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "parent_id": "1abc9e30d5b8",
+   "name": "should not exist"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location '1abc9e30d5b8' not found\"}"
+ },
+ {
+  "label": "D mirror-real bare-random-short",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/mirror",
+  "sent": {
+   "parent_id": "1abc9e30d5b8"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D list url-random-full-uuid",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=https%3A%2F%2Fworkflowy.com%2F%23%2Ff51d6d20-1eea-457d-a333-5ca3008ec792",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f51d6d20-1eea-457d-a333-5ca3008ec792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'https://workflowy.com/#/f51d6d20-1eea-457d-a333-5ca3008ec792' not found\"}"
+ },
+ {
+  "label": "D move-real url-random-full-uuid",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/move",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f51d6d20-1eea-457d-a333-5ca3008ec792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'https://workflowy.com/#/f51d6d20-1eea-457d-a333-5ca3008ec792' not found\"}"
+ },
+ {
+  "label": "D create url-random-full-uuid",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f51d6d20-1eea-457d-a333-5ca3008ec792",
+   "name": "should not exist"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'https://workflowy.com/#/f51d6d20-1eea-457d-a333-5ca3008ec792' not found\"}"
+ },
+ {
+  "label": "D mirror-real url-random-full-uuid",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/mirror",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f51d6d20-1eea-457d-a333-5ca3008ec792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D list url-random-uuid-nodash",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=https%3A%2F%2Fworkflowy.com%2F%23%2Ff51d6d201eea457da3335ca3008ec792",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f51d6d201eea457da3335ca3008ec792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'https://workflowy.com/#/f51d6d201eea457da3335ca3008ec792' not found\"}"
+ },
+ {
+  "label": "D move-real url-random-uuid-nodash",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/move",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f51d6d201eea457da3335ca3008ec792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'https://workflowy.com/#/f51d6d201eea457da3335ca3008ec792' not found\"}"
+ },
+ {
+  "label": "D create url-random-uuid-nodash",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f51d6d201eea457da3335ca3008ec792",
+   "name": "should not exist"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'https://workflowy.com/#/f51d6d201eea457da3335ca3008ec792' not found\"}"
+ },
+ {
+  "label": "D mirror-real url-random-uuid-nodash",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/mirror",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f51d6d201eea457da3335ca3008ec792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D list random-uuid-UPPER",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=F51D6D20-1EEA-457D-A333-5CA3008EC792",
+  "sent": {
+   "parent_id": "F51D6D20-1EEA-457D-A333-5CA3008EC792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D move-real random-uuid-UPPER",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/move",
+  "sent": {
+   "parent_id": "F51D6D20-1EEA-457D-A333-5CA3008EC792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D create random-uuid-UPPER",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "parent_id": "F51D6D20-1EEA-457D-A333-5CA3008EC792",
+   "name": "should not exist"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D mirror-real random-uuid-UPPER",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/mirror",
+  "sent": {
+   "parent_id": "F51D6D20-1EEA-457D-A333-5CA3008EC792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D list random-uuid-nodash",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=f51d6d201eea457da3335ca3008ec792",
+  "sent": {
+   "parent_id": "f51d6d201eea457da3335ca3008ec792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'f51d6d201eea457da3335ca3008ec792' not found\"}"
+ },
+ {
+  "label": "D move-real random-uuid-nodash",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/move",
+  "sent": {
+   "parent_id": "f51d6d201eea457da3335ca3008ec792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'f51d6d201eea457da3335ca3008ec792' not found\"}"
+ },
+ {
+  "label": "D create random-uuid-nodash",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "parent_id": "f51d6d201eea457da3335ca3008ec792",
+   "name": "should not exist"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'f51d6d201eea457da3335ca3008ec792' not found\"}"
+ },
+ {
+  "label": "D mirror-real random-uuid-nodash",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/mirror",
+  "sent": {
+   "parent_id": "f51d6d201eea457da3335ca3008ec792"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D list url-random-short-UPPER",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=https%3A%2F%2Fworkflowy.com%2F%23%2F1ABC9E30D5B8",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/1ABC9E30D5B8"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D move-real url-random-short-UPPER",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/move",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/1ABC9E30D5B8"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D create url-random-short-UPPER",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/1ABC9E30D5B8",
+   "name": "should not exist"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D mirror-real url-random-short-UPPER",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/mirror",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/1ABC9E30D5B8"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D list url-random-short #2",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=https%3A%2F%2Fworkflowy.com%2F%23%2Ff72c49abf1fa",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f72c49abf1fa"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D create url-random-short #2",
+  "req": "POST https://workflowy.com/api/v1/nodes",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f72c49abf1fa",
+   "name": "x"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D move-real url-random-short #2",
+  "req": "POST https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989/move",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/f72c49abf1fa"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}"
+ },
+ {
+  "label": "D list bare-random-short #2",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=f72c49abf1fa",
+  "sent": {
+   "parent_id": "f72c49abf1fa"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'f72c49abf1fa' not found\"}"
+ },
+ {
+  "label": "D list url-embedding-real-full-uuid (sandbox, read-only)",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=https%3A%2F%2Fworkflowy.com%2F%23%2F734b55d9-33cc-40cf-b377-82d0d2598ba1",
+  "sent": {
+   "parent_id": "https://workflowy.com/#/734b55d9-33cc-40cf-b377-82d0d2598ba1"
+  },
+  "status": 404,
+  "ctype": "application/json",
+  "body": "{\"code\": \"not_found\", \"message\": \"Location 'https://workflowy.com/#/734b55d9-33cc-40cf-b377-82d0d2598ba1' not found\"}"
+ },
+ {
+  "label": "D sandbox list (after; mover must still be here)",
+  "req": "GET https://workflowy.com/api/v1/nodes?parent_id=734b55d9-33cc-40cf-b377-82d0d2598ba1",
+  "sent": null,
+  "status": 200,
+  "ctype": "application/json",
+  "body": "{\"nodes\": [{\"id\": \"c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989\", \"name\": \"mover (should never actually move)\", \"note\": null, \"parent_id\": \"734b55d9-33cc-40cf-b377-82d0d2598ba1\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791835548, \"modifiedAt\": 1791835548, \"completedAt\": null}]}"
+ },
+ {
+  "label": "D mover GET (after)",
+  "req": "GET https://workflowy.com/api/v1/nodes/c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989",
+  "sent": null,
+  "status": 200,
+  "ctype": "application/json",
+  "body": "{\"node\": {\"id\": \"c3cb0cf5-b1c8-4ce4-b974-cac5c05e1989\", \"name\": \"mover (should never actually move)\", \"note\": null, \"parent_id\": \"734b55d9-33cc-40cf-b377-82d0d2598ba1\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791835548, \"modifiedAt\": 1791835548, \"completedAt\": null}}"
+ }
+]

@@ -1,0 +1,170 @@
+[
+ {
+  "input": "```\na\nb\n```",
+  "status": 200,
+  "tree": [
+   {
+    "name": "a\nb",
+    "lm": "code-block",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "```\nline one\nline two\n```",
+  "status": 200,
+  "tree": [
+   {
+    "name": "line one\nline two",
+    "lm": "code-block",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "```\nline one\n\nline two\n```",
+  "status": 200,
+  "tree": [
+   {
+    "name": "line one\nline two",
+    "lm": "code-block",
+    "children": []
+   }
+  ]
+ },
+ {
+  "input": "p\n\n```\nline one\nline two\n```",
+  "status": 200,
+  "tree": [
+   {
+    "name": "p",
+    "lm": "bullets",
+    "children": [
+     [
+      "line one\nline two",
+      "code-block"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "input": "p\n\n```\nline one\nline two\n```\n\nAfter",
+  "status": 200,
+  "tree": [
+   {
+    "name": "p",
+    "lm": "bullets",
+    "children": [
+     [
+      "line one\nline two",
+      "code-block"
+     ],
+     [
+      "After",
+      "p"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "input": "p\n\n```\nline one\nline two\n```\n\nafter",
+  "status": 200,
+  "tree": [
+   {
+    "name": "p",
+    "lm": "bullets",
+    "children": [
+     [
+      "line one\nline two\n``` after",
+      "code-block"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "input": "p\n\n```js\nx = 1\n```\n\nAfter",
+  "status": 200,
+  "tree": [
+   {
+    "name": "p",
+    "lm": "bullets",
+    "children": [
+     [
+      "js\nx = 1",
+      "code-block"
+     ],
+     [
+      "After",
+      "p"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "input": "p\n\n```\nline one\n\nline two\n```\n\nAfter",
+  "status": 200,
+  "tree": [
+   {
+    "name": "p",
+    "lm": "bullets",
+    "children": [
+     [
+      "line one\nline two",
+      "code-block"
+     ],
+     [
+      "After",
+      "p"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "input": "p\n\n```inline```\n\nafter",
+  "status": 200,
+  "tree": [
+   {
+    "name": "p",
+    "lm": "bullets",
+    "children": [
+     [
+      "inline``` after",
+      "code-block"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "input": "p\n\n```\nUpper\n```\n\nq",
+  "status": 200,
+  "tree": [
+   {
+    "name": "p",
+    "lm": "bullets",
+    "children": [
+     [
+      "Upper\n``` q",
+      "code-block"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "input": "```\n    indented code\n\tTabbed\n```",
+  "status": 200,
+  "tree": [
+   {
+    "name": "    indented code\n\tTabbed",
+    "lm": "code-block",
+    "children": []
+   }
+  ]
+ }
+]

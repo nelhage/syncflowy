@@ -1,0 +1,147 @@
+[0mdirenv: loading ~/code/syncflowy/.envrc
+[0mdirenv: using flake
+[0mdirenv: nix-direnv: Using cached dev shell
+[0mdirenv: loading ~/code/syncflowy/.envrc.local
+sandbox 740194bc-a87f-499f-a7ad-e2ab91e64012
+--- create 'P (parent)'
+    POST /api/v1/nodes
+    req: {"parent_id":"740194bc-a87f-499f-a7ad-e2ab91e64012","name":"P (parent)"}
+    -> 200 content-type=application/json
+    {"item_id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4"}
+--- create 'c1'
+    POST /api/v1/nodes
+    req: {"parent_id":"44213f0c-7abc-4666-a0d4-311a03f9bfe4","name":"c1","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "c52eff5b-21a2-475f-804e-648a785502f0"}
+--- create 'c2 (to delete, has child)'
+    POST /api/v1/nodes
+    req: {"parent_id":"44213f0c-7abc-4666-a0d4-311a03f9bfe4","name":"c2 (to delete, has child)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "4f341b45-2f0e-475e-bf76-7927a3bc8c81"}
+--- create 'c3'
+    POST /api/v1/nodes
+    req: {"parent_id":"44213f0c-7abc-4666-a0d4-311a03f9bfe4","name":"c3","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "31e369dd-aa00-4478-ba9e-5c99002f02aa"}
+--- create 'g (grandchild of P, child of c2)'
+    POST /api/v1/nodes
+    req: {"parent_id":"4f341b45-2f0e-475e-bf76-7927a3bc8c81","name":"g (grandchild of P, child of c2)"}
+    -> 200 content-type=application/json
+    {"item_id": "27973ebd-eff1-4ebd-b2b9-905d0cd53916"}
+--- create 'gg (great-grandchild)'
+    POST /api/v1/nodes
+    req: {"parent_id":"27973ebd-eff1-4ebd-b2b9-905d0cd53916","name":"gg (great-grandchild)"}
+    -> 200 content-type=application/json
+    {"item_id": "91c054af-fa21-4f97-a0f6-20946b748169"}
+--- list P before delete
+    GET /api/v1/nodes?parent_id=44213f0c-7abc-4666-a0d4-311a03f9bfe4
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834412, "data": {"layoutMode": "bullets"}, "id": "c52eff5b-21a2-475f-804e-648a785502f0", "modifiedAt": 1791834412, "name": "c1", "note": null, "parent_id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834413, "data": {"layoutMode": "bullets"}, "id": "4f341b45-2f0e-475e-bf76-7927a3bc8c81", "modifiedAt": 1791834413, "name": "c2 (to delete, has child)", "note": null, "parent_id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "priority": 200}, {"completed": false, "completedAt": null, "createdAt": 1791834413, "data": {"layoutMode": "bullets"}, "id": "31e369dd-aa00-4478-ba9e-5c99002f02aa", "modifiedAt": 1791834413, "name": "c3", "note": null, "parent_id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "priority": 300}]}
+--- GET P before
+    GET /api/v1/nodes/44213f0c-7abc-4666-a0d4-311a03f9bfe4
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834412, "data": {"layoutMode": "bullets"}, "id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "modifiedAt": 1791834412, "name": "P (parent)", "note": null, "parent_id": "740194bc-a87f-499f-a7ad-e2ab91e64012", "priority": 100}}
+--- GET sandbox before
+    GET /api/v1/nodes/740194bc-a87f-499f-a7ad-e2ab91e64012
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834411, "data": {"layoutMode": "bullets"}, "id": "740194bc-a87f-499f-a7ad-e2ab91e64012", "modifiedAt": 1791834411, "name": "sandbox: delete-mirror: delete basics", "note": null, "parent_id": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d", "priority": 900}}
+sleeping 3s so timestamps can move
+--- DELETE c2
+    DELETE /api/v1/nodes/4f341b45-2f0e-475e-bf76-7927a3bc8c81
+    -> 200 content-type=application/json
+    {"status": "ok"}
+--- GET c2 immediately after delete
+    GET /api/v1/nodes/4f341b45-2f0e-475e-bf76-7927a3bc8c81
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- GET g (child of deleted)
+    GET /api/v1/nodes/27973ebd-eff1-4ebd-b2b9-905d0cd53916
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- GET gg (grandchild of deleted)
+    GET /api/v1/nodes/91c054af-fa21-4f97-a0f6-20946b748169
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- LIST children of deleted c2
+    GET /api/v1/nodes?parent_id=4f341b45-2f0e-475e-bf76-7927a3bc8c81
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Parent item not found"}
+--- list P after delete
+    GET /api/v1/nodes?parent_id=44213f0c-7abc-4666-a0d4-311a03f9bfe4
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834412, "data": {"layoutMode": "bullets"}, "id": "c52eff5b-21a2-475f-804e-648a785502f0", "modifiedAt": 1791834412, "name": "c1", "note": null, "parent_id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834413, "data": {"layoutMode": "bullets"}, "id": "31e369dd-aa00-4478-ba9e-5c99002f02aa", "modifiedAt": 1791834413, "name": "c3", "note": null, "parent_id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "priority": 300}]}
+--- GET P after
+    GET /api/v1/nodes/44213f0c-7abc-4666-a0d4-311a03f9bfe4
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834412, "data": {"layoutMode": "bullets"}, "id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "modifiedAt": 1791834412, "name": "P (parent)", "note": null, "parent_id": "740194bc-a87f-499f-a7ad-e2ab91e64012", "priority": 100}}
+--- GET sandbox after
+    GET /api/v1/nodes/740194bc-a87f-499f-a7ad-e2ab91e64012
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834411, "data": {"layoutMode": "bullets"}, "id": "740194bc-a87f-499f-a7ad-e2ab91e64012", "modifiedAt": 1791834411, "name": "sandbox: delete-mirror: delete basics", "note": null, "parent_id": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d", "priority": 900}}
+delete issued at 1791834418
+
+sibling priorities before: [('c1', 100), ('c2 (to delete, has child)', 200), ('c3', 300)]
+sibling priorities after:  [('c1', 100), ('c3', 300)]
+P modifiedAt before/after: 1791834412 1791834412
+S modifiedAt before/after: 1791834411 1791834411
+--- DELETE c2 again
+    DELETE /api/v1/nodes/4f341b45-2f0e-475e-bf76-7927a3bc8c81
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- DELETE g (already gone via ancestor)
+    DELETE /api/v1/nodes/27973ebd-eff1-4ebd-b2b9-905d0cd53916
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- DELETE random uuid (unscoped)
+    DELETE /api/v1/nodes/f9f97f4f-feb4-43fb-875f-b70285402222
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- DELETE garbage id (unscoped)
+    DELETE /api/v1/nodes/not-a-real-id
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- DELETE random short id (unscoped)
+    DELETE /api/v1/nodes/0123456789ab
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- create 'c4 (delete via short id)'
+    POST /api/v1/nodes
+    req: {"parent_id":"44213f0c-7abc-4666-a0d4-311a03f9bfe4","name":"c4 (delete via short id)","position":"bottom"}
+    -> 200 content-type=application/json
+    {"item_id": "8b677c2e-6ada-40fb-9742-7c259542f859"}
+--- DELETE c4 by short id
+    DELETE /api/v1/nodes/7c259542f859
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- GET c4 after short-id delete
+    GET /api/v1/nodes/8b677c2e-6ada-40fb-9742-7c259542f859
+    -> 200 content-type=application/json
+    {"node": {"completed": false, "completedAt": null, "createdAt": 1791834422, "data": {"layoutMode": "bullets"}, "id": "8b677c2e-6ada-40fb-9742-7c259542f859", "modifiedAt": 1791834422, "name": "c4 (delete via short id)", "note": null, "parent_id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "priority": 400}}
+--- UPDATE deleted c2
+    POST /api/v1/nodes/4f341b45-2f0e-475e-bf76-7927a3bc8c81
+    req: {"name":"zombie"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- COMPLETE deleted c2
+    POST /api/v1/nodes/4f341b45-2f0e-475e-bf76-7927a3bc8c81/complete
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- MOVE deleted c2
+    POST /api/v1/nodes/4f341b45-2f0e-475e-bf76-7927a3bc8c81/move
+    req: {"parent_id":"44213f0c-7abc-4666-a0d4-311a03f9bfe4"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- CREATE under deleted c2
+    POST /api/v1/nodes
+    req: {"parent_id":"4f341b45-2f0e-475e-bf76-7927a3bc8c81","name":"child of deleted"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Parent item not found"}
+--- MIRROR deleted c2
+    POST /api/v1/nodes/4f341b45-2f0e-475e-bf76-7927a3bc8c81/mirror
+    req: {"parent_id":"44213f0c-7abc-4666-a0d4-311a03f9bfe4"}
+    -> 404 content-type=application/json
+    {"code": "not_found", "message": "Item not found"}
+--- final list P
+    GET /api/v1/nodes?parent_id=44213f0c-7abc-4666-a0d4-311a03f9bfe4
+    -> 200 content-type=application/json
+    {"nodes": [{"completed": false, "completedAt": null, "createdAt": 1791834412, "data": {"layoutMode": "bullets"}, "id": "c52eff5b-21a2-475f-804e-648a785502f0", "modifiedAt": 1791834412, "name": "c1", "note": null, "parent_id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "priority": 100}, {"completed": false, "completedAt": null, "createdAt": 1791834413, "data": {"layoutMode": "bullets"}, "id": "31e369dd-aa00-4478-ba9e-5c99002f02aa", "modifiedAt": 1791834413, "name": "c3", "note": null, "parent_id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "priority": 300}, {"completed": false, "completedAt": null, "createdAt": 1791834422, "data": {"layoutMode": "bullets"}, "id": "8b677c2e-6ada-40fb-9742-7c259542f859", "modifiedAt": 1791834422, "name": "c4 (delete via short id)", "note": null, "parent_id": "44213f0c-7abc-4666-a0d4-311a03f9bfe4", "priority": 400}]}
