@@ -70,7 +70,7 @@ ROUTES: dict[str, tuple[tuple[str, ...], str, str | None]] = {
     "complete": (("POST",), "html", "POST"),
     "uncomplete": (("POST",), "html", "POST"),
     "mirror": (("POST", "DELETE"), "json", None),
-    # UNVERIFIED: 405 style of nodes-export (only a 401 was ever observed).
+    # UNVERIFIED: 405 style of nodes-export (only GETs were ever sent to it).
     # We assume the same Django require_GET style as /targets.
     "export": (("GET", "HEAD"), "html", "GET, HEAD"),
     "targets": (("GET", "HEAD"), "html", "GET, HEAD"),
@@ -315,7 +315,7 @@ class MockApp:
                 for k, v in urllib.parse.parse_qsl(qs, keep_blank_values=True):
                     if k == "parent_id":
                         parent_id = v
-                # UNVERIFIED (open-questions S4): no parent_id -> the root.
+                # [O] no parent_id -> the root (global-readonly.md, S4).
                 return ops.list_children(parent_id)
             case "nodes", "POST":
                 return ops.create(await self._body(scope, receive))

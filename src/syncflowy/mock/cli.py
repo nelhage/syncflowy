@@ -43,8 +43,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument(
         "--export-min-interval",
         type=float,
-        default=60.0,
-        help="seconds between nodes-export calls per key (default 60; 0 disables)",
+        default=0.0,
+        help="seconds between nodes-export calls per key (default 0 = no limit, as observed "
+        "in production; upstream documents 60)",
     )
     p.add_argument(
         "--id-seed",

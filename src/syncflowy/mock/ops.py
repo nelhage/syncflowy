@@ -36,7 +36,7 @@ from .models import (
     position_str,
 )
 from .store import Node, Store, Tx
-from .text import format_date_text, has_lone_surrogate, strip_update_text, transform_create_name
+from .text import format_time_elem, has_lone_surrogate, strip_update_text, transform_create_name
 
 
 class ApiError(Exception):
@@ -98,12 +98,15 @@ class Config:
     #: Reproduce production's acceptance of moves into a descendant (creating
     #: a parent cycle) instead of rejecting them with a mock-specific 400.
     faithful_cycles: bool = False
-    #: Minimum seconds between nodes-export calls per API key (upstream: 1 req/min).
-    #: 0 disables the limit.
-    export_min_interval: float = 60.0
-    #: Weekday the week starts on for "next_week" (0 = Monday). UNVERIFIED: the
-    #: real value is a per-account setting (upstream docs).
-    week_start: int = 0
+    #: Minimum seconds between nodes-export calls per API key. 0 (default)
+    #: disables the limit: upstream documents 1 req/min, but production did
+    #: not enforce it (two 200s 10 s apart, 2026-10-12).
+    export_min_interval: float = 0.0
+    #: Weekday the week starts on (0 = Monday, 6 = Sunday), used by
+    #: "next_week" and the date-key week computation. A per-account setting
+    #: upstream; the default 6 is inferred from the observed 500 window
+    #: 0001-01-01..06 (global-readonly.md).
+    week_start: int = 6
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -142,11 +145,20 @@ class SeededIds:
         return str(uuid.UUID(int=self._rng.getrandbits(128), version=4))
 
 
+class _EmptyLocation(Exception):
+    """A special location that exists conceptually but has no node yet and
+    lists as empty (the never-materialised inbox)."""
+
+
+#: Namespace for the mock's deterministic (UUIDv5) calendar node ids.
+_SYSTEM_NS = uuid.UUID("6b1d5c2e-58a4-4f43-9d0e-7f3c2a1b9e10")
+
+
 @dataclass
 class _SpecialStep:
     system_key: str
     name: str
-    position: str  # where a freshly materialised node is placed under its parent
+    position: str  # "top" / "bottom" (assign_priority) or "calendar" (chronological)
 
 
 @dataclass
@@ -226,28 +238,45 @@ class Ops:
 
     # ------------------------------------------------------ parent resolution
 
-    def _special_chain(self, key: str) -> list[_SpecialStep] | None:
-        """Special ``parent_id`` keys (§11). Everything here is UNVERIFIED.
+    # Special parent_id keys (§11). Observed 2026-10-12 with read-only GETs
+    # (docs/workflowy/global-readonly.md); materialisation through create /
+    # move could not be observed and is inferred.
+    _DATE_KEY_RE = re.compile(r"([0-9]{4})(?:-([0-9]{2})(?:-([0-9]{2}))?)?")
+    _FIXED_KEYS = ("inbox", "calendar", "today", "tomorrow", "next_week")
 
-        The upstream docs list ``inbox``, ``calendar``, ``today``,
-        ``tomorrow``, ``next_week``, ``YYYY``, ``YYYY-MM``, ``YYYY-MM-DD``.
-        We model each as a lazily materialised node identified by
-        ``system_key``. Names and placement are guesses:
+    def is_special_key(self, key: str) -> bool:
+        return key in self._FIXED_KEYS or self._DATE_KEY_RE.fullmatch(key) is not None
 
-        * inbox: a top-level node "Inbox" at the top of the outline.
-        * calendar: a top-level node "Calendar" at the bottom of the outline.
-        * year "2026", month "January", day "Thu, Jan 15, 2026", each
-          appended at the bottom of its parent (chronological when
-          materialised in order).
-        * today / tomorrow / next_week use the mock clock in UTC.
+    def _special_chain(self, key: str, *, for_list: bool) -> list[_SpecialStep] | None:
+        """The chain of system nodes a special key denotes, root first.
+
+        Returns None if ``key`` is not a special key. Raises 500 for the
+        failure modes observed in production:
+
+        * a date key whose week (per ``week_start``) starts before
+          0001-01-01 (e.g. ``0001``, ``0001-01``, ``0001-01-01`` ..
+          ``0001-01-06`` with a Sunday week start): 500 on GET and list.
+        * list / create / move only (``for_list``): an impossible date
+          (``2026-13``, ``2026-02-30``, ``0000``) and any key in year 9999
+          give 500. GET answers those with ``404 Item not found`` instead,
+          which the caller handles by getting ``None`` back.
+
+        Observed names (§11): ``📆 Calendar`` (top level, appended at the
+        bottom), year ``2026``, month ``07`` (two digits), day
+        ``<time startYear="2026" startMonth="7" startDay="5">Sun, Jul 5,
+        2026</time>``. Calendar children are kept in chronological order
+        (see :meth:`_calendar_priority`). The inbox name ``Inbox`` and its
+        top placement are UNVERIFIED (the account has never materialised
+        its inbox).
         """
         if key == "inbox":
             return [_SpecialStep("inbox", "Inbox", "top")]
-        cal = [_SpecialStep("calendar", "Calendar", "bottom")]
+        cal = [_SpecialStep("calendar", "\U0001f4c6 Calendar", "bottom")]
         if key == "calendar":
             return cal
-        date: datetime.date | None = None
         level = 3
+        # UNVERIFIED (open-questions S2): today / tomorrow / next_week use the
+        # mock clock in UTC; production presumably uses the account timezone.
         today = datetime.datetime.fromtimestamp(self.now(), datetime.UTC).date()
         if key == "today":
             date = today
@@ -256,28 +285,52 @@ class Ops:
         elif key == "next_week":
             days = (self.config.week_start - today.weekday()) % 7 or 7
             date = today + datetime.timedelta(days=days)
-        elif re.fullmatch(r"[0-9]{4}", key):
-            if int(key) < 1:
-                return None
-            date, level = datetime.date(int(key), 1, 1), 1
-        elif m := re.fullmatch(r"([0-9]{4})-([0-9]{2})", key):
+        elif m := self._DATE_KEY_RE.fullmatch(key):
+            level = 1 if m[2] is None else 2 if m[3] is None else 3
             try:
-                date, level = datetime.date(int(m[1]), int(m[2]), 1), 2
+                date = datetime.date(int(m[1]), int(m[2] or 1), int(m[3] or 1))
             except ValueError:
+                if for_list:
+                    raise internal_error() from None
                 return None
-        elif m := re.fullmatch(r"([0-9]{4})-([0-9]{2})-([0-9]{2})", key):
-            try:
-                date = datetime.date(int(m[1]), int(m[2]), int(m[3]))
-            except ValueError:
-                return None
+            # [I] fitted to the observed 500 window 0001-01-01..06 (Sunday
+            # week start): the resolver computes the start of the date's week.
+            if date.toordinal() - (date.weekday() - self.config.week_start) % 7 < 1:
+                raise internal_error()
+            if for_list and date.year == 9999:
+                raise internal_error()
         else:
             return None
-        chain = cal + [_SpecialStep(f"calendar:{date.year:04d}", str(date.year), "bottom")]
+        chain = cal + [_SpecialStep(f"calendar:{date.year:04d}", str(date.year), "calendar")]
         if level >= 2:
-            chain.append(_SpecialStep(f"calendar:{date.year:04d}-{date.month:02d}", date.strftime("%B"), "bottom"))
+            chain.append(_SpecialStep(f"calendar:{date.year:04d}-{date.month:02d}", f"{date.month:02d}", "calendar"))
         if level >= 3:
-            chain.append(_SpecialStep(f"calendar:{date.isoformat()}", format_date_text(date), "bottom"))
+            chain.append(_SpecialStep(f"calendar:{date.isoformat()}", format_time_elem(date), "calendar"))
         return chain
+
+    def _calendar_priority(self, tx: Tx, parent: Parent, system_key: str) -> int:
+        """Priority of a new year / month / day node: chronological among its
+        calendar siblings [I: the UI-made calendar holds days 5..9 at
+        100..500, then the 16th at 600 and the 15th at 550 -- bottom rule
+        after the last, integer midpoint between neighbours otherwise]."""
+        siblings = tx.children(parent.id)
+        cal = sorted(
+            (n for n in siblings if (n.system_key or "").startswith("calendar:")),
+            key=lambda n: n.system_key or "",
+        )
+        before = [n for n in cal if (n.system_key or "") < system_key]
+        after = [n for n in cal if (n.system_key or "") > system_key]
+        if not after:
+            return self.assign_priority(tx, parent, "bottom")
+        hi = after[0].priority
+        lo = before[-1].priority if before else 0
+        if hi - lo >= 2:
+            return (lo + hi) // 2
+        # No integer gap: renumber the siblings (creation-independent, by
+        # priority) and retry. Cannot be produced in practice.
+        for rank, n in enumerate(sorted(siblings, key=lambda n: (n.priority, n.create_seq))):
+            tx.set_fields(n.id, priority=100 * (rank + 1))
+        return self._calendar_priority(tx, parent, system_key)
 
     def _materialise(self, tx: Tx, raw: str, chain: list[_SpecialStep], materialise: bool) -> Node:
         parent: Parent = ROOT
@@ -286,16 +339,24 @@ class Ops:
             node = tx.get_by_system_key(step.system_key)
             if node is None:
                 if not materialise:
-                    # Upstream: "Calendar keys return 404 if the node hasn't been
-                    # created yet". The message is UNVERIFIED (open-questions S2).
+                    if step.system_key == "inbox":
+                        # [O] listing a never-materialised inbox gives 200 [].
+                        raise _EmptyLocation()
+                    # [O] e.g. list ?parent_id=today with no day node yet.
                     raise not_found(f"Location '{raw}' not found")
                 now = self.now()
+                if step.position == "calendar":
+                    priority = self._calendar_priority(tx, parent, step.system_key)
+                else:
+                    priority = self.assign_priority(tx, parent, step.position)
                 node = tx.insert(
-                    node_id=self._new_id(),
+                    # Production's calendar ids are UUIDv5 (deterministic) [O];
+                    # we derive ours from the system key.
+                    node_id=str(uuid.uuid5(_SYSTEM_NS, step.system_key)) if step.system_key != "inbox" else self._new_id(),
                     parent_id=parent.id,
                     name=step.name,
                     note=None,
-                    priority=self.assign_priority(tx, parent, step.position),
+                    priority=priority,
                     completed=False,
                     completed_at=None,
                     layout_mode="bullets",
@@ -308,10 +369,9 @@ class Ops:
 
     def resolve_parent(self, tx: Tx, raw: str | None, *, materialise: bool) -> Parent:
         """``parent_id`` resolution for list, create and move (§3.2)."""
-        if raw is None or raw == "":
-            # UNVERIFIED (open-questions S1/S4): omitted, null and "" pass
-            # validation in production; what they resolve to is untested.
-            # We treat them as the root.
+        if raw is None:
+            # [O] list with no parent_id -> the top level. [I] create / move
+            # with parent_id omitted or null (same resolver).
             return ROOT
         if UUID_RE.fullmatch(raw):
             # uuid-shaped (any case), but the lookup is exact and
@@ -325,12 +385,12 @@ class Ops:
             if node is None:
                 raise not_found(PARENT_NOT_FOUND)
             return node
-        # UNVERIFIED (S2): special keys and user shortcuts are checked here,
-        # between the URL form and the bare short-id form; the relative
-        # order could not be observed.
+        # Special keys and user shortcuts are checked here, between the URL
+        # form and the bare short-id form; the relative order cannot be
+        # observed (no special key is URL- or short-id-shaped).
         if raw == "None":
-            return ROOT
-        if (chain := self._special_chain(raw)) is not None:
+            return ROOT  # [O] case-sensitive: "none", "null" -> Location
+        if (chain := self._special_chain(raw, for_list=True)) is not None:
             return self._materialise(tx, raw, chain, materialise)
         if has_lone_surrogate(raw):
             # A JSON lone surrogate cannot be a shortcut key or a short id:
@@ -347,6 +407,7 @@ class Ops:
             node = tx.get_by_short(raw.lower())
             if node is not None:
                 return node
+        # Includes "" [O: list ?parent_id= -> Location '' not found].
         raise not_found(f"Location '{raw}' not found")
 
     @staticmethod
@@ -360,11 +421,23 @@ class Ops:
     # --------------------------------------------------------------- endpoints
 
     def get_node(self, node_id: str) -> dict[str, Any]:
-        """GET /nodes/:id -- exact UUID, or a 12-hex short id in any case (§3.1, §4.1)."""
+        """GET /nodes/:id (§3.1, §4.1): exact UUID, a 12-hex short id in any
+        case, or a special key whose node already exists (never materialises).
+
+        [O] ``calendar``, ``2026``, ``2026-07``, ``2026-07-05`` resolve when
+        their node exists; a missing or impossible date, ``None`` and an
+        unmaterialised inbox give ``404 Item not found``; a week underflow
+        (``0001-01-01``) gives 500.
+        """
         with self.store.transaction() as tx:
             node = tx.get(node_id)
             if node is None and SHORT_RE.fullmatch(node_id):
                 node = tx.get_by_short(node_id.lower())
+            if node is None and (chain := self._special_chain(node_id, for_list=False)) is not None:
+                node = tx.get_by_system_key(chain[-1].system_key)
+            if node is None and (target := tx.shortcut(node_id)) is not None:
+                # UNVERIFIED (S3): shortcut keys on GET (the account has none).
+                node = tx.get(target)
             if node is None:
                 raise not_found(ITEM_NOT_FOUND)
             return {"node": node.to_api()}
@@ -372,7 +445,10 @@ class Ops:
     def list_children(self, parent_id: str | None) -> dict[str, Any]:
         """GET /nodes?parent_id= -- depth 1, completed included, creation order (§4.2)."""
         with self.store.transaction() as tx:
-            parent = self.resolve_parent(tx, parent_id, materialise=False)
+            try:
+                parent = self.resolve_parent(tx, parent_id, materialise=False)
+            except _EmptyLocation:
+                return {"nodes": []}
             return {"nodes": [n.to_api() for n in tx.children(parent.id)]}
 
     def create(self, body: Any) -> dict[str, Any]:
@@ -544,12 +620,18 @@ class Ops:
             return OK
 
     def export(self, api_key: str) -> dict[str, Any]:
-        """GET /nodes-export. Shape per upstream; everything about it is UNVERIFIED (S5).
+        """GET /nodes-export (§4.10, S5).
 
-        Returns every stored node (including orphan shells and detached
-        cycles) in creation order, without hidden metadata. Rate limit: one
-        call per ``export_min_interval`` seconds per API key, measured on the
-        mock clock. The 429 body is a guess; production's was never observed.
+        [O] ``{"nodes": [...]}``: every node, flat, each record byte-identical
+        to what GET / list return (no mirror metadata; shells look like
+        ordinary nodes), completed nodes included. Production's order is an
+        unspecified but stable storage order; we use creation order.
+        Detached cycles were not present in the account, so whether they are
+        exported is UNVERIFIED (we include them).
+
+        Rate limit: production did NOT enforce the documented 1 req/min
+        (calls 10 s apart both returned 200), so it is off by default
+        (``export_min_interval`` 0). When enabled, the 429 body is a guess.
         """
         with self.store.transaction() as tx:
             interval = self.config.export_min_interval
@@ -563,14 +645,25 @@ class Ops:
             self._export_last[api_key] = now
             return {"nodes": [n.to_api() for n in tx.all_nodes()]}
 
-    SYSTEM_TARGETS = ("inbox", "calendar", "today", "tomorrow", "next_week")
+    #: [O] order and labels of the system targets. ``None`` = the node's name
+    #: (or null while the node does not exist); a string = a fixed label,
+    #: returned even though the day node does not exist.
+    SYSTEM_TARGETS: tuple[tuple[str, str | None], ...] = (
+        ("inbox", None),
+        ("today", "Today"),
+        ("tomorrow", "Tomorrow"),
+        ("next_week", "Next Week"),
+        ("calendar", None),
+    )
 
     def targets(self) -> dict[str, Any]:
-        """GET /targets. Shape per upstream; the set of system targets is UNVERIFIED (S6).
+        """GET /targets (§11, S6).
 
-        User shortcuts first (in creation order; shortcuts whose node was
-        deleted are omitted), then the system targets, which are always
-        listed with ``name: null`` until their node is materialised.
+        [O] system targets in the order inbox, today, tomorrow, next_week,
+        calendar; ``inbox`` was null (never materialised), ``calendar`` was
+        its node's name. UNVERIFIED (S3): user shortcuts (the account has
+        none) -- we list them first, in creation order, omitting shortcuts
+        whose node was deleted, as in the upstream example.
         """
         with self.store.transaction() as tx:
             out: list[dict[str, Any]] = []
@@ -578,11 +671,11 @@ class Ops:
                 node = tx.get(node_id)
                 if node is not None:
                     out.append({"key": key, "type": "shortcut", "name": node.name})
-            for key in self.SYSTEM_TARGETS:
-                chain = self._special_chain(key)
-                assert chain is not None
-                node = tx.get_by_system_key(chain[-1].system_key)
-                out.append({"key": key, "type": "system", "name": node.name if node else None})
+            for key, label in self.SYSTEM_TARGETS:
+                if label is None:
+                    node = tx.get_by_system_key(key)
+                    label = node.name if node else None
+                out.append({"key": key, "type": "system", "name": label})
             return {"targets": out}
 
     # ------------------------------------------------------------ admin hooks

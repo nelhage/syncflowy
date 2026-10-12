@@ -20,7 +20,7 @@ Schema (see also docs/mock-server.md §Storage)::
       system_key        TEXT UNIQUE        -- HIDDEN, mock-only: "inbox", "calendar",
                                            --   "calendar:YYYY", "calendar:YYYY-MM",
                                            --   "calendar:YYYY-MM-DD" for materialised
-                                           --   special locations (§11, UNVERIFIED)
+                                           --   special locations (§11)
     shortcuts                              -- user "jump-to" shortcut keys (targets, §11)
       key        TEXT PRIMARY KEY
       node_id    TEXT NOT NULL             -- may dangle after the node is deleted

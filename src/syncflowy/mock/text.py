@@ -85,6 +85,12 @@ def format_date_text(d: datetime.date) -> str:
     return f"{_DOW[d.weekday()]}, {_MON[d.month - 1]} {d.day}, {d.year}"
 
 
+def format_time_elem(d: datetime.date) -> str:
+    """A date-only ``<time>`` element, as in production calendar day names:
+    ``<time startYear="2026" startMonth="7" startDay="5">Sun, Jul 5, 2026</time>``."""
+    return f'<time startYear="{d.year}" startMonth="{d.month}" startDay="{d.day}">{format_date_text(d)}</time>'
+
+
 def _time_elem(m: re.Match[str]) -> str:
     y, mo, d = int(m[1]), int(m[2]), int(m[3])
     try:

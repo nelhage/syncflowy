@@ -45,7 +45,7 @@ def running_mock(
     clock: Callable[[], float] | None = None,
     *,
     faithful_cycles: bool = False,
-    export_min_interval: float = 60.0,
+    export_min_interval: float = 0.0,
     extra_api_keys: tuple[str, ...] = (),
     id_seed: int | None = None,
 ) -> Iterator[MockURL]:

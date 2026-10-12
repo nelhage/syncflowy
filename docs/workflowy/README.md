@@ -28,6 +28,7 @@ established each fact are under `experiments/<area>/`. They are re-runnable, and
 | [followup-0.md](followup-0.md) | bottom formula for move and mirror, the top-renumber edge cases, concurrency, list order | `experiments/followup-0/` |
 | [followup-1.md](followup-1.md) | `modifiedAt` on move and mirror operations, mirror check order, orphans, the bottom formula above 100 | `experiments/followup-1/` |
 | [followup-2.md](followup-2.md) | validation model names, field orders, `parent_id` miss messages, move-to-self | `experiments/followup-2/` |
+| [global-readonly.md](global-readonly.md) | read-only GETs outside the scratchpad: root, special keys, calendar nodes, `targets`, `nodes-export`, whole-account aggregates | ad hoc (`ProdClient(readonly_global=True)`), log tag `global-readonly` |
 
 When a per-area doc and data-model.md disagree, **data-model.md wins**. Its §13 lists every reconciled conflict.
 
@@ -54,4 +55,7 @@ When a per-area doc and data-model.md disagree, **data-model.md wins**. Its §13
   origin link drives only `POST/DELETE /mirror`. Deleting an origin leaves orphan shells.
 - **Hazards**: moving a node into its own descendant returns 200 and **creates a cycle** in production. A move without `parent_id`
   passes validation (its effect is unknown, probably the root). A NUL in the create note gives a 500.
-- **Untested (scope)**: the root, `inbox`, calendar and shortcut keys, `nodes-export`, `targets`, and an empty or null `parent_id`.
+- **Root and special keys** (read-only, [global-readonly.md](global-readonly.md)): an omitted `parent_id` or `None` lists the top level, and `""` is a Location miss.
+  `GET /nodes/:key` resolves existing calendar and inbox nodes. Calendar nodes are `📆 Calendar` → `2026` → `07` → `<time …>` day, with UUIDv5 ids. `nodes-export` mirrors
+  GET's shape with no extra metadata, and its 1/min limit was not enforced. `modifiedAt` may be `null` on old nodes.
+- **Untested (scope)**: materialising special locations via create or move, shortcut keys, and an empty or null `parent_id` on create or move.

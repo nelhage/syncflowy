@@ -28,7 +28,7 @@ direnv exec . uv run python -m syncflowy.mock --db ./mock.sqlite3  # same thing
 | `--port` | `8765` | bind port |
 | `--api-key KEY` | `$SYNCFLOWY_MOCK_API_KEY`, else `test-key` | accepted keys. Repeatable, comma-separated, or both. |
 | `--faithful-cycles` | off | accept a move into the node's own descendant and create a parent cycle, as production does (see [deviations](#known-deviations-and-unverified-choices)) |
-| `--export-min-interval S` | `60` | minimum seconds between `nodes-export` calls per key. `0` disables the limit. |
+| `--export-min-interval S` | `0` | minimum seconds between `nodes-export` calls per key. `0` (the default) disables the limit: production did not enforce its documented 1 req/min. |
 | `--id-seed N` | off | generate node ids from a seeded RNG (well-formed UUIDv4s, reproducible run to run; the sequence restarts on `POST /_mock/reset`) |
 | `--log-level` | `info` | uvicorn and app log level |
 
@@ -54,7 +54,7 @@ with running_mock(db_path="x.sqlite3", api_key="k", clock=my_clock) as base_url:
     base_url.app                                       # the live MockApp (base_url is a str subclass)
 ```
 
-`running_mock(db_path=None, api_key="test-key", clock=None, *, faithful_cycles=False, export_min_interval=60.0, extra_api_keys=(), id_seed=None)`
+`running_mock(db_path=None, api_key="test-key", clock=None, *, faithful_cycles=False, export_min_interval=0.0, extra_api_keys=(), id_seed=None)`
 starts uvicorn in a daemon thread on a free port and yields the base URL. With `db_path=None` it uses a temporary file
 that is removed on exit. `clock` is a zero-argument callable that returns float unix time. Every timestamp is
 `int(clock())`, plus any offset set through `POST /_mock/clock`. `id_seed` makes node ids deterministic (see
@@ -116,7 +116,7 @@ SQLite via stdlib `sqlite3`, in WAL mode. The schema is in `store.py`:
 | `nodes.created_at`, `modified_at` | INTEGER | yes | unix seconds |
 | `nodes.create_seq` | INTEGER UNIQUE | **hidden** | monotonically increasing. Defines list order (§4.2). Comes from `meta.next_create_seq`, so it never goes backwards after deletes. |
 | `nodes.mirror_origin_id` | TEXT NULL | **hidden** | set on mirror shells only. Never cleared, so orphans keep a dangling link (§10). |
-| `nodes.system_key` | TEXT UNIQUE NULL | **hidden, mock-only** | `inbox`, `calendar`, `calendar:YYYY`, `calendar:YYYY-MM`, `calendar:YYYY-MM-DD` for materialised special locations (UNVERIFIED model) |
+| `nodes.system_key` | TEXT UNIQUE NULL | **hidden, mock-only** | `inbox`, `calendar`, `calendar:YYYY`, `calendar:YYYY-MM`, `calendar:YYYY-MM-DD` for materialised special locations. Calendar nodes get deterministic UUIDv5 ids derived from the key, as in production |
 | `shortcuts.key`, `node_id`, `created_seq` | | via `/targets` | user "jump-to" shortcuts. Created through the admin API, because the real API cannot create them. |
 | `meta.key`, `value` | | – | `schema_version`, `next_create_seq` |
 
@@ -134,7 +134,7 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 | `POST /_mock/reset` | – or `{"all": true}` | delete all nodes and shortcuts, reset `create_seq`, clear export rate-limit state, and restart a seeded id sequence. Config and clock are unchanged, unless `{"all": true}` is sent: then the config returns to its startup values and the clock offset to 0. |
 | `GET /_mock/dump` | – | `{"nodes": [...], "shortcuts": [...], "config": {...}, "now": int}`. Nodes are in creation order and include the hidden `_create_seq`, `_mirror_origin_id` and `_system_key` fields. |
 | `GET /_mock/config` | – | current config |
-| `POST /_mock/config` | any of `{"faithful_cycles": bool, "export_min_interval": float, "week_start": 0-6}` | update the config (`week_start` 0 = Monday) |
+| `POST /_mock/config` | any of `{"faithful_cycles": bool, "export_min_interval": float, "week_start": 0-6}` | update the config (`week_start` 0 = Monday … 6 = Sunday; default 6) |
 | `GET /_mock/clock` | – | `{"now": float, "offset": float}` |
 | `POST /_mock/clock` | `{"advance": s}` / `{"now": t}` / `{"offset": s}` | shift the server clock (it is added to the injected clock) |
 | `POST /_mock/shortcuts` | `{"key": "home", "node_id": "<uuid>"}` | create or replace a user shortcut target (404 if the node does not exist) |
@@ -188,7 +188,7 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 | §10.1 mirror identity: an independent empty shell plus a hidden origin link | `Ops.mirror` (`mirror_origin_id`) |
 | §10.2 mirror check order: src → origin (orphan → `Item not found`) → parent (exact, then redirect a shell to its origin; orphan → `Parent item not found`) → self check; bumps the origin only | `Ops.mirror`, `Ops._follow_mirror` |
 | §10.3 `DELETE /mirror`: `Node is not a mirror`, orphans OK, bumps the origin if it exists | `Ops.delete_mirror` |
-| §11 root, `None`, `inbox`, calendar keys, shortcuts, targets, export | `Ops.resolve_parent`, `_special_chain`, `_materialise`, `targets`, `export` (all UNVERIFIED) |
+| §11 root, `None`, `inbox`, calendar keys, shortcuts, targets, export | `Ops.resolve_parent`, `get_node`, `_special_chain`, `_calendar_priority`, `_materialise`, `targets`, `export` (read paths observed, see below) |
 
 ---
 
@@ -199,8 +199,8 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 1. **Moves into one's own descendant are rejected by default** with
    `400 {"code": "invalid_request", "message": "Cannot move a node under its own descendant"}`. Production returns 200
    and creates a parent cycle that detaches the subtree (§4.7.5, open-questions D1). `--faithful-cycles` /
-   `faithful_cycles=True` / `POST /_mock/config {"faithful_cycles": true}` reproduces production. **The coordinator
-   should confirm this default.**
+   `faithful_cycles=True` / `POST /_mock/config {"faithful_cycles": true}` reproduces production. The user
+   confirmed this default on 2026-10-12 (open-questions D1).
 2. **The 404 HTML page** is a short stub. It has the same `<!DOCTYPE html>` and `<title>404</title>` markers, but it is
    not production's ~20 KB marketing page.
 3. **The HTML 404 body rule** is "full page unless the request carried a body, then empty" (data-model.md §2.1,
@@ -214,16 +214,16 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 
 | topic | mock behaviour | ref |
 |---|---|---|
-| `parent_id` omitted, `null` or `""` on create/move; `GET /nodes` without `parent_id` | resolves to the root (top level, `parent_id: null`) | S1, S4 |
-| `parent_id: "None"` | the root | S2 |
-| Special keys checked where in the resolver | after the UUID and URL forms, before shortcuts and bare short ids | S2 |
-| `inbox` | lazily materialised top-level node `"Inbox"`, placed at the **top** of the root when first used by create/move; list before then → `404 Location 'inbox' not found` | S2 |
-| `calendar`, `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, `today`, `tomorrow`, `next_week` | lazily materialised chain: top-level `"Calendar"` (bottom of root) → year `"2026"` → month `"January"` → day `"Thu, Jan 15, 2026"`, each appended at the bottom. Dates use the mock clock in UTC. `next_week` = next Monday (`week_start` is configurable). List before materialisation → `404 Location '<key>' not found`. Invalid dates (`2026-13`) fall through to `Location` not found. | S2 |
-| Priority given to materialised special nodes | the normal `assign_priority` (top for inbox, bottom for calendar nodes) | S2 |
-| User shortcut keys | only creatable through `POST /_mock/shortcuts`. They resolve to their node. A shortcut whose node was deleted → `Location '<key>' not found`, and it is dropped from `/targets`. | S3 |
-| Special or shortcut keys as a path `:id` | not accepted (`404 Item not found`), as for short ids | S7 |
-| `GET /nodes-export` | `{"nodes": [...]}` with every stored node (orphans and detached cycles included) in creation order, without hidden metadata. Rate limit 1 per 60 s per key on the mock clock, giving `429 {"code": "rate_limited", "message": "Rate limit exceeded. Please try again later."}` with no `Retry-After` (the shape is a guess). `HEAD` is allowed. Other methods → empty-HTML 405 with `Allow: GET, HEAD` (the style is a guess). | S5 |
-| `GET /targets` | shortcuts first (creation order), then system targets `inbox`, `calendar`, `today`, `tomorrow`, `next_week`, each with `name: null` until materialised. `HEAD` is allowed. | S6 |
+| `parent_id` omitted / `null` / `""` on **create and move** | omitted/`null` → the root, `""` → `Location '' not found`: the same as list, which is observed | S1 |
+| Materialisation by create/move | the missing chain is created: inbox `"Inbox"` at the **top** of the root; the calendar chain `📆 Calendar` (bottom of root) → `2026` → `07` → `<time …>Sun, Jul 5, 2026</time>` with year/month/day siblings in chronological priority order. Names and ordering are copied from the UI-made calendar; that the API path does the same is inferred. | S2 |
+| `today` / `tomorrow` / `next_week` | dates from the mock clock in **UTC**. `next_week` = the next `week_start` day (default Sunday, inferred from the observed year-1 500 window). | S2 |
+| Impossible dates / year 9999 on **create and move** | 500, the same as list (observed for list only) | S2 |
+| User shortcut keys | only creatable through `POST /_mock/shortcuts`. They resolve to their node for list, create, move and GET. A shortcut whose node was deleted → `Location '<key>' not found`, and it is dropped from `/targets`, where shortcuts are listed first. | S3 |
+| Special or shortcut keys as the path `:id` of **mutations** | not accepted (`404 Item not found`), as for short ids | S7 |
+| `GET /nodes-export` detached cycles; order | included; creation order (production's order is an unspecified stable storage order) | S5 |
+| `nodes-export` rate limit | off by default. With `export_min_interval > 0`: `429 {"code": "rate_limited", "message": "Rate limit exceeded. Please try again later."}` without `Retry-After` (the shape is a guess; production never returned a 429) | S5 |
+| `nodes-export` / `targets` non-GET methods | empty-HTML 405 with `Allow: GET, HEAD` (observed for `POST /targets` only) | – |
+| `modifiedAt: null` | never produced (production has it on some pre-2024 nodes; clients must accept it) | – |
 | Indented fence openers / trailing spaces on fence closers | the fence checks use the stripped line | C§5.4 |
 | Whitespace-only lines inside a fence | dropped, like blank lines | C§5.4 |
 | Date display text | always en-US, `"Thu, Jan 15, 2026 at 2:30 PM"`, with no account timezone or locale | P1, H11 |
@@ -232,6 +232,18 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 | Short-id collisions | first match by `create_seq` | D3 |
 | Other unexpected storage failures | `500 internal_error`, rolled back | – |
 | Request body size, name length | unlimited | P9 |
+
+### Observed with read-only GETs on 2026-10-12 ([global-readonly.md](workflowy/global-readonly.md))
+
+The mock now copies these (they were guesses before):
+
+- `GET /nodes` without `parent_id` and `parent_id=None` list the root. `parent_id=` (empty) is `Location '' not found`. `none` and `null` are Location misses. `GET /nodes/None` is `Item not found`.
+- **GET `/nodes/:key`** resolves an existing special-location node (`calendar`, `2026`, `2026-07`, `2026-07-05`, a materialised inbox) and never creates one. Misses, impossible dates and `None` give `Item not found`.
+- List of a never-materialised `inbox` → `200 {"nodes": []}`. List of a valid date key or `today` without a node → `404 Location '<key>' not found`.
+- Impossible dates (`2026-13`, `2026-02-30`, `0000`) and any year-9999 key: list → 500, GET → 404. A date whose week starts before 0001-01-01 (`0001`, `0001-01`, `0001-01-01`…`06` with a Sunday week start): 500 on both.
+- Calendar node names `📆 Calendar` / `2026` / `07` / `<time startYear="2026" startMonth="7" startDay="5">Sun, Jul 5, 2026</time>`, `note: null`, UUIDv5 ids.
+- `/targets`: system targets in the order `inbox`, `today`, `tomorrow`, `next_week`, `calendar`. `today`, `tomorrow` and `next_week` always carry the labels `Today`, `Tomorrow` and `Next Week`. `inbox` and `calendar` carry their node's name, or `null`.
+- `/nodes-export`: `{"nodes": [...]}` with records identical to GET, no mirror metadata, completed included. Production did not rate-limit it.
 
 ### Settled by the 2026-10-12 review (no longer guesses)
 
@@ -299,7 +311,7 @@ few pure-function tests of `text.py`.
 | `test_update_complete.py` | partial updates, null semantics, C0 stripping, completion |
 | `test_ordering_move.py` | the priority algorithm (halving, renumber, bottom formula), list order, move semantics, cycles (both modes), concurrency |
 | `test_mirror_delete.py` | delete, mirror identity, redirects, orphans, and the full `modifiedAt` table |
-| `test_special_admin.py` | the UNVERIFIED areas (root, inbox, calendar, shortcuts, targets, export), admin routes, persistence across restart, CLI key parsing |
+| `test_special_admin.py` | root, special keys (GET/list matrix, calendar names and priorities, date-key 500s, week start), inbox, shortcuts, targets, export, admin routes, persistence across restart, CLI key parsing |
 | `test_review.py` | the behaviours settled by the 2026-10-12 review (URL boundary, date edges, NUL and lone surrogates), full reset, seeded ids |
 | `test_replay_log.py` | **replays `.prod-state/requests.jsonl`**: about 236 state-independent responses (validation, invalid_json, 401, 405, HTML 404) are re-sent and must match byte-for-byte in content, and about 860 logged creates are re-run in a fresh sandbox and compared with production's first observation of the node and its multiline children. Skipped if the log is absent. |
 

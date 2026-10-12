@@ -1,0 +1,86 @@
+{
+ "nodes": {
+  "99f3b8ea-0809-4b21-b698-9a162d94d9ef": {
+   "id": "99f3b8ea-0809-4b21-b698-9a162d94d9ef",
+   "name": "sandbox: ui: A1",
+   "note": null,
+   "parent_id": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+   "priority": 11400,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791841949,
+   "modifiedAt": 1791841949,
+   "completedAt": null
+  },
+  "a0d40090-2e0e-4d9d-b147-4e4f7e650ac5": {
+   "id": "a0d40090-2e0e-4d9d-b147-4e4f7e650ac5",
+   "name": "a",
+   "note": null,
+   "parent_id": "99f3b8ea-0809-4b21-b698-9a162d94d9ef",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791841949,
+   "modifiedAt": 1791841949,
+   "completedAt": null
+  },
+  "7e0714c9-a72d-493a-889b-03df7006e48d": {
+   "id": "7e0714c9-a72d-493a-889b-03df7006e48d",
+   "name": "b",
+   "note": null,
+   "parent_id": "99f3b8ea-0809-4b21-b698-9a162d94d9ef",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791841949,
+   "modifiedAt": 1791841949,
+   "completedAt": null
+  },
+  "27f5fdff-d118-49d9-b98c-11de68fd5b44": {
+   "id": "27f5fdff-d118-49d9-b98c-11de68fd5b44",
+   "name": "c",
+   "note": null,
+   "parent_id": "99f3b8ea-0809-4b21-b698-9a162d94d9ef",
+   "priority": 300,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791841949,
+   "modifiedAt": 1791841949,
+   "completedAt": null
+  },
+  "55900ed8-f07b-43f2-9ef8-f7589985c047": {
+   "id": "55900ed8-f07b-43f2-9ef8-f7589985c047",
+   "name": "d",
+   "note": null,
+   "parent_id": "99f3b8ea-0809-4b21-b698-9a162d94d9ef",
+   "priority": 400,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791841950,
+   "modifiedAt": 1791841950,
+   "completedAt": null
+  }
+ },
+ "list_order": {
+  "99f3b8ea-0809-4b21-b698-9a162d94d9ef": [
+   "a0d40090-2e0e-4d9d-b147-4e4f7e650ac5",
+   "7e0714c9-a72d-493a-889b-03df7006e48d",
+   "27f5fdff-d118-49d9-b98c-11de68fd5b44",
+   "55900ed8-f07b-43f2-9ef8-f7589985c047"
+  ],
+  "55900ed8-f07b-43f2-9ef8-f7589985c047": [],
+  "27f5fdff-d118-49d9-b98c-11de68fd5b44": [],
+  "7e0714c9-a72d-493a-889b-03df7006e48d": [],
+  "a0d40090-2e0e-4d9d-b147-4e4f7e650ac5": []
+ }
+}

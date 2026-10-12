@@ -22,6 +22,7 @@ Reference abbreviations:
 | `T` | [text-and-content.md](text-and-content.md) |
 | `F0`/`F1`/`F2` | [followup-0.md](followup-0.md) / [followup-1.md](followup-1.md) / [followup-2.md](followup-2.md) |
 | `UP` | [upstream-api-reference.md](upstream-api-reference.md) (the vendored official docs) |
+| `G` | [global-readonly.md](global-readonly.md) (read-only probes outside the scratchpad) |
 
 Where the per-area docs disagree, this document records the resolution (see §13).
 
@@ -33,7 +34,7 @@ Where the per-area docs disagree, this document records the resolution (see §13
 
 | column | type | exposed? | notes |
 |---|---|---|---|
-| `id` | lowercase hyphenated UUIDv4 string | yes | server-generated. Client-supplied `id` is ignored [O: C§3.4] |
+| `id` | lowercase hyphenated UUID string | yes | server-generated, v4 for API-created nodes. Client-supplied `id` is ignored [O: C§3.4]. Real accounts also hold legacy non-RFC-variant ids and UUIDv5 calendar ids [O: G§5] |
 | `parent_id` | UUID or NULL | yes | NULL only for top-level nodes (the scratchpad has `parent_id: null`) [O] |
 | `name` | text, never NULL | yes | `""` allowed [O: U, T§10] |
 | `note` | text or NULL | yes | NULL vs `""` are distinct, see §6.4 [O: C§3.2, U] |
@@ -42,7 +43,7 @@ Where the per-area docs disagree, this document records the resolution (see §13
 | `completed_at` | int unix seconds or NULL | yes (`completedAt`) | |
 | `layout_mode` | text, never NULL | yes (`data.layoutMode`) | any string [O: C§3.3, U] |
 | `created_at` | int unix seconds | yes (`createdAt`) | never changes, not even on move [O: U, M§4] |
-| `modified_at` | int unix seconds | yes (`modifiedAt`) | see §8 |
+| `modified_at` | int unix seconds, or NULL | yes (`modifiedAt`) | see §8. Production returns `null` for some old (2019–2023) nodes [O: G§5]. The API never produces NULL, and the mock never stores it |
 | `create_seq` | monotonically increasing int | **no** | needed for list order, because `createdAt` ties within one second [O: M§6, F0] |
 | `mirror_origin_id` | UUID or NULL | **no** | set only on mirror shells. Kept (dangling) after the origin is deleted [O: D§5] |
 
@@ -100,7 +101,7 @@ All routes also accept a trailing `/`, without a redirect [O: E§1].
 | `/api/v1/nodes/<id>/complete` | POST | HTML-empty, `Allow: POST` |
 | `/api/v1/nodes/<id>/uncomplete` | POST | HTML-empty, `Allow: POST` |
 | `/api/v1/nodes/<id>/mirror` | POST, DELETE | JSON, `["POST", "DELETE"]` |
-| `/api/v1/nodes-export` | GET | [U] (route exists: 401 with a bad key [O: E§4]) |
+| `/api/v1/nodes-export` | GET | 200 [O: G§4]. The 405 style is [U] (no other method was sent). The mock assumes HTML-empty, `Allow: GET, HEAD` |
 | `/api/v1/targets` | GET | HTML-empty, `Allow: GET, HEAD` [O: E§5] |
 
 - **JSON 405** [O: E§5]: `405 {"error": "Method not allowed", "allowed_methods": [...]}`,
@@ -252,14 +253,16 @@ URL_RE   = r'^https?://(beta\.)?workflowy\.com/#/([0-9a-f]{12})(?=[/?]|$)'   # r
 SHORT_RE = r'^[0-9a-f]{12}$'                                                   # re.I
 
 def resolve_parent(s):
-    if s is None or s == "":            # [U] passes validation; production behaviour untested (probably root)
-        ...
+    if s is None:                       # [O: G§1] list without parent_id -> root; [I] create/move omitted or null
+        return ROOT
     if re.match(UUID_RE, s, re.I):      # any case
         return exact_lookup(s) or 404("Parent item not found")   # exact, case-sensitive: an UPPER UUID always misses
     if m := re.match(URL_RE, s, re.I):
         return short_lookup(m[2].lower()) or 404("Parent item not found")
-    # [U] special keys ("None", "inbox", "calendar", "today", "tomorrow", "next_week",
-    #     "YYYY", "YYYY-MM", "YYYY-MM-DD") and user shortcut keys go here
+    if s == "None": return ROOT         # [O: G§1] case-sensitive
+    if is_special_key(s):               # [O: G§2] inbox, calendar, today, tomorrow, next_week, YYYY[-MM[-DD]]
+        return resolve_special(s)       # §11
+    # [U] user shortcut keys go here
     if re.match(SHORT_RE, s, re.I):
         if n := short_lookup(s.lower()): return n
     return 404(f"Location '{s}' not found")
@@ -279,8 +282,11 @@ def resolve_parent(s):
 | surrounding spaces | no trimming, so `Location` [O] |
 | a JSON lone surrogate (`"x\ud800"`) | `Location '<raw>' not found` (echoed, JSON-escaped) [O: golden `ids_parent_id_lone_surrogate`] |
 | non-string | 400 `string_type` (validation) [O] |
-| omitted, `null`, `""` | passes validation, and resolution is **untested** [U]. Mock: treat as the account root |
-| `None`, `inbox`, calendar keys, shortcut keys | **untested** (out of scope) [U]. Mock: implement per UP, guessing |
+| omitted (list) | the root [O: G§1]. Create/move with omitted or `null`: the root [I] |
+| `""` | `Location '' not found` [O: G§1, list]. Create/move: the same [I] |
+| `None` | the root [O: G§1]. `none`, `null`, `NONE` give `Location` (case-sensitive) |
+| `inbox`, `calendar`, `today`, `tomorrow`, `next_week`, `YYYY`, `YYYY-MM`, `YYYY-MM-DD` | §11 [O: G§2 for list; create/move materialisation is [I]] |
+| shortcut keys | **untested** (the account has none) [U] |
 
 The URL boundary after the 12 hex digits is **end of string, `/` or `?` only** [O: golden `ids_url_parent_boundaries`,
 answering open question P6]: `-x`, `#y`, `.`, `g`, `_`, a space, `&x=1` and a 13th hex digit all give `Location '<raw>' not
@@ -300,6 +306,9 @@ gives **500** `internal_error` (the lookup cannot encode it) [O: golden `ids_par
 ### 4.1 `GET /api/v1/nodes/:id`
 
 Resolve per §3.1, then return `200 {"node": <node>}`. Otherwise return `404 Item not found` [O].
+After the UUID and short-id lookups, **an existing special-location node is also resolved by key** (`calendar`, `2026`,
+`2026-07`, `2026-07-05`, …) [O: G§2]. GET never materialises a node. A key without a node, an impossible date,
+`None`, and the never-materialised `inbox` all give `404 Item not found`. The first week of year 1 gives 500 (§11).
 
 ### 4.2 `GET /api/v1/nodes?parent_id=…` (list)
 
@@ -313,7 +322,7 @@ Resolve per §3.1, then return `200 {"node": <node>}`. Otherwise return `404 Ite
 - If the query parameter is repeated, the last one wins [O]. All other params are ignored (`limit`, `offset`, `cursor`, `page`, `per_page`,
   `depth`, `recursive`, `include_completed`, `completed`, `include_deleted`) [O]. There is no pagination [O].
 - Listing a mirror shell returns only the shell's own children (§10) [O].
-- Without `parent_id`: [U] (probably the root, per UP).
+- Without `parent_id`: the root, the same as `parent_id=None` [O: G§1]. `parent_id=` (empty) gives `Location '' not found` [O: G§1].
 
 ### 4.3 `POST /api/v1/nodes` (create)
 
@@ -407,14 +416,16 @@ See §10.3.
 
 ### 4.10 `GET /api/v1/nodes-export`, `GET /api/v1/targets`
 
-[U] These were never called successfully, because the scope guard forbids it (only a bad-key 401 and `POST /targets` gave 405 [O: E§4–5]).
-Mock per UP:
-- `nodes-export` returns `{"nodes": [<every node, flat>]}` with the same node shape. Order [U] (suggest `create_seq`). The rate limit is 1 req/min,
-  and the 429 shape is [U].
-- `targets` returns `{"targets": [{"key", "type": "shortcut"|"system", "name"}]}`. System targets (`inbox`, …) are always present, with
-  `name: null` when not yet created.
-
-Whether export includes orphan or detached nodes, or exposes mirror metadata, is [U].
+[O: G§3–4]
+- `nodes-export` returns `{"nodes": [<every node, flat>]}`. Each record is **identical** to the GET record (same keys and order), and there is
+  **no mirror metadata** (shells look like ordinary nodes). Completed nodes are included and deleted ones are absent. The order is
+  **unspecified**: it is neither creation, priority, id nor tree order, but it is stable between calls. The mock uses `create_seq`.
+  The documented 1 req/min limit was **not enforced** (two 200s 10 s apart, with no rate-limit headers), so the 429 shape is still [U].
+  Whether detached cycles are exported is [U]: there were none to see. The mock includes them.
+- `targets` returns `{"targets": [{"key", "type", "name"}, ...]}`. The system targets come in the order `inbox`, `today`, `tomorrow`, `next_week`,
+  `calendar`. `today`, `tomorrow` and `next_week` carry the fixed labels `Today`, `Tomorrow` and `Next Week` even when their day node does not exist.
+  `inbox` and `calendar` carry their node's name, or `null` while the node does not exist (`inbox` observed null). Shortcut entries are [U].
+- Both accept a trailing slash. `/targets` ignores query parameters.
 
 ---
 
@@ -667,13 +678,32 @@ source it gives `Item not found`. As a mirror parent it gives `Parent item not f
 
 ## 11. Special locations, root, targets
 
-[U] Everything in this section is untested because of the scope restriction. Per UP:
+[O: G] unless marked otherwise. These were observed with read-only GETs only, so nothing about create or move is observed.
 
-- `parent_id` keys: `None` (root), `inbox`, `calendar`, `today`, `tomorrow`, `next_week`, `YYYY`, `YYYY-MM`,
-  `YYYY-MM-DD`, and user shortcut keys.
-- Move and create "materialise" calendar nodes on demand. List with a not-yet-created calendar key gives 404.
-- Suggested mock: a root sentinel (`parent_id NULL`), an `inbox` system node, lazily created calendar nodes, and a `targets` table.
-  Mark all of it as unverified.
+- **Root**: a sentinel, not a node. Top-level nodes have `parent_id: null` and list in creation order. `parent_id=None` and an omitted
+  `parent_id` list it. `""` is `Location '' not found`. `GET /nodes/None` is `Item not found`.
+- **Keys**: `inbox`, `calendar`, `today`, `tomorrow`, `next_week`, and `^\d{4}(-\d{2}(-\d{2})?)?$`. They are case-sensitive and not trimmed
+  (`2026-7` and `Calendar` are plain Location misses). User shortcut keys are [U].
+- **Calendar nodes** (UI-made): `📆 Calendar` at the top level, appended at the bottom → year `2026` → month `07` (two digits) → day
+  `<time startYear="2026" startMonth="7" startDay="5">Sun, Jul 5, 2026</time>`. Each has `note: null`, `bullets` and a **UUIDv5** id. Children of
+  calendar, year and month nodes are in chronological priority order: the bottom rule after the last, the integer midpoint between neighbours
+  (the 15th was created after the 16th and got 550 between 500 and 600) [I].
+- **Resolution** (§3.2 for list, create and move; §4.1 for GET):
+
+  | case | GET `:key` | list / create / move |
+  |---|---|---|
+  | node exists | 200 | that node |
+  | valid key, no node | 404 `Item not found` | list: 404 `Location '<key>' not found`. Create/move: materialise the chain [I, per UP] |
+  | `inbox`, never materialised | 404 `Item not found` | list: **200 `{"nodes": []}`**. Create/move: materialise [I] |
+  | impossible date (`2026-13`, `2026-02-30`, `0000`) | 404 `Item not found` | **500** `internal_error` (create/move [I]) |
+  | any date in year 9999 | 404 `Item not found` | **500** |
+  | a date whose week (account week start, Sunday here) begins before 0001-01-01: `0001`, `0001-01`, `0001-01-01`…`06` | **500** | **500** |
+
+- `today`, `tomorrow` and `next_week` resolve to day nodes. The timezone and the exact `next_week` rule are [U] (no such day node existed). The
+  account's week start is inferred to be Sunday from the 500 window [I].
+- Inbox name and placement once materialised: [U] (UP says "at the top of your outline"; the mock uses `Inbox`, top).
+- Do mutating endpoints accept keys as the path `:id`? [U] (S7). The mock says no (404 `Item not found`).
+- **Targets**: §4.10.
 
 ---
 
@@ -691,7 +721,7 @@ source it gives `Item not found`. As a mirror parent it gives `Parent item not f
 - [ ] `modifiedAt` table per §8.
 - [ ] Mirrors per §10. Cycle policy per §4.7.5 (reject by default, `faithful_cycles` flag).
 - [ ] List ordered by `create_seq`. JSON serialised with `json.dumps` defaults and the node key order from §1.2.
-- [ ] Untested areas (§11, empty or null `parent_id`, export, targets): implement plausibly and flag them as unverified.
+- [ ] Root, special keys, export and targets per §4.10 and §11. Flag the remaining [U] parts (materialisation, inbox, shortcuts, the 429).
 
 ---
 

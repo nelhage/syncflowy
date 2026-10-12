@@ -7,22 +7,25 @@ scope rules confine every request to the scratchpad. **Prod** means a few more A
 
 ## 1. Blocked by the scope restriction
 
+Read-only GETs outside the scratchpad were authorised on 2026-10-12 and are written up in [global-readonly.md](global-readonly.md).
+Writes outside the scratchpad remain out of scope, so materialisation is still unobserved.
+
 | # | question | mock default |
 |---|---|---|
-| S1 | What do `parent_id` **omitted, `null` or `""`** resolve to on **create** and **move**? All three pass validation (followup-2). The root is likely, and so is `""` → `Location '' not found`. A sync engine must always send `parent_id` on move. | root |
-| S2 | Special keys: `None` (root), `inbox`, `calendar`, `today`, `tomorrow`, `next_week`, `YYYY`, `YYYY-MM`, `YYYY-MM-DD`. What do they resolve to for list, create and move? What priority does a node moved there get? Are calendar nodes materialised, and with what name and layoutMode? What exactly does the 404 for a not-yet-created calendar key say? Where does the resolver check them relative to the URL and short-id forms? | implement per upstream, unverified |
-| S3 | **User shortcut keys** as `parent_id`: the resolution and the not-found message after the key is deleted (UI I2 could unlock this with a narrow guard exception). | lookup in a targets table |
-| S4 | `GET /nodes` with no `parent_id`: does it list the root or return an error? | root |
-| S5 | **`GET /nodes-export`**: response order, whether it includes detached cycles and orphan shells, whether it exposes mirror metadata (`mirror_origin_id`?) or collapse state, and the 1 req/min limit's **429 body and `Retry-After`**. | flat `{"nodes": [...]}` in `create_seq` order, no metadata. The 429 is a guess |
-| S6 | **`GET /targets`**: the real shape, which system targets exist, and `name` values. | per upstream |
-| S7 | Do mutating endpoints accept special or shortcut keys as the path `:id`? Probably not, given that short ids fail. | no |
+| S1 | What do `parent_id` **omitted, `null` or `""`** resolve to on **create** and **move**? All three pass validation (followup-2). **Partly answered (list only):** omitted → the root, `""` → `Location '' not found` (global-readonly §1). Create and move presumably share the resolver, but that is unobserved. A sync engine must always send `parent_id` on move. | omitted/null → root, `""` → Location |
+| S2 | Special keys. **Mostly answered (read-only):** `None` = the root; calendar names `📆 Calendar` / `2026` / `07` / `<time …>Sun, Jul 5, 2026</time>`, `bullets`, `note: null`, UUIDv5 ids, chronological priorities; a not-yet-created key → `Location '<key>' not found` on list and `Item not found` on GET; a never-materialised `inbox` lists as `[]`; impossible dates and year 9999 → 500 on list; the first week of year 1 → 500 (global-readonly §2). **GET `/nodes/:key` also resolves existing keys.** Still open: what create and move materialise (the API path, the inbox name and position), the priority of a node moved there, the timezone of `today`, and the resolver's relative order (unobservable, since no key is URL- or short-id-shaped). | as observed; materialisation per UI calendar |
+| S3 | **User shortcut keys** as `parent_id` and on GET: the resolution and the not-found message after the key is deleted, and their position in `/targets`. The account has **no shortcuts** (global-readonly §3), so a human would have to create one (UI I2). | lookup in a targets table, listed first |
+| S4 | ~~`GET /nodes` with no `parent_id`~~ **Answered: the root**, the same as `parent_id=None` (global-readonly §1). | root |
+| S5 | **`GET /nodes-export`**. **Mostly answered** (global-readonly §4): `{"nodes": [...]}` with records identical to GET; no mirror metadata or collapse state; shells look like plain nodes; completed included; the order is unspecified (not creation, priority, id or tree order) but stable. **The 1 req/min limit was not enforced** (200s 10 s apart, no rate-limit headers). Still open: the 429 body and `Retry-After` if a limit exists, whether detached cycles are exported (none existed), and whether responses are cached. | creation order; rate limit off by default |
+| S6 | ~~**`GET /targets`**~~ **Answered** (global-readonly §3): system targets `inbox` (null, never materialised), `today` "Today", `tomorrow` "Tomorrow", `next_week` "Next Week" (fixed labels, although no day node exists), `calendar` "📆 Calendar", in that order. Shortcut entries: see S3. | as observed |
+| S7 | Do mutating endpoints accept special or shortcut keys as the path `:id`? **GET does** for existing nodes (global-readonly §2), which makes this less certain. It cannot be tested read-only. | no |
 | S8 | ~~Uppercase or dashless UUIDs of an **existing** node on delete, move, complete, uncomplete and mirror.~~ **Answered: 404** (`Item not found`, nothing changed) on update, complete, uncomplete, move, mirror POST/DELETE (conformance golden `ids_mutations_need_exact_uuid`) and plain DELETE (`delete_by_short_id_is_noop`). | 404 |
 
 ## 2. Needs a human in the UI
 
 | # | question | scenario |
 |---|---|---|
-| H1 | How does the UI assign priorities (midpoint, shift, renumber, fractional values)? Can it make duplicates? | A1–A5, A10 |
+| H1 | How does the UI assign priorities (midpoint, shift, renumber, fractional values)? Can it make duplicates? Evidence for the **integer midpoint**: the scratchpad got 28 between 12 and 44, and a calendar day got 550 between 500 and 600 (global-readonly §1, §2.1). | A1–A5, A10 |
 | H2 | How does the UI encode `<`, `>`, `&` and formatting in `name` and `note`? Is `name` HTML? | E1–E5, E8 |
 | H3 | Does the UI rewrite or sanitise API-written HTML, entities or markdown on edit (sync churn)? | F1–F3 |
 | H4 | What does the UI show for a mirror shell (origin content or the shell's own fields)? Where do UI-created children of a mirror go? Which record does an edit through a mirror change? | H1–H4 |
@@ -30,7 +33,7 @@ scope rules confine every request to the scratchpad. **Prod** means a few more A
 | H6 | Can undo or trash restore deleted nodes with the **same ids**? This includes API-deleted nodes. | B1, B2 |
 | H7 | Does UI completion cascade to descendants in the data? | D2 |
 | H8 | Which UI actions bump which `modifiedAt` (child ops, collapse, tags)? | C1, C2 |
-| H9 | What is the real set of `layoutMode` values? How do unknown values render? | G1, G2 |
+| H9 | What is the real set of `layoutMode` values? How do unknown values render? The user's own (non-scratchpad) data contains only `bullets`, `bullet`, `p`, `cmnt` and `cmnt-c` (global-readonly §5). | G1, G2 |
 | H10 | Is cut/paste a move or a delete+create? | B4 |
 | H11 | Date `<time>` format with ranges and locale/24h settings. | E6 |
 | H12 | Can a note be returned to `null` from the UI? | E8 |
@@ -56,7 +59,7 @@ scope rules confine every request to the scratchpad. **Prod** means a few more A
 
 | # | item | decision / note |
 |---|---|---|
-| D1 | **Cycle policy**: production accepts a move into a descendant (200) and corrupts the tree. | Mock rejects by default with a mock-specific 400 and offers a `faithful_cycles` flag (data-model §4.7). **Coordinator to confirm.** |
+| D1 | **Cycle policy**: production accepts a move into a descendant (200) and corrupts the tree. | Mock rejects by default with a mock-specific 400 and offers a `faithful_cycles` flag (data-model §4.7). **Decided 2026-10-12 (user): keep rejection as the default**; `faithful_cycles` remains available. |
 | D2 | Why mirror creation and child creation do not bump the destination parent's `modifiedAt` while move-in does. | Copy the observed table. |
 | D3 | Short-id collisions (two nodes with the same last 12 hex digits). | Cannot be constructed. Mock: first match by `create_seq`. |
 | D4 | Narrow races (more than 4 concurrent writes) producing duplicate priorities, and the renumber's tie order. | Mock serialises writes. Tie-break `(priority, create_seq)`. |

@@ -27,6 +27,12 @@ Escape hatches (use sparingly, and document why in your notes):
   ids that cannot possibly exist (e.g. random UUIDs, malformed ids) to observe
   error behaviour. Never use it to read or write real nodes outside the
   scratchpad.
+* ``readonly_global=True`` on ``request`` (authorised by the user
+  2026-10-12) permits **GET only** anywhere in the account -- including
+  ``/nodes-export``, ``/targets``, special ``parent_id`` keys and nodes
+  outside the scratchpad. Any other method raises ScopeError. The response
+  is NOT used to grow the allow-list, so ids seen this way never become
+  mutable. Rate limiting and logging still apply.
 """
 
 from __future__ import annotations
@@ -246,14 +252,14 @@ class ProdClient:
 
     # ----- requests ----------------------------------------------------
 
-    def _raw(self, method: str, path: str, **kw) -> httpx.Response:
+    def _raw(self, method: str, path: str, *, retry_429: bool = True, **kw) -> httpx.Response:
         attempt = 0
         while True:
             self.limiter.acquire()
             t0 = time.time()
             resp = self.http.request(method, path, **kw)
             self._log(method, path, kw, resp, t0)
-            if resp.status_code == 429 and attempt < 5:
+            if resp.status_code == 429 and retry_429 and attempt < 5:
                 attempt += 1
                 retry = resp.headers.get("retry-after")
                 time.sleep(float(retry) if retry and retry.isdigit() else 2**attempt)
@@ -302,14 +308,26 @@ class ProdClient:
         content: bytes | str | None = None,
         headers: dict | None = None,
         unscoped: bool = False,
+        readonly_global: bool = False,
+        retry_429: bool = True,
     ) -> httpx.Response:
         """Issue a request. ``json`` and ``content`` are mutually exclusive.
 
         ``content`` lets you send raw / malformed bodies (e.g. form-encoded,
         invalid JSON) to probe the server's parsing.
+
+        ``retry_429=False`` returns a 429 to the caller instead of sleeping
+        and retrying (used to observe rate-limit responses).
         """
         method = method.upper()
-        if not unscoped:
+        if readonly_global:
+            if method != "GET":
+                raise ScopeError(
+                    f"readonly_global permits only GET, not {method} {path}"
+                )
+            if json is not None or content is not None:
+                raise ScopeError("readonly_global GET must not carry a body")
+        elif not unscoped:
             body = json
             if body is None and content is not None:
                 try:
@@ -328,8 +346,8 @@ class ProdClient:
             kw["content"] = content.encode() if isinstance(content, str) else content
         if headers is not None:
             kw["headers"] = headers
-        resp = self._raw(method, path, **kw)
-        if not unscoped and resp.status_code < 400:
+        resp = self._raw(method, path, retry_429=retry_429, **kw)
+        if not unscoped and not readonly_global and resp.status_code < 400:
             self._learn(method, path, resp)
         return resp
 

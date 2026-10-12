@@ -132,7 +132,7 @@ def test_full_reset_restores_config_and_clock(wf: WF) -> None:
     assert wf.admin("POST", "reset").status_code == 200  # plain reset keeps config
     assert wf.admin("GET", "config").json()["faithful_cycles"] is True
     assert wf.admin("POST", "reset", json={"all": True}).status_code == 200
-    assert wf.admin("GET", "config").json() == {"faithful_cycles": False, "export_min_interval": 60.0, "week_start": 0}
+    assert wf.admin("GET", "config").json() == {"faithful_cycles": False, "export_min_interval": 0.0, "week_start": 6}
     assert wf.admin("GET", "clock").json()["offset"] == 0
     assert wf.admin("GET", "dump").json()["nodes"] == []
 
