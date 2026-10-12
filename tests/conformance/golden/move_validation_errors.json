@@ -1,0 +1,608 @@
+{
+ "scenario": "move_validation_errors",
+ "doc": "Move body validation: string_type, enum, all errors collected; parse errors (\u00a72.5).",
+ "recorded_at": "2026-10-12T20:57:59+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "a"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<A>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/move",
+   "json": {
+    "parent_id": 1
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "string_type",
+      "loc": [
+       "parent_id"
+      ],
+      "msg": "Input should be a valid string",
+      "input": 1
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/move",
+   "json": {
+    "parent_id": "<ROOT>",
+    "position": "middle"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "enum",
+      "loc": [
+       "position"
+      ],
+      "msg": "Input should be 'top' or 'bottom'",
+      "input": "middle"
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/move",
+   "json": {
+    "position": 3,
+    "parent_id": true
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "string_type",
+      "loc": [
+       "parent_id"
+      ],
+      "msg": "Input should be a valid string",
+      "input": true
+     },
+     {
+      "type": "enum",
+      "loc": [
+       "position"
+      ],
+      "msg": "Input should be 'top' or 'bottom'",
+      "input": 3
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/move",
+   "json": {
+    "parent_id": [
+     "x"
+    ],
+    "position": null
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "string_type",
+      "loc": [
+       "parent_id"
+      ],
+      "msg": "Input should be a valid string",
+      "input": [
+       "x"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/move",
+   "content": "",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_json",
+    "message": "Invalid JSON format in request body"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/move",
+   "content": "{bad",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_json",
+    "message": "Invalid JSON format in request body"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/move",
+   "content": "[1]",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of MoveNodeRequest",
+      "input": [
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/move",
+   "content": "\"s\"",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of MoveNodeRequest",
+      "input": "s"
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/move",
+   "content": "null",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of MoveNodeRequest",
+      "input": null
+     }
+    ]
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>",
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "node": {
+     "id": "<A>",
+     "name": "a",
+     "note": null,
+     "parent_id": "<ROOT>",
+     "priority": 100,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": "<E1>",
+     "modifiedAt": "<E1>",
+     "completedAt": null
+    }
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "move_validation_errors",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "44e64f13-8701-487f-af3e-dd4ae4578830",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance move_validation_errors",
+  "setup_window": [
+   1791838674.278927,
+   1791838674.47812
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838677.4783986,
+    "t1": 1791838677.7145739,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "44e64f13-8701-487f-af3e-dd4ae4578830",
+     "name": "a"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:57 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"995fbbf2-6979-4aa7-8f26-e5d48717f43c\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "995fbbf2-6979-4aa7-8f26-e5d48717f43c",
+    "name": "A"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838677.7146327,
+    "t1": 1791838677.8507123,
+    "method": "POST",
+    "path": "/api/v1/nodes/995fbbf2-6979-4aa7-8f26-e5d48717f43c/move",
+    "params": null,
+    "json": {
+     "parent_id": 1
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:57 GMT",
+     "content-type": "application/json",
+     "content-length": "112",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 1}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838677.8510125,
+    "t1": 1791838677.9976082,
+    "method": "POST",
+    "path": "/api/v1/nodes/995fbbf2-6979-4aa7-8f26-e5d48717f43c/move",
+    "params": null,
+    "json": {
+     "parent_id": "44e64f13-8701-487f-af3e-dd4ae4578830",
+     "position": "middle"
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:57 GMT",
+     "content-type": "application/json",
+     "content-length": "114",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": \"middle\"}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838677.997908,
+    "t1": 1791838678.142801,
+    "method": "POST",
+    "path": "/api/v1/nodes/995fbbf2-6979-4aa7-8f26-e5d48717f43c/move",
+    "params": null,
+    "json": {
+     "position": 3,
+     "parent_id": true
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:58 GMT",
+     "content-type": "application/json",
+     "content-length": "210",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": true}, {\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": 3}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838678.1430898,
+    "t1": 1791838678.2834327,
+    "method": "POST",
+    "path": "/api/v1/nodes/995fbbf2-6979-4aa7-8f26-e5d48717f43c/move",
+    "params": null,
+    "json": {
+     "parent_id": [
+      "x"
+     ],
+     "position": null
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:58 GMT",
+     "content-type": "application/json",
+     "content-length": "116",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": [\"x\"]}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838678.2837172,
+    "t1": 1791838678.4223807,
+    "method": "POST",
+    "path": "/api/v1/nodes/995fbbf2-6979-4aa7-8f26-e5d48717f43c/move",
+    "params": null,
+    "json": null,
+    "content": "",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:58 GMT",
+     "content-type": "application/json",
+     "content-length": "74",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_json\", \"message\": \"Invalid JSON format in request body\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838678.4226706,
+    "t1": 1791838678.5686088,
+    "method": "POST",
+    "path": "/api/v1/nodes/995fbbf2-6979-4aa7-8f26-e5d48717f43c/move",
+    "params": null,
+    "json": null,
+    "content": "{bad",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:58 GMT",
+     "content-type": "application/json",
+     "content-length": "74",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_json\", \"message\": \"Invalid JSON format in request body\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838678.5689027,
+    "t1": 1791838678.7084968,
+    "method": "POST",
+    "path": "/api/v1/nodes/995fbbf2-6979-4aa7-8f26-e5d48717f43c/move",
+    "params": null,
+    "json": null,
+    "content": "[1]",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:58 GMT",
+     "content-type": "application/json",
+     "content-length": "137",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MoveNodeRequest\", \"input\": [1]}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838678.7087936,
+    "t1": 1791838678.854274,
+    "method": "POST",
+    "path": "/api/v1/nodes/995fbbf2-6979-4aa7-8f26-e5d48717f43c/move",
+    "params": null,
+    "json": null,
+    "content": "\"s\"",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:58 GMT",
+     "content-type": "application/json",
+     "content-length": "137",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MoveNodeRequest\", \"input\": \"s\"}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838678.8545566,
+    "t1": 1791838678.996937,
+    "method": "POST",
+    "path": "/api/v1/nodes/995fbbf2-6979-4aa7-8f26-e5d48717f43c/move",
+    "params": null,
+    "json": null,
+    "content": "null",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:58 GMT",
+     "content-type": "application/json",
+     "content-length": "138",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MoveNodeRequest\", \"input\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838678.9972126,
+    "t1": 1791838679.1420531,
+    "method": "GET",
+    "path": "/api/v1/nodes/995fbbf2-6979-4aa7-8f26-e5d48717f43c",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:59 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"node\": {\"id\": \"995fbbf2-6979-4aa7-8f26-e5d48717f43c\", \"name\": \"a\", \"note\": null, \"parent_id\": \"44e64f13-8701-487f-af3e-dd4ae4578830\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838677, \"modifiedAt\": 1791838677, \"completedAt\": null}}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

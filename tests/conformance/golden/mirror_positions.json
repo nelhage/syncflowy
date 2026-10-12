@@ -1,0 +1,479 @@
+{
+ "scenario": "mirror_positions",
+ "doc": "Shell priority uses the shared algorithm: default top, top, bottom (\u00a77, \u00a710.2).",
+ "recorded_at": "2026-10-12T20:55:37+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "origin"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<O>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "P"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<P>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<P>",
+    "name": "a"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N1>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<P>",
+    "name": "b",
+    "position": "bottom"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N2>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "parent_id": "<P>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N3>",
+    "origin_id": "<O>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "parent_id": "<P>",
+    "position": "bottom"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N4>",
+    "origin_id": "<O>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "parent_id": "<P>",
+    "position": "top"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N5>",
+    "origin_id": "<O>"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<P>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<N1>",
+      "name": "a",
+      "note": null,
+      "parent_id": "<P>",
+      "priority": 100,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N2>",
+      "name": "b",
+      "note": null,
+      "parent_id": "<P>",
+      "priority": 200,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N3>",
+      "name": "",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 50,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N4>",
+      "name": "",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 300,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N5>",
+      "name": "",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 25,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     }
+    ]
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "mirror_positions",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "c26bf0c6-ba5f-4c18-9b82-91c388017037",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance mirror_positions",
+  "setup_window": [
+   1791838532.113854,
+   1791838532.3216558
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838535.3219326,
+    "t1": 1791838535.5552633,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "c26bf0c6-ba5f-4c18-9b82-91c388017037",
+     "name": "origin"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:35 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"6252db66-b3d4-40d5-9a81-1267edb1b301\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "6252db66-b3d4-40d5-9a81-1267edb1b301",
+    "name": "O"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838535.5553286,
+    "t1": 1791838535.7443104,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "c26bf0c6-ba5f-4c18-9b82-91c388017037",
+     "name": "P"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:35 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"8a39e063-2be9-4ae9-9108-3be4e4357101\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "8a39e063-2be9-4ae9-9108-3be4e4357101",
+    "name": "P"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838535.744377,
+    "t1": 1791838535.9726305,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "8a39e063-2be9-4ae9-9108-3be4e4357101",
+     "name": "a"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:35 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"0ca323a5-a76e-4f45-b15b-6833230deb9f\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838535.973047,
+    "t1": 1791838536.1777964,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "8a39e063-2be9-4ae9-9108-3be4e4357101",
+     "name": "b",
+     "position": "bottom"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:36 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"7ea69ed8-00ab-4857-b96b-b4400f194cd2\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838536.177855,
+    "t1": 1791838536.3991852,
+    "method": "POST",
+    "path": "/api/v1/nodes/6252db66-b3d4-40d5-9a81-1267edb1b301/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "8a39e063-2be9-4ae9-9108-3be4e4357101"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:36 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"7f663f00-450b-4923-a0ed-a29e6346dd8c\", \"origin_id\": \"6252db66-b3d4-40d5-9a81-1267edb1b301\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838536.39925,
+    "t1": 1791838536.6200018,
+    "method": "POST",
+    "path": "/api/v1/nodes/6252db66-b3d4-40d5-9a81-1267edb1b301/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "8a39e063-2be9-4ae9-9108-3be4e4357101",
+     "position": "bottom"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:36 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"40bfef5c-b98e-4a6d-83ab-6111e1677953\", \"origin_id\": \"6252db66-b3d4-40d5-9a81-1267edb1b301\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838536.6200662,
+    "t1": 1791838536.8162942,
+    "method": "POST",
+    "path": "/api/v1/nodes/6252db66-b3d4-40d5-9a81-1267edb1b301/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "8a39e063-2be9-4ae9-9108-3be4e4357101",
+     "position": "top"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:36 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"be191086-6331-4f42-889c-45efbc83116b\", \"origin_id\": \"6252db66-b3d4-40d5-9a81-1267edb1b301\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838536.8163517,
+    "t1": 1791838536.9701924,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "8a39e063-2be9-4ae9-9108-3be4e4357101"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:36 GMT",
+     "content-type": "application/json",
+     "content-length": "357",
+     "connection": "keep-alive",
+     "content-encoding": "gzip",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"0ca323a5-a76e-4f45-b15b-6833230deb9f\", \"name\": \"a\", \"note\": null, \"parent_id\": \"8a39e063-2be9-4ae9-9108-3be4e4357101\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838535, \"modifiedAt\": 1791838535, \"completedAt\": null}, {\"id\": \"7ea69ed8-00ab-4857-b96b-b4400f194cd2\", \"name\": \"b\", \"note\": null, \"parent_id\": \"8a39e063-2be9-4ae9-9108-3be4e4357101\", \"priority\": 200, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838536, \"modifiedAt\": 1791838536, \"completedAt\": null}, {\"id\": \"7f663f00-450b-4923-a0ed-a29e6346dd8c\", \"name\": \"\", \"note\": \"\", \"parent_id\": \"8a39e063-2be9-4ae9-9108-3be4e4357101\", \"priority\": 50, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838536, \"modifiedAt\": 1791838536, \"completedAt\": null}, {\"id\": \"40bfef5c-b98e-4a6d-83ab-6111e1677953\", \"name\": \"\", \"note\": \"\", \"parent_id\": \"8a39e063-2be9-4ae9-9108-3be4e4357101\", \"priority\": 300, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838536, \"modifiedAt\": 1791838536, \"completedAt\": null}, {\"id\": \"be191086-6331-4f42-889c-45efbc83116b\", \"name\": \"\", \"note\": \"\", \"parent_id\": \"8a39e063-2be9-4ae9-9108-3be4e4357101\", \"priority\": 25, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838536, \"modifiedAt\": 1791838536, \"completedAt\": null}]}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

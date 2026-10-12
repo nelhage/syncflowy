@@ -1,0 +1,669 @@
+{
+ "scenario": "mirror_validation_errors",
+ "doc": "Mirror body validation: parent_id required/non-null, enum position, parse errors (\u00a72.5).",
+ "recorded_at": "2026-10-12T20:55:55+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "origin"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<O>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {},
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "missing",
+      "loc": [
+       "parent_id"
+      ],
+      "msg": "Field required",
+      "input": {}
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "position": "top"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "missing",
+      "loc": [
+       "parent_id"
+      ],
+      "msg": "Field required",
+      "input": {
+       "position": "top"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "parent_id": null
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "string_type",
+      "loc": [
+       "parent_id"
+      ],
+      "msg": "Input should be a valid string",
+      "input": null
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "parent_id": 5,
+    "position": "x"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "string_type",
+      "loc": [
+       "parent_id"
+      ],
+      "msg": "Input should be a valid string",
+      "input": 5
+     },
+     {
+      "type": "enum",
+      "loc": [
+       "position"
+      ],
+      "msg": "Input should be 'top' or 'bottom'",
+      "input": "x"
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "position": false,
+    "foo": 1
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "missing",
+      "loc": [
+       "parent_id"
+      ],
+      "msg": "Field required",
+      "input": {
+       "position": false,
+       "foo": 1
+      }
+     },
+     {
+      "type": "enum",
+      "loc": [
+       "position"
+      ],
+      "msg": "Input should be 'top' or 'bottom'",
+      "input": false
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "content": "",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_json",
+    "message": "Invalid JSON format in request body"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "content": "{bad",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_json",
+    "message": "Invalid JSON format in request body"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "content": "[1]",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of MirrorNodeRequest",
+      "input": [
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "content": "\"s\"",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of MirrorNodeRequest",
+      "input": "s"
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "content": "null",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of MirrorNodeRequest",
+      "input": null
+     }
+    ]
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<ROOT>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<O>",
+      "name": "origin",
+      "note": null,
+      "parent_id": "<ROOT>",
+      "priority": 100,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     }
+    ]
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "mirror_validation_errors",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "776cf168-1c50-4749-a759-9abddee2e45e",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance mirror_validation_errors",
+  "setup_window": [
+   1791838550.4642427,
+   1791838550.6535814
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838553.6538355,
+    "t1": 1791838553.8818128,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "776cf168-1c50-4749-a759-9abddee2e45e",
+     "name": "origin"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:53 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"bcefe6ad-21c0-424a-9d02-6311dc066beb\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "bcefe6ad-21c0-424a-9d02-6311dc066beb",
+    "name": "O"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838553.8822193,
+    "t1": 1791838554.0234857,
+    "method": "POST",
+    "path": "/api/v1/nodes/bcefe6ad-21c0-424a-9d02-6311dc066beb/mirror",
+    "params": null,
+    "json": {},
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:53 GMT",
+     "content-type": "application/json",
+     "content-length": "93",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"missing\", \"loc\": [\"parent_id\"], \"msg\": \"Field required\", \"input\": {}}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838554.0237625,
+    "t1": 1791838554.1624238,
+    "method": "POST",
+    "path": "/api/v1/nodes/bcefe6ad-21c0-424a-9d02-6311dc066beb/mirror",
+    "params": null,
+    "json": {
+     "position": "top"
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:54 GMT",
+     "content-type": "application/json",
+     "content-length": "110",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"missing\", \"loc\": [\"parent_id\"], \"msg\": \"Field required\", \"input\": {\"position\": \"top\"}}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838554.1627035,
+    "t1": 1791838554.3018782,
+    "method": "POST",
+    "path": "/api/v1/nodes/bcefe6ad-21c0-424a-9d02-6311dc066beb/mirror",
+    "params": null,
+    "json": {
+     "parent_id": null
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:54 GMT",
+     "content-type": "application/json",
+     "content-length": "115",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838554.3021634,
+    "t1": 1791838554.4439294,
+    "method": "POST",
+    "path": "/api/v1/nodes/bcefe6ad-21c0-424a-9d02-6311dc066beb/mirror",
+    "params": null,
+    "json": {
+     "parent_id": 5,
+     "position": "x"
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:54 GMT",
+     "content-type": "application/json",
+     "content-length": "209",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"string_type\", \"loc\": [\"parent_id\"], \"msg\": \"Input should be a valid string\", \"input\": 5}, {\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": \"x\"}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838554.444042,
+    "t1": 1791838554.585087,
+    "method": "POST",
+    "path": "/api/v1/nodes/bcefe6ad-21c0-424a-9d02-6311dc066beb/mirror",
+    "params": null,
+    "json": {
+     "position": false,
+     "foo": 1
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:54 GMT",
+     "content-type": "application/json",
+     "content-length": "219",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"missing\", \"loc\": [\"parent_id\"], \"msg\": \"Field required\", \"input\": {\"position\": false, \"foo\": 1}}, {\"type\": \"enum\", \"loc\": [\"position\"], \"msg\": \"Input should be 'top' or 'bottom'\", \"input\": false}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838554.585378,
+    "t1": 1791838554.7316098,
+    "method": "POST",
+    "path": "/api/v1/nodes/bcefe6ad-21c0-424a-9d02-6311dc066beb/mirror",
+    "params": null,
+    "json": null,
+    "content": "",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:54 GMT",
+     "content-type": "application/json",
+     "content-length": "74",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_json\", \"message\": \"Invalid JSON format in request body\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838554.7319648,
+    "t1": 1791838554.8804255,
+    "method": "POST",
+    "path": "/api/v1/nodes/bcefe6ad-21c0-424a-9d02-6311dc066beb/mirror",
+    "params": null,
+    "json": null,
+    "content": "{bad",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:54 GMT",
+     "content-type": "application/json",
+     "content-length": "74",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_json\", \"message\": \"Invalid JSON format in request body\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838554.8807018,
+    "t1": 1791838555.0320182,
+    "method": "POST",
+    "path": "/api/v1/nodes/bcefe6ad-21c0-424a-9d02-6311dc066beb/mirror",
+    "params": null,
+    "json": null,
+    "content": "[1]",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:54 GMT",
+     "content-type": "application/json",
+     "content-length": "139",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MirrorNodeRequest\", \"input\": [1]}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838555.0323036,
+    "t1": 1791838555.1730762,
+    "method": "POST",
+    "path": "/api/v1/nodes/bcefe6ad-21c0-424a-9d02-6311dc066beb/mirror",
+    "params": null,
+    "json": null,
+    "content": "\"s\"",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:55 GMT",
+     "content-type": "application/json",
+     "content-length": "139",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MirrorNodeRequest\", \"input\": \"s\"}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838555.1733487,
+    "t1": 1791838555.3115602,
+    "method": "POST",
+    "path": "/api/v1/nodes/bcefe6ad-21c0-424a-9d02-6311dc066beb/mirror",
+    "params": null,
+    "json": null,
+    "content": "null",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:55 GMT",
+     "content-type": "application/json",
+     "content-length": "140",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of MirrorNodeRequest\", \"input\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838555.311862,
+    "t1": 1791838555.4658134,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "776cf168-1c50-4749-a759-9abddee2e45e"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:55 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"bcefe6ad-21c0-424a-9d02-6311dc066beb\", \"name\": \"origin\", \"note\": null, \"parent_id\": \"776cf168-1c50-4749-a759-9abddee2e45e\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838553, \"modifiedAt\": 1791838553, \"completedAt\": null}]}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

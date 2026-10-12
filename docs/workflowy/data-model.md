@@ -107,8 +107,11 @@ All routes also accept a trailing `/`, without a redirect [O: E§1].
   `application/json`, with no `Allow` header. HEAD and OPTIONS also get 405 (HEAD with no body).
 - **HTML-empty 405** [O: E§5, U]: `405`, `content-type: text/html; charset=utf-8`,
   `content-length: 0`, `Allow: POST`.
-- **Unknown route** [O: E§5, D§1.4]: 404 `text/html; charset=utf-8`. GET returns a full HTML page
-  (`<!DOCTYPE html>…<title>404</title>…`), and other methods return an empty body. This covers
+- **Unknown route** [O: E§5, D§1.4]: 404 `text/html; charset=utf-8`. A request **without a body**
+  (any method: GET, bodiless POST, DELETE, …) returns a full HTML page (`<!DOCTYPE html>…<title>404</title>…`);
+  a request that **carries a body** (e.g. `POST /api/v1/foo` with `{}`) returns an empty body [O: request log
+  (27 cases) and conformance golden `http_unknown_routes` steps 10–12; corrected 2026-10-12 — the earlier
+  wording "GET → page, other methods → empty" was wrong]. This covers
   `/api/v1/trash`, `/nodes/<id>/restore`, `/nodes/<id>/children`, `/nodes/<id>/completed`, `/api/v1/me`,
   and so on. A `%2F` in the path decodes to `/` before routing, so an id containing a URL gives an unknown route [O].
 - `<id>` is any single path segment [O].
@@ -133,9 +136,11 @@ So a bad body sent to a nonexistent id gives 400, and a nonexistent `:id` with a
 
 [O: E§4]
 
-- Header `Authorization`. The server splits it on whitespace and needs at least 2 tokens. The **second token** must be a valid
-  key, and the scheme word is ignored: `Bearer k`, `bearer k`, `Token k` and `Bearer  k` all work. A bare `k`,
-  `Basic …`, a missing header or a bad key give 401. [I] for the exact split rule.
+- Header `Authorization`. The server splits it on whitespace and needs **exactly 2** tokens. The **second token** must be a valid
+  key, and the scheme word is ignored: `Bearer k`, `bearer k`, `BEARER k`, `Token k` and `Bearer  k` all work. A bare `k`,
+  `Basic …`, `Bearer k extra` (a third token), a missing header or a bad key give 401. [I] for the exact split rule.
+  (**Corrected** 2026-10-12: this said "at least 2 tokens"; the conformance golden `auth_header_variants` shows a
+  third token gives 401 [O].)
 - 401 body depends on the **method**:
   - GET: `{"errors": "Invalid Credentials, try again."}`
   - POST and DELETE: `{"code": "invalid_credentials", "message": "Invalid Credentials, try again."}`
@@ -200,7 +205,7 @@ All are `application/json` [O]:
 | 404 | `{"code": "not_found", "message": "Location '<raw input>' not found"}` (raw input echoed in single quotes, JSON-escaped) |
 | 400 | `{"code": "invalid_request", "message": "Cannot mirror a node under itself"}` |
 | 400 | `{"code": "invalid_request", "message": "Node is not a mirror"}` |
-| 500 | `{"code": "internal_error", "message": "An internal server error occurred"}`. Only seen for a NUL in the create `note` [O: T§2] |
+| 500 | `{"code": "internal_error", "message": "An internal server error occurred"}`. Seen for a value that reaches storage unfiltered and cannot be stored: a NUL in the create `note` [O: T§2], a NUL in `layoutMode` on create or update, and a JSON lone surrogate (`"\ud800"`) in the create `note` or in `layoutMode` on create or update [O: goldens `create_layoutmode_controls_nul_and_surrogates`, `update_nul_layoutmode_and_lone_surrogates`]. Nothing is changed (no node, no `modifiedAt` bump). |
 
 ### 2.7 Headers
 
@@ -243,7 +248,7 @@ The mock should serialize all writes (one SQLite transaction per request, under 
 
 ```python
 UUID_RE  = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'   # re.I
-URL_RE   = r'^https?://(beta\.)?workflowy\.com/#/([0-9a-f]{12})(?![0-9a-f])'   # re.I, prefix match
+URL_RE   = r'^https?://(beta\.)?workflowy\.com/#/([0-9a-f]{12})(?=[/?]|$)'   # re.I; after the 12 hex: end, "/" or "?"
 SHORT_RE = r'^[0-9a-f]{12}$'                                                   # re.I
 
 def resolve_parent(s):
@@ -272,17 +277,21 @@ def resolve_parent(s):
 | URL with a full UUID (dashed or dashless, even an existing one), `www.`/`app.`/other host, no scheme, `#/x/<short>`, no `/` before `#` | `Location '<raw>' not found` [O] |
 | dashless UUID | `Location '<raw>' not found` [O] |
 | surrounding spaces | no trimming, so `Location` [O] |
+| a JSON lone surrogate (`"x\ud800"`) | `Location '<raw>' not found` (echoed, JSON-escaped) [O: golden `ids_parent_id_lone_surrogate`] |
 | non-string | 400 `string_type` (validation) [O] |
 | omitted, `null`, `""` | passes validation, and resolution is **untested** [U]. Mock: treat as the account root |
 | `None`, `inbox`, calendar keys, shortcut keys | **untested** (out of scope) [U]. Mock: implement per UP, guessing |
 
-The URL boundary check after the 12 hex digits is [I] (a 32-hex dashless UUID after `#/` is rejected).
+The URL boundary after the 12 hex digits is **end of string, `/` or `?` only** [O: golden `ids_url_parent_boundaries`,
+answering open question P6]: `-x`, `#y`, `.`, `g`, `_`, a space, `&x=1` and a 13th hex digit all give `Location '<raw>' not
+found`, even when the 12 hex digits are a nonexistent short id (a URL miss with a valid boundary gives `Parent item not found`).
 
 ### 3.3 `parent_id` for mirror
 
 [O: D§2.7, F1, F2] An **exact UUID lookup only**. *Every* miss gives `404 Parent item not found`: short ids,
 URLs, uppercase or dashless UUIDs, and garbage strings. Mirror never produces `Location '…'`. If the resolved parent
-is a mirror shell, it is redirected to that shell's origin (§10.2).
+is a mirror shell, it is redirected to that shell's origin (§10.2). Exception: a `parent_id` holding a JSON lone surrogate
+gives **500** `internal_error` (the lookup cannot encode it) [O: golden `ids_parent_id_lone_surrogate`].
 
 ---
 
@@ -331,7 +340,12 @@ Resolve per §3.1, then return `200 {"node": <node>}`. Otherwise return `404 Ite
 1. Parse and validate (`UpdateNodeRequest`). A null `name`/`note`/`layoutMode` means "leave unchanged".
 2. Look up `:id` by exact UUID. A miss gives `404 Item not found`.
 3. For each of `name`, `note` and `layoutMode` that is present and non-null, store it after deleting
-   `[\x00-\x08\x0b\x0c\x0e-\x1f]` (§6.1). No other transformation is applied. Whether layoutMode is also control-stripped is [U].
+   `[\x00-\x08\x0b\x0c\x0e-\x1f]` (§6.1). No other transformation is applied. **`layoutMode` is NOT control-stripped**:
+   it is stored completely verbatim (`"h\u0001\u000b1"` round-trips unchanged) [O: conformance golden
+   `update_layoutmode_control_chars`; corrected 2026-10-12, previously [U] with stripping as the mock's guess].
+   Because it reaches storage raw, a **NUL or a lone surrogate in `layoutMode` gives 500** and the whole update is
+   discarded (other fields and `modifiedAt` unchanged). Lone surrogates in `name`/`note` become `?` (§6.1)
+   [O: golden `update_nul_layoutmode_and_lone_surrogates`].
 4. **Always** set `modifiedAt = now`, even for `{}`, a no-op, unknown fields only, or null fields [O].
 5. `parent_id`, `priority`, `position`, `completed`, and so on are ignored: update never moves, reorders or completes [O].
 6. `200 {"status": "ok"}`.
@@ -419,23 +433,39 @@ Whether export includes orphan or detached nodes, or exposes mirror metadata, is
 
 ## 6. Text processing
 
-### 6.1 Update path (name, note, and probably layoutMode)
+### 6.1 Update path (name and note; layoutMode is fully verbatim)
 
-Delete `[\x00-\x08\x0b\x0c\x0e-\x1f]` and store everything else **byte-for-byte**: no markdown, no entity
+For `name` and `note`: delete `[\x00-\x08\x0b\x0c\x0e-\x1f]` and store everything else **byte-for-byte**: no markdown, no entity
 decode or encode, no trimming, no newline handling, no HTML sanitising, and no Unicode normalisation [O: T§2, U].
 `\r\n` and `\r` are preserved [O]. Re-submitting a name that create produced is a fixed point [O: T§11].
+`layoutMode` on update is stored with **no** stripping at all, control characters included [O: conformance golden
+`update_layoutmode_control_chars`; corrected 2026-10-12]; a NUL or lone surrogate in it gives 500 (§2.6).
+**Lone surrogates** (JSON `"\ud800"`, which Python's `json.loads` accepts) in `name` and `note` are replaced by `?`, one per
+code point (`str.encode("utf-8", "replace")` semantics): `"x\ud800y"` → `"x?y"` [O: golden
+`update_nul_layoutmode_and_lone_surrogates`].
 
 ### 6.2 Create path: `name`
 
 This is the only transforming path. Pipeline [I: fitted to ~200 observed cases. T§5–7 and C§4–5 are the test vectors;
 `experiments/text-content/model_check.py` reproduces 191/191 single-line cases]:
 
-1. **Strip** `[\x00-\x08\x0e-\x1f]` (VT and FF are kept here and later act as line breaks) [O: T§2].
+1. **Strip** `[\x00-\x08\x0e-\x1f]` (VT and FF are kept here and later act as line breaks) [O: T§2]. Lone surrogates
+   become `?` (`"x\ud800y"` → `"x?y"`) [O: golden `create_layoutmode_controls_nul_and_surrogates`].
 2. **`html.unescape()`** (Python semantics: `&ampx` → `&x`, unknown entities are kept, a single pass) [O: T§4.2]. This
-   runs **before** markdown: `&#42;x&#42;` → `<i>x</i>`, and `&lt;b&gt;` becomes a real `<b>` [O].
+   runs **before** markdown: `&#42;x&#42;` → `<i>x</i>`, and `&lt;b&gt;` becomes a real `<b>` [O]. It also runs before
+   CR normalisation, fence detection, the join, splitting and prefixes, so entities act structurally: `a&#10;b` → `a b`
+   (joined), `A&#10;B` → `A` + child `B`, `x&#13;Y` splits, `&#35; head` → h1, `&#45; [x] done` → completed todo, and
+   ```` ```&#10;**x** &amp;&#10;``` ```` → code-block `**x** &` (decoded, no markdown). Python's charref rules apply:
+   `&#0;`, `&#xD800;`, `&#x110000;` → U+FFFD, `&#1;` → `""`, `&#x80;` → `€` [O: golden `text_entities_structural`,
+   answering open question P2].
 3. **Normalise** `\r\n` and `\r` → `\n` [O].
 4. **Find code-fence regions** (C§5.4 [I]). A line starting with ```` ``` ```` opens a fence, unless it is longer than 3 and
    also ends with ```` ``` ```` (a one-line fence). The region continues up to, but not including, the next line ending in ```` ``` ````.
+   **If no later line ends in ```` ``` ````, there is no region at all**, so the soft-wrap join (step 5) applies to the
+   opener line too: ```` ```\nunclosed\nMore ```` → join → ```` ``` unclosed\nMore ```` → one code-block named
+   `" unclosed\nMore"` (leading space kept, because only `\n` is stripped from fence content) [O: conformance golden
+   `text_multiline_code_fences`; corrected 2026-10-12. The earlier model treated an unclosed opener as a region and
+   predicted `"unclosed\nMore"`].
 5. **Soft-wrap join**, outside fence regions only [O/I: C§5.1]: one non-overlapping, left-to-right
    `re.sub(r"([^.!?\n])\n+([a-z])", r"\1 \2", text)`. Consequences [O]:
    - `a\nb` → `a b`; `a\n\nb` → `a b` (the number of blank lines is irrelevant); `a\nb\nc` → `a b` + child `c` (the
@@ -485,8 +515,11 @@ This is the only transforming path. Pipeline [I: fitted to ~200 observed cases. 
     ```
 
     Not supported (left literal) [O]: `_x_`, `__x__`, `~x~`, autolinks and raw URLs, `![img]` (becomes `!<a…>`), `#tag`, `@mention`.
-11. **Dates** [O: T§7, C§4.2]: `DATE_RE = \[(\d{4})-(\d{1,2})-(\d{1,2})(?: (\d{1,2}):(\d{2}))?\]`, converted only if it is a valid
-    calendar date (hour < 24, minute < 60), and otherwise left literal:
+11. **Dates** [O: T§7, C§4.2]: `DATE_RE = \[(\d{4})-(\d{1,2})-(\d{1,2})(?: (\d{1,2}):(\d{1,2}))?\]` with Python's
+    **Unicode** `\d` (Arabic-Indic `٢٠٢٦` and full-width `２０２６` years convert) and **1–2 digit minutes**
+    (`[2026-01-15 9:5]` → `9:05 AM`, `startMinute="5"`); years `0001`–`9999` (`[0001-01-01]` → `Mon, Jan 1, 1`; `0000`,
+    3- and 5-digit years and 3-digit hours stay literal) [O: golden `text_dates_edges`, answering open question P1]. A match is
+    converted only if it is a valid calendar date (hour < 24, minute < 60), and otherwise left literal:
     `<time startYear="2026" startMonth="1" startDay="15">Thu, Jan 15, 2026</time>`. With a time, add
     `startHour="14" startMinute="30"` and the text ` at 2:30 PM`. Numbers are unpadded in the attributes; the text format is
     `%a, %b {day}, {year}` plus ` at {h12}:{MM} {AM|PM}` (proleptic Gregorian). Seconds, `T`, AM/PM input and ranges are not
@@ -496,7 +529,11 @@ This is the only transforming path. Pipeline [I: fitted to ~200 observed cases. 
 
 Stored **completely verbatim**: no control-character stripping, trimming, markdown, entity decoding, or child creation.
 A **NUL** gives `500 {"code": "internal_error", "message": "An internal server error occurred"}` and creates nothing [O: T§2, T§8].
+So does a JSON **lone surrogate** [O: golden `create_layoutmode_controls_nul_and_surrogates`].
 If absent or null, it is stored as `null`.
+
+The create **`layoutMode`** param behaves the same way: verbatim (`"h\u0001\u000b1"` round-trips), and a NUL or lone
+surrogate gives 500 with nothing created [O: same golden; previously a mock guess].
 
 ### 6.4 Note null vs ""
 
@@ -671,3 +708,9 @@ source it gives `Item not found`. As a mirror parent it gives `Parent item not f
 | Create field order | C guessed `parent_id` first | `name, parent_id, note, layoutMode, position` [O: F2]. |
 | Cycle policy | E: accept faithfully; M, D: reject | Reject by default, faithful behind a flag (§4.7.5). |
 | Mirror error key order | older D tables printed keys sorted | Real order is `type, loc, msg, input` and `error, allowed_methods` [O]. |
+| Unclosed code fence | C§5.4 model made an unclosed opener a join-free region | No closing line → no region; the join applies [O: conformance golden `text_multiline_code_fences`]. |
+| Update `layoutMode` control chars | §4.4/§6.1 guessed it is stripped like name/note [U] | Stored verbatim, not stripped [O: conformance golden `update_layoutmode_control_chars`]. |
+| Auth token count | E§4 inferred "≥ 2 whitespace tokens" | **Exactly 2**: `Bearer <key> extra` → 401 [O: conformance golden `auth_header_variants`]. |
+| URL `parent_id` boundary | §3.2 guessed "not followed by a hex digit" [I] | Only end, `/` or `?` may follow the 12 hex digits [O: golden `ids_url_parent_boundaries`]. |
+| Date minutes / digits | §6.2 had `(\d{2})` minutes, ASCII digits implied | 1–2 digit minutes, Unicode digits [O: golden `text_dates_edges`]. |
+| Lone surrogates, NUL in layoutMode | not specified | name/note (create name, update name and note) → `?`; create note and layoutMode (create/update) → 500 [O: goldens `create_layoutmode_controls_nul_and_surrogates`, `update_nul_layoutmode_and_lone_surrogates`]. |

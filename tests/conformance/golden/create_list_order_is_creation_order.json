@@ -1,0 +1,369 @@
+{
+ "scenario": "create_list_order_is_creation_order",
+ "doc": "List returns children in creation order, not priority order (\u00a74.2).",
+ "recorded_at": "2026-10-12T20:49:46+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "P"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<P>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<P>",
+    "name": "first"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N1>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<P>",
+    "name": "second",
+    "position": "bottom"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N2>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<P>",
+    "name": "third",
+    "position": "top"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N3>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<P>",
+    "name": "fourth",
+    "position": "bottom"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N4>"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<P>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<N1>",
+      "name": "first",
+      "note": null,
+      "parent_id": "<P>",
+      "priority": 100,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N2>",
+      "name": "second",
+      "note": null,
+      "parent_id": "<P>",
+      "priority": 200,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N3>",
+      "name": "third",
+      "note": null,
+      "parent_id": "<P>",
+      "priority": 50,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N4>",
+      "name": "fourth",
+      "note": null,
+      "parent_id": "<P>",
+      "priority": 300,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     }
+    ]
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "create_list_order_is_creation_order",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "6b26678a-acb7-46fd-a21f-f07cf82cb0cb",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance create_list_order_is_creation_order",
+  "setup_window": [
+   1791838181.978821,
+   1791838182.1756513
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838185.1759243,
+    "t1": 1791838185.4085524,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "6b26678a-acb7-46fd-a21f-f07cf82cb0cb",
+     "name": "P"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:49:45 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"93d55d7e-aedd-4db6-83e9-0f174e9aec96\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "93d55d7e-aedd-4db6-83e9-0f174e9aec96",
+    "name": "P"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838185.408969,
+    "t1": 1791838185.6213615,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "93d55d7e-aedd-4db6-83e9-0f174e9aec96",
+     "name": "first"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:49:45 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"bbf9ca49-e613-475b-9cc2-af5833c75355\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838185.6217225,
+    "t1": 1791838185.8154414,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "93d55d7e-aedd-4db6-83e9-0f174e9aec96",
+     "name": "second",
+     "position": "bottom"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:49:45 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"e93b59f3-c0d2-4e05-848f-c102a125c318\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838185.815837,
+    "t1": 1791838186.0718322,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "93d55d7e-aedd-4db6-83e9-0f174e9aec96",
+     "name": "third",
+     "position": "top"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:49:45 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"87b98350-0b88-4cd1-856d-2b3b16f5a6ba\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838186.0721877,
+    "t1": 1791838186.2615476,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "93d55d7e-aedd-4db6-83e9-0f174e9aec96",
+     "name": "fourth",
+     "position": "bottom"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:49:46 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"8e9ab327-fd03-43be-a17a-6cf6ccb15c82\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838186.2616127,
+    "t1": 1791838186.4269092,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "93d55d7e-aedd-4db6-83e9-0f174e9aec96"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:49:46 GMT",
+     "content-type": "application/json",
+     "content-length": "342",
+     "connection": "keep-alive",
+     "content-encoding": "gzip",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"bbf9ca49-e613-475b-9cc2-af5833c75355\", \"name\": \"first\", \"note\": null, \"parent_id\": \"93d55d7e-aedd-4db6-83e9-0f174e9aec96\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838185, \"modifiedAt\": 1791838185, \"completedAt\": null}, {\"id\": \"e93b59f3-c0d2-4e05-848f-c102a125c318\", \"name\": \"second\", \"note\": null, \"parent_id\": \"93d55d7e-aedd-4db6-83e9-0f174e9aec96\", \"priority\": 200, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838185, \"modifiedAt\": 1791838185, \"completedAt\": null}, {\"id\": \"87b98350-0b88-4cd1-856d-2b3b16f5a6ba\", \"name\": \"third\", \"note\": null, \"parent_id\": \"93d55d7e-aedd-4db6-83e9-0f174e9aec96\", \"priority\": 50, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838185, \"modifiedAt\": 1791838185, \"completedAt\": null}, {\"id\": \"8e9ab327-fd03-43be-a17a-6cf6ccb15c82\", \"name\": \"fourth\", \"note\": null, \"parent_id\": \"93d55d7e-aedd-4db6-83e9-0f174e9aec96\", \"priority\": 300, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838186, \"modifiedAt\": 1791838186, \"completedAt\": null}]}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

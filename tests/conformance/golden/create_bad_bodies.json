@@ -1,0 +1,423 @@
+{
+ "scenario": "create_bad_bodies",
+ "doc": "Create with invalid JSON / empty / non-object bodies (\u00a72.4).",
+ "recorded_at": "2026-10-12T20:51:38+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "content": "{bad",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_json",
+    "message": "Invalid JSON format in request body"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "content": "",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_json",
+    "message": "Invalid JSON format in request body"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "content": "[1]",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of CreateItemRequest",
+      "input": [
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "content": "\"s\"",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of CreateItemRequest",
+      "input": "s"
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "content": "null",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of CreateItemRequest",
+      "input": null
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "content": "3",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of CreateItemRequest",
+      "input": 3
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "content": "[{\"name\": \"x\"}]",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of CreateItemRequest",
+      "input": [
+       {
+        "name": "x"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<ROOT>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": []
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "create_bad_bodies",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "114a45da-5457-41e2-8261-4003a24cb63e",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance create_bad_bodies",
+  "setup_window": [
+   1791838294.1372452,
+   1791838294.3377502
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838297.3379815,
+    "t1": 1791838297.497998,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": null,
+    "content": "{bad",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:37 GMT",
+     "content-type": "application/json",
+     "content-length": "74",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_json\", \"message\": \"Invalid JSON format in request body\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838297.4982777,
+    "t1": 1791838297.63521,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": null,
+    "content": "",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:37 GMT",
+     "content-type": "application/json",
+     "content-length": "74",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_json\", \"message\": \"Invalid JSON format in request body\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838297.6354837,
+    "t1": 1791838297.7720385,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": null,
+    "content": "[1]",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:37 GMT",
+     "content-type": "application/json",
+     "content-length": "139",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of CreateItemRequest\", \"input\": [1]}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838297.7723193,
+    "t1": 1791838297.9106286,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": null,
+    "content": "\"s\"",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:37 GMT",
+     "content-type": "application/json",
+     "content-length": "139",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of CreateItemRequest\", \"input\": \"s\"}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838297.9109883,
+    "t1": 1791838298.0488367,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": null,
+    "content": "null",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:37 GMT",
+     "content-type": "application/json",
+     "content-length": "140",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of CreateItemRequest\", \"input\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838298.0491145,
+    "t1": 1791838298.1847231,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": null,
+    "content": "3",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:38 GMT",
+     "content-type": "application/json",
+     "content-length": "137",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of CreateItemRequest\", \"input\": 3}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838298.1850164,
+    "t1": 1791838298.3224816,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": null,
+    "content": "[{\"name\": \"x\"}]",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:38 GMT",
+     "content-type": "application/json",
+     "content-length": "151",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of CreateItemRequest\", \"input\": [{\"name\": \"x\"}]}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838298.3227615,
+    "t1": 1791838298.4725845,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "114a45da-5457-41e2-8261-4003a24cb63e"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:38 GMT",
+     "content-type": "application/json",
+     "content-length": "13",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"nodes\": []}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

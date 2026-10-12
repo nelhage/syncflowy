@@ -1,0 +1,643 @@
+{
+ "scenario": "mirror_under_itself_and_descendants",
+ "doc": "Mirror under itself is 400; under its own child/grandchild is allowed; under own shell -> self error (\u00a710.2).",
+ "recorded_at": "2026-10-12T20:55:50+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "origin"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<O>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<O>",
+    "name": "c"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<C>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<C>",
+    "name": "g"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<G>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "parent_id": "<O>"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_request",
+    "message": "Cannot mirror a node under itself"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "parent_id": "<C>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N1>",
+    "origin_id": "<O>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "parent_id": "<G>",
+    "position": "bottom"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<N2>",
+    "origin_id": "<O>"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<C>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<G>",
+      "name": "g",
+      "note": null,
+      "parent_id": "<C>",
+      "priority": 100,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N1>",
+      "name": "",
+      "note": "",
+      "parent_id": "<C>",
+      "priority": 50,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     }
+    ]
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<G>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<N2>",
+      "name": "",
+      "note": "",
+      "parent_id": "<G>",
+      "priority": 100,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "P"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<P>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "parent_id": "<P>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<M>",
+    "origin_id": "<O>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror",
+   "json": {
+    "parent_id": "<M>"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_request",
+    "message": "Cannot mirror a node under itself"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<M>/mirror",
+   "json": {
+    "parent_id": "<O>"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_request",
+    "message": "Cannot mirror a node under itself"
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "mirror_under_itself_and_descendants",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "8052f116-4b30-4886-9ca8-9ca38ecdfc2a",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance mirror_under_itself_and_descendants",
+  "setup_window": [
+   1791838544.8045828,
+   1791838545.0210342
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838548.0211608,
+    "t1": 1791838548.2212386,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "8052f116-4b30-4886-9ca8-9ca38ecdfc2a",
+     "name": "origin"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:48 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"ec715fe5-d012-4d0e-967e-12201ed0d8f3\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "ec715fe5-d012-4d0e-967e-12201ed0d8f3",
+    "name": "O"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838548.2213066,
+    "t1": 1791838548.4137864,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "ec715fe5-d012-4d0e-967e-12201ed0d8f3",
+     "name": "c"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:48 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"2434b58e-3310-42a3-af1e-67e167b98b7d\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "2434b58e-3310-42a3-af1e-67e167b98b7d",
+    "name": "C"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838548.4138463,
+    "t1": 1791838548.5965116,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "2434b58e-3310-42a3-af1e-67e167b98b7d",
+     "name": "g"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:48 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"26cd18b9-f81d-4adb-b581-f708c22dd684\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "26cd18b9-f81d-4adb-b581-f708c22dd684",
+    "name": "G"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838548.59657,
+    "t1": 1791838548.7422054,
+    "method": "POST",
+    "path": "/api/v1/nodes/ec715fe5-d012-4d0e-967e-12201ed0d8f3/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "ec715fe5-d012-4d0e-967e-12201ed0d8f3"
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:48 GMT",
+     "content-type": "application/json",
+     "content-length": "75",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_request\", \"message\": \"Cannot mirror a node under itself\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838548.7424815,
+    "t1": 1791838548.9638708,
+    "method": "POST",
+    "path": "/api/v1/nodes/ec715fe5-d012-4d0e-967e-12201ed0d8f3/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "2434b58e-3310-42a3-af1e-67e167b98b7d"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:48 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"2a6f581e-16e6-450f-ad07-5f86c6a30681\", \"origin_id\": \"ec715fe5-d012-4d0e-967e-12201ed0d8f3\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838548.96425,
+    "t1": 1791838549.1859813,
+    "method": "POST",
+    "path": "/api/v1/nodes/ec715fe5-d012-4d0e-967e-12201ed0d8f3/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "26cd18b9-f81d-4adb-b581-f708c22dd684",
+     "position": "bottom"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:49 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"5cca7a0d-f12b-41f4-b117-50f400462b64\", \"origin_id\": \"ec715fe5-d012-4d0e-967e-12201ed0d8f3\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838549.1863549,
+    "t1": 1791838549.3334353,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "2434b58e-3310-42a3-af1e-67e167b98b7d"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:49 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"26cd18b9-f81d-4adb-b581-f708c22dd684\", \"name\": \"g\", \"note\": null, \"parent_id\": \"2434b58e-3310-42a3-af1e-67e167b98b7d\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838548, \"modifiedAt\": 1791838548, \"completedAt\": null}, {\"id\": \"2a6f581e-16e6-450f-ad07-5f86c6a30681\", \"name\": \"\", \"note\": \"\", \"parent_id\": \"2434b58e-3310-42a3-af1e-67e167b98b7d\", \"priority\": 50, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838548, \"modifiedAt\": 1791838548, \"completedAt\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838549.3337452,
+    "t1": 1791838549.498873,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "26cd18b9-f81d-4adb-b581-f708c22dd684"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:49 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"5cca7a0d-f12b-41f4-b117-50f400462b64\", \"name\": \"\", \"note\": \"\", \"parent_id\": \"26cd18b9-f81d-4adb-b581-f708c22dd684\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838549, \"modifiedAt\": 1791838549, \"completedAt\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838549.4991767,
+    "t1": 1791838549.7092183,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "8052f116-4b30-4886-9ca8-9ca38ecdfc2a",
+     "name": "P"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:49 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"096e3622-a73d-4eb5-8644-2826c641a290\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "096e3622-a73d-4eb5-8644-2826c641a290",
+    "name": "P"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838549.7092848,
+    "t1": 1791838549.9175296,
+    "method": "POST",
+    "path": "/api/v1/nodes/ec715fe5-d012-4d0e-967e-12201ed0d8f3/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "096e3622-a73d-4eb5-8644-2826c641a290"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:49 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"db300222-f43a-4375-841a-ef6f709ee6d8\", \"origin_id\": \"ec715fe5-d012-4d0e-967e-12201ed0d8f3\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "db300222-f43a-4375-841a-ef6f709ee6d8",
+    "name": "M"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838549.9175875,
+    "t1": 1791838550.102524,
+    "method": "POST",
+    "path": "/api/v1/nodes/ec715fe5-d012-4d0e-967e-12201ed0d8f3/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "db300222-f43a-4375-841a-ef6f709ee6d8"
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:50 GMT",
+     "content-type": "application/json",
+     "content-length": "75",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_request\", \"message\": \"Cannot mirror a node under itself\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838550.102838,
+    "t1": 1791838550.2583485,
+    "method": "POST",
+    "path": "/api/v1/nodes/db300222-f43a-4375-841a-ef6f709ee6d8/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "ec715fe5-d012-4d0e-967e-12201ed0d8f3"
+    },
+    "content": null,
+    "headers": null,
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:50 GMT",
+     "content-type": "application/json",
+     "content-length": "75",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_request\", \"message\": \"Cannot mirror a node under itself\"}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

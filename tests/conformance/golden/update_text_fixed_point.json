@@ -1,0 +1,223 @@
+{
+ "scenario": "update_text_fixed_point",
+ "doc": "Re-submitting a create-produced name via update is a fixed point (\u00a76.1).",
+ "recorded_at": "2026-10-12T21:02:14+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "**b** *i* [t](u) [2026-01-15] &amp; `c`"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<A>"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>",
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "node": {
+     "id": "<A>",
+     "name": "<b>b</b> <i>i</i> <a href=\"u\">t</a> <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time> & <code>c</code>",
+     "note": null,
+     "parent_id": "<ROOT>",
+     "priority": 100,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": "<E1>",
+     "modifiedAt": "<E1>",
+     "completedAt": null
+    }
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "json": {
+    "name": "<b>b</b> <i>i</i> <a href=\"u\">t</a> <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time> & <code>c</code>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "status": "ok"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>",
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "node": {
+     "id": "<A>",
+     "name": "<b>b</b> <i>i</i> <a href=\"u\">t</a> <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time> & <code>c</code>",
+     "note": null,
+     "parent_id": "<ROOT>",
+     "priority": 100,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": "<E1>",
+     "modifiedAt": "<E1>",
+     "completedAt": null
+    }
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "update_text_fixed_point",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "65a2bb0b-0e33-4187-a85f-41af2194cffa",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance update_text_fixed_point",
+  "setup_window": [
+   1791838930.2082946,
+   1791838930.393738
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838933.3940473,
+    "t1": 1791838933.6060724,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "65a2bb0b-0e33-4187-a85f-41af2194cffa",
+     "name": "**b** *i* [t](u) [2026-01-15] &amp; `c`"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:02:13 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"cfa37c23-70b5-432a-af05-40f41c645134\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "cfa37c23-70b5-432a-af05-40f41c645134",
+    "name": "A"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838933.6061392,
+    "t1": 1791838933.7538779,
+    "method": "GET",
+    "path": "/api/v1/nodes/cfa37c23-70b5-432a-af05-40f41c645134",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:02:13 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"node\": {\"id\": \"cfa37c23-70b5-432a-af05-40f41c645134\", \"name\": \"<b>b</b> <i>i</i> <a href=\\\"u\\\">t</a> <time startYear=\\\"2026\\\" startMonth=\\\"1\\\" startDay=\\\"15\\\">Thu, Jan 15, 2026</time> & <code>c</code>\", \"note\": null, \"parent_id\": \"65a2bb0b-0e33-4187-a85f-41af2194cffa\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838933, \"modifiedAt\": 1791838933, \"completedAt\": null}}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838933.7541924,
+    "t1": 1791838933.9183342,
+    "method": "POST",
+    "path": "/api/v1/nodes/cfa37c23-70b5-432a-af05-40f41c645134",
+    "params": null,
+    "json": {
+     "name": "<b>b</b> <i>i</i> <a href=\"u\">t</a> <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time> & <code>c</code>"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:02:13 GMT",
+     "content-type": "application/json",
+     "content-length": "16",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"status\": \"ok\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838933.9186058,
+    "t1": 1791838934.0706797,
+    "method": "GET",
+    "path": "/api/v1/nodes/cfa37c23-70b5-432a-af05-40f41c645134",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:02:14 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"node\": {\"id\": \"cfa37c23-70b5-432a-af05-40f41c645134\", \"name\": \"<b>b</b> <i>i</i> <a href=\\\"u\\\">t</a> <time startYear=\\\"2026\\\" startMonth=\\\"1\\\" startDay=\\\"15\\\">Thu, Jan 15, 2026</time> & <code>c</code>\", \"note\": null, \"parent_id\": \"65a2bb0b-0e33-4187-a85f-41af2194cffa\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838933, \"modifiedAt\": 1791838933, \"completedAt\": null}}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

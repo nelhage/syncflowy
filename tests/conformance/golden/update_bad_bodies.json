@@ -1,0 +1,536 @@
+{
+ "scenario": "update_bad_bodies",
+ "doc": "Invalid JSON, empty body, and non-object JSON on update (\u00a72.4).",
+ "recorded_at": "2026-10-12T21:00:46+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "a"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<A>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "content": "{\"note\": ",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_json",
+    "message": "Invalid JSON format in request body"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "content": "",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_json",
+    "message": "Invalid JSON format in request body"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "content": "[1]",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of UpdateNodeRequest",
+      "input": [
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "content": "\"hello\"",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of UpdateNodeRequest",
+      "input": "hello"
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "content": "null",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of UpdateNodeRequest",
+      "input": null
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "content": "42",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of UpdateNodeRequest",
+      "input": 42
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "content": "true",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of UpdateNodeRequest",
+      "input": true
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "content": "[{\"note\": \"array\"}]",
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "status": 400,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": [
+     {
+      "type": "model_type",
+      "loc": [],
+      "msg": "Input should be a valid dictionary or instance of UpdateNodeRequest",
+      "input": [
+       {
+        "note": "array"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>",
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "node": {
+     "id": "<A>",
+     "name": "a",
+     "note": null,
+     "parent_id": "<ROOT>",
+     "priority": 100,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": "<E1>",
+     "modifiedAt": "<E1>",
+     "completedAt": null
+    }
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "update_bad_bodies",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "b7e5cc3a-d887-4d89-bc72-7e85c5d56aaf",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance update_bad_bodies",
+  "setup_window": [
+   1791838841.635112,
+   1791838841.8520634
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838844.852356,
+    "t1": 1791838845.1112685,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "b7e5cc3a-d887-4d89-bc72-7e85c5d56aaf",
+     "name": "a"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:00:45 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"9110af00-c244-4c90-a99b-0063ae9f11c4\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "9110af00-c244-4c90-a99b-0063ae9f11c4",
+    "name": "A"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838845.1116,
+    "t1": 1791838845.2530944,
+    "method": "POST",
+    "path": "/api/v1/nodes/9110af00-c244-4c90-a99b-0063ae9f11c4",
+    "params": null,
+    "json": null,
+    "content": "{\"note\": ",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:00:45 GMT",
+     "content-type": "application/json",
+     "content-length": "74",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_json\", \"message\": \"Invalid JSON format in request body\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838845.2533886,
+    "t1": 1791838845.3932571,
+    "method": "POST",
+    "path": "/api/v1/nodes/9110af00-c244-4c90-a99b-0063ae9f11c4",
+    "params": null,
+    "json": null,
+    "content": "",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:00:45 GMT",
+     "content-type": "application/json",
+     "content-length": "74",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_json\", \"message\": \"Invalid JSON format in request body\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838845.3935378,
+    "t1": 1791838845.5373394,
+    "method": "POST",
+    "path": "/api/v1/nodes/9110af00-c244-4c90-a99b-0063ae9f11c4",
+    "params": null,
+    "json": null,
+    "content": "[1]",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:00:45 GMT",
+     "content-type": "application/json",
+     "content-length": "139",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of UpdateNodeRequest\", \"input\": [1]}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838845.537619,
+    "t1": 1791838845.6762497,
+    "method": "POST",
+    "path": "/api/v1/nodes/9110af00-c244-4c90-a99b-0063ae9f11c4",
+    "params": null,
+    "json": null,
+    "content": "\"hello\"",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:00:45 GMT",
+     "content-type": "application/json",
+     "content-length": "143",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of UpdateNodeRequest\", \"input\": \"hello\"}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838845.6764712,
+    "t1": 1791838845.8208508,
+    "method": "POST",
+    "path": "/api/v1/nodes/9110af00-c244-4c90-a99b-0063ae9f11c4",
+    "params": null,
+    "json": null,
+    "content": "null",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:00:45 GMT",
+     "content-type": "application/json",
+     "content-length": "140",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of UpdateNodeRequest\", \"input\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838845.821131,
+    "t1": 1791838845.9614305,
+    "method": "POST",
+    "path": "/api/v1/nodes/9110af00-c244-4c90-a99b-0063ae9f11c4",
+    "params": null,
+    "json": null,
+    "content": "42",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:00:45 GMT",
+     "content-type": "application/json",
+     "content-length": "138",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of UpdateNodeRequest\", \"input\": 42}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838845.961705,
+    "t1": 1791838846.101653,
+    "method": "POST",
+    "path": "/api/v1/nodes/9110af00-c244-4c90-a99b-0063ae9f11c4",
+    "params": null,
+    "json": null,
+    "content": "true",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:00:46 GMT",
+     "content-type": "application/json",
+     "content-length": "140",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of UpdateNodeRequest\", \"input\": true}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838846.101974,
+    "t1": 1791838846.2530217,
+    "method": "POST",
+    "path": "/api/v1/nodes/9110af00-c244-4c90-a99b-0063ae9f11c4",
+    "params": null,
+    "json": null,
+    "content": "[{\"note\": \"array\"}]",
+    "headers": {
+     "Content-Type": "application/json"
+    },
+    "status": 400,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:00:46 GMT",
+     "content-type": "application/json",
+     "content-length": "155",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": [{\"type\": \"model_type\", \"loc\": [], \"msg\": \"Input should be a valid dictionary or instance of UpdateNodeRequest\", \"input\": [{\"note\": \"array\"}]}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838846.2533078,
+    "t1": 1791838846.405064,
+    "method": "GET",
+    "path": "/api/v1/nodes/9110af00-c244-4c90-a99b-0063ae9f11c4",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 21:00:46 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"node\": {\"id\": \"9110af00-c244-4c90-a99b-0063ae9f11c4\", \"name\": \"a\", \"note\": null, \"parent_id\": \"b7e5cc3a-d887-4d89-bc72-7e85c5d56aaf\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838844, \"modifiedAt\": 1791838844, \"completedAt\": null}}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

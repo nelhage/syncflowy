@@ -1,0 +1,422 @@
+{
+ "scenario": "move_top_into_min0_renumbers",
+ "doc": "Moving to top under a parent whose min priority is 0 renumbers siblings without bumping them (\u00a77).",
+ "recorded_at": "2026-10-12T20:57:54+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "P\nA\nB\nC"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<P>"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "x"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<X>"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<P>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<N1>",
+      "name": "A",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 0,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N2>",
+      "name": "B",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 1,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N3>",
+      "name": "C",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 2,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     }
+    ]
+   }
+  },
+  {
+   "sleep": "-> E2"
+  },
+  {
+   "request": "POST /api/v1/nodes/<X>/move",
+   "json": {
+    "parent_id": "<P>",
+    "position": "top"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "status": "ok"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<P>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<N1>",
+      "name": "A",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 200,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N2>",
+      "name": "B",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 300,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N3>",
+      "name": "C",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 400,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<X>",
+      "name": "x",
+      "note": null,
+      "parent_id": "<P>",
+      "priority": 100,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E2>",
+      "completedAt": null
+     }
+    ]
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<P>",
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "node": {
+     "id": "<P>",
+     "name": "P",
+     "note": null,
+     "parent_id": "<ROOT>",
+     "priority": 100,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": "<E1>",
+     "modifiedAt": "<E2>",
+     "completedAt": null
+    }
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "move_top_into_min0_renumbers",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "dab73814-17cd-4d0c-9f5c-7875f9ebb37d",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance move_top_into_min0_renumbers",
+  "setup_window": [
+   1791838666.749436,
+   1791838666.9500992
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838669.9503937,
+    "t1": 1791838670.1754513,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "dab73814-17cd-4d0c-9f5c-7875f9ebb37d",
+     "name": "P\nA\nB\nC"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:50 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"555dc48d-78fc-4eac-a739-313bf09219b2\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "555dc48d-78fc-4eac-a739-313bf09219b2",
+    "name": "P"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838670.175516,
+    "t1": 1791838670.415287,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "dab73814-17cd-4d0c-9f5c-7875f9ebb37d",
+     "name": "x"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:50 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"1eef761c-484d-4ac5-973b-83901dbfc3e4\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "1eef761c-484d-4ac5-973b-83901dbfc3e4",
+    "name": "X"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838670.4156644,
+    "t1": 1791838670.566384,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "555dc48d-78fc-4eac-a739-313bf09219b2"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:50 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"11e2f48e-a60d-4033-9d20-8c5255f56269\", \"name\": \"A\", \"note\": \"\", \"parent_id\": \"555dc48d-78fc-4eac-a739-313bf09219b2\", \"priority\": 0, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838670, \"modifiedAt\": 1791838670, \"completedAt\": null}, {\"id\": \"f0c9eeff-5754-4692-9054-a31a000a6344\", \"name\": \"B\", \"note\": \"\", \"parent_id\": \"555dc48d-78fc-4eac-a739-313bf09219b2\", \"priority\": 1, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838670, \"modifiedAt\": 1791838670, \"completedAt\": null}, {\"id\": \"f5f29f79-2806-4d1d-9b08-f9d67748f960\", \"name\": \"C\", \"note\": \"\", \"parent_id\": \"555dc48d-78fc-4eac-a739-313bf09219b2\", \"priority\": 2, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838670, \"modifiedAt\": 1791838670, \"completedAt\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "sleep",
+    "seconds": 3.0,
+    "epoch": 2
+   },
+   {
+    "type": "request",
+    "epoch": 2,
+    "t0": 1791838673.5667536,
+    "t1": 1791838673.7753615,
+    "method": "POST",
+    "path": "/api/v1/nodes/1eef761c-484d-4ac5-973b-83901dbfc3e4/move",
+    "params": null,
+    "json": {
+     "parent_id": "555dc48d-78fc-4eac-a739-313bf09219b2",
+     "position": "top"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:53 GMT",
+     "content-type": "application/json",
+     "content-length": "16",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"status\": \"ok\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 2,
+    "t0": 1791838673.7756298,
+    "t1": 1791838673.921799,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "555dc48d-78fc-4eac-a739-313bf09219b2"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:53 GMT",
+     "content-type": "application/json",
+     "content-length": "332",
+     "connection": "keep-alive",
+     "content-encoding": "gzip",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"11e2f48e-a60d-4033-9d20-8c5255f56269\", \"name\": \"A\", \"note\": \"\", \"parent_id\": \"555dc48d-78fc-4eac-a739-313bf09219b2\", \"priority\": 200, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838670, \"modifiedAt\": 1791838670, \"completedAt\": null}, {\"id\": \"f0c9eeff-5754-4692-9054-a31a000a6344\", \"name\": \"B\", \"note\": \"\", \"parent_id\": \"555dc48d-78fc-4eac-a739-313bf09219b2\", \"priority\": 300, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838670, \"modifiedAt\": 1791838670, \"completedAt\": null}, {\"id\": \"f5f29f79-2806-4d1d-9b08-f9d67748f960\", \"name\": \"C\", \"note\": \"\", \"parent_id\": \"555dc48d-78fc-4eac-a739-313bf09219b2\", \"priority\": 400, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838670, \"modifiedAt\": 1791838670, \"completedAt\": null}, {\"id\": \"1eef761c-484d-4ac5-973b-83901dbfc3e4\", \"name\": \"x\", \"note\": null, \"parent_id\": \"555dc48d-78fc-4eac-a739-313bf09219b2\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838670, \"modifiedAt\": 1791838673, \"completedAt\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 2,
+    "t0": 1791838673.9221234,
+    "t1": 1791838674.0766795,
+    "method": "GET",
+    "path": "/api/v1/nodes/555dc48d-78fc-4eac-a739-313bf09219b2",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:54 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"node\": {\"id\": \"555dc48d-78fc-4eac-a739-313bf09219b2\", \"name\": \"P\", \"note\": null, \"parent_id\": \"dab73814-17cd-4d0c-9f5c-7875f9ebb37d\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838670, \"modifiedAt\": 1791838673, \"completedAt\": null}}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

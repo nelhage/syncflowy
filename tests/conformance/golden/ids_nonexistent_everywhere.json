@@ -1,0 +1,546 @@
+{
+ "scenario": "ids_nonexistent_everywhere",
+ "doc": "A never-existing UUID on every endpoint (\u00a73, errors-and-http \u00a73).",
+ "recorded_at": "2026-10-12T20:52:51+00:00",
+ "normalized": [
+  {
+   "request": "GET /api/v1/nodes/<N1>",
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Item not found"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<N1>"
+   },
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Parent item not found"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<N1>",
+    "name": "x"
+   },
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Parent item not found"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<N1>",
+   "json": {
+    "name": "x"
+   },
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Item not found"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<N1>",
+   "json": {},
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Item not found"
+   }
+  },
+  {
+   "request": "DELETE /api/v1/nodes/<N1>",
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Item not found"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<N1>/complete",
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Item not found"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<N1>/uncomplete",
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Item not found"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<N1>/move",
+   "json": {
+    "parent_id": "<ROOT>"
+   },
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Item not found"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<ROOT>/move",
+   "json": {
+    "parent_id": "<N1>"
+   },
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Parent item not found"
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<N1>/mirror",
+   "json": {
+    "parent_id": "<ROOT>"
+   },
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Item not found"
+   }
+  },
+  {
+   "request": "DELETE /api/v1/nodes/<N1>/mirror",
+   "status": 404,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "not_found",
+    "message": "Item not found"
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "ids_nonexistent_everywhere",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "8b33540d-0003-4daf-922b-74a24c1dfa3e",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance ids_nonexistent_everywhere",
+  "setup_window": [
+   1791838365.987521,
+   1791838366.1793346
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838369.1795151,
+    "t1": 1791838369.3458786,
+    "method": "GET",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:49 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838369.3461711,
+    "t1": 1791838369.4975455,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "00000000-0000-4000-8000-000000000001"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:49 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838369.4978526,
+    "t1": 1791838369.6534634,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "00000000-0000-4000-8000-000000000001",
+     "name": "x"
+    },
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:49 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838369.6537569,
+    "t1": 1791838369.8031366,
+    "method": "POST",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001",
+    "params": null,
+    "json": {
+     "name": "x"
+    },
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:49 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838369.8034236,
+    "t1": 1791838369.9669771,
+    "method": "POST",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001",
+    "params": null,
+    "json": {},
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:49 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838369.9672663,
+    "t1": 1791838370.1263385,
+    "method": "DELETE",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:50 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838370.1266305,
+    "t1": 1791838370.2697873,
+    "method": "POST",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001/complete",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:50 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838370.2700744,
+    "t1": 1791838370.4138405,
+    "method": "POST",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001/uncomplete",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:50 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838370.4141288,
+    "t1": 1791838370.5709646,
+    "method": "POST",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001/move",
+    "params": null,
+    "json": {
+     "parent_id": "8b33540d-0003-4daf-922b-74a24c1dfa3e"
+    },
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:50 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838370.571256,
+    "t1": 1791838370.7266147,
+    "method": "POST",
+    "path": "/api/v1/nodes/8b33540d-0003-4daf-922b-74a24c1dfa3e/move",
+    "params": null,
+    "json": {
+     "parent_id": "00000000-0000-4000-8000-000000000001"
+    },
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:50 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Parent item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838370.72692,
+    "t1": 1791838370.8709428,
+    "method": "POST",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "8b33540d-0003-4daf-922b-74a24c1dfa3e"
+    },
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:50 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Item not found\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838370.8712418,
+    "t1": 1791838371.0195863,
+    "method": "DELETE",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001/mirror",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:52:50 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"code\": \"not_found\", \"message\": \"Item not found\"}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

@@ -1,0 +1,558 @@
+{
+ "scenario": "http_405_json_routes",
+ "doc": "JSON 405s with allowed_methods (no Allow header) on /nodes, /nodes/:id, /nodes/:id/mirror (\u00a72.1).",
+ "recorded_at": "2026-10-12T20:51:58+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "a"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<A>"
+   }
+  },
+  {
+   "request": "PUT /api/v1/nodes/<A>",
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "GET",
+     "POST",
+     "DELETE"
+    ]
+   }
+  },
+  {
+   "request": "PATCH /api/v1/nodes/<A>",
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "GET",
+     "POST",
+     "DELETE"
+    ]
+   }
+  },
+  {
+   "request": "OPTIONS /api/v1/nodes/<A>",
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "GET",
+     "POST",
+     "DELETE"
+    ]
+   }
+  },
+  {
+   "request": "HEAD /api/v1/nodes/<A>",
+   "status": 405,
+   "content-type": "application/json",
+   "text": ""
+  },
+  {
+   "request": "PUT /api/v1/nodes",
+   "params": {
+    "parent_id": "<ROOT>"
+   },
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "GET",
+     "POST"
+    ]
+   }
+  },
+  {
+   "request": "PATCH /api/v1/nodes",
+   "params": {
+    "parent_id": "<ROOT>"
+   },
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "GET",
+     "POST"
+    ]
+   }
+  },
+  {
+   "request": "DELETE /api/v1/nodes",
+   "params": {
+    "parent_id": "<ROOT>"
+   },
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "GET",
+     "POST"
+    ]
+   }
+  },
+  {
+   "request": "HEAD /api/v1/nodes",
+   "params": {
+    "parent_id": "<ROOT>"
+   },
+   "status": 405,
+   "content-type": "application/json",
+   "text": ""
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>/mirror",
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "POST",
+     "DELETE"
+    ]
+   }
+  },
+  {
+   "request": "HEAD /api/v1/nodes/<A>/mirror",
+   "status": 405,
+   "content-type": "application/json",
+   "text": ""
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>",
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "node": {
+     "id": "<A>",
+     "name": "a",
+     "note": null,
+     "parent_id": "<ROOT>",
+     "priority": 100,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": "<E1>",
+     "modifiedAt": "<E1>",
+     "completedAt": null
+    }
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "http_405_json_routes",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "6706bc4d-9318-433f-b8e5-d3fd20c6303f",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance http_405_json_routes",
+  "setup_window": [
+   1791838313.0903735,
+   1791838313.280002
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838316.2802737,
+    "t1": 1791838316.515457,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "6706bc4d-9318-433f-b8e5-d3fd20c6303f",
+     "name": "a"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:56 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"fe0ba468-aab4-42b2-b68f-eecd8a84af41\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "fe0ba468-aab4-42b2-b68f-eecd8a84af41",
+    "name": "A"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838316.5155156,
+    "t1": 1791838316.6436253,
+    "method": "PUT",
+    "path": "/api/v1/nodes/fe0ba468-aab4-42b2-b68f-eecd8a84af41",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:56 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"GET\", \"POST\", \"DELETE\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838316.6439214,
+    "t1": 1791838316.7780654,
+    "method": "PATCH",
+    "path": "/api/v1/nodes/fe0ba468-aab4-42b2-b68f-eecd8a84af41",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:56 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"GET\", \"POST\", \"DELETE\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838316.7783368,
+    "t1": 1791838316.9086008,
+    "method": "OPTIONS",
+    "path": "/api/v1/nodes/fe0ba468-aab4-42b2-b68f-eecd8a84af41",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:56 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"GET\", \"POST\", \"DELETE\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838316.908894,
+    "t1": 1791838317.040598,
+    "method": "HEAD",
+    "path": "/api/v1/nodes/fe0ba468-aab4-42b2-b68f-eecd8a84af41",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:56 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "",
+    "body_is_json": false
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838317.0407588,
+    "t1": 1791838317.1729279,
+    "method": "PUT",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "6706bc4d-9318-433f-b8e5-d3fd20c6303f"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:57 GMT",
+     "content-type": "application/json",
+     "content-length": "67",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"GET\", \"POST\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838317.1732104,
+    "t1": 1791838317.3033853,
+    "method": "PATCH",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "6706bc4d-9318-433f-b8e5-d3fd20c6303f"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:57 GMT",
+     "content-type": "application/json",
+     "content-length": "67",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"GET\", \"POST\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838317.3036633,
+    "t1": 1791838317.4335728,
+    "method": "DELETE",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "6706bc4d-9318-433f-b8e5-d3fd20c6303f"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:57 GMT",
+     "content-type": "application/json",
+     "content-length": "67",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"GET\", \"POST\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838317.433866,
+    "t1": 1791838317.5638702,
+    "method": "HEAD",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "6706bc4d-9318-433f-b8e5-d3fd20c6303f"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:57 GMT",
+     "content-type": "application/json",
+     "content-length": "67",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "",
+    "body_is_json": false
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838317.564032,
+    "t1": 1791838317.6956,
+    "method": "GET",
+    "path": "/api/v1/nodes/fe0ba468-aab4-42b2-b68f-eecd8a84af41/mirror",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:57 GMT",
+     "content-type": "application/json",
+     "content-length": "70",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"POST\", \"DELETE\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838317.695895,
+    "t1": 1791838317.8317494,
+    "method": "HEAD",
+    "path": "/api/v1/nodes/fe0ba468-aab4-42b2-b68f-eecd8a84af41/mirror",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:57 GMT",
+     "content-type": "application/json",
+     "content-length": "70",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "",
+    "body_is_json": false
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838317.8319232,
+    "t1": 1791838317.9761865,
+    "method": "GET",
+    "path": "/api/v1/nodes/fe0ba468-aab4-42b2-b68f-eecd8a84af41",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:57 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"node\": {\"id\": \"fe0ba468-aab4-42b2-b68f-eecd8a84af41\", \"name\": \"a\", \"note\": null, \"parent_id\": \"6706bc4d-9318-433f-b8e5-d3fd20c6303f\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838316, \"modifiedAt\": 1791838316, \"completedAt\": null}}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

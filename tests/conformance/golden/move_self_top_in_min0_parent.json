@@ -1,0 +1,429 @@
+{
+ "scenario": "move_self_top_in_min0_parent",
+ "doc": "Moving a priority-0 child to top among [0,1,2] excludes itself (min 1 -> 0) (\u00a77).",
+ "recorded_at": "2026-10-12T20:57:29+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "P\nA\nB\nC"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<P>"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<P>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<N1>",
+      "name": "A",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 0,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N2>",
+      "name": "B",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 1,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N3>",
+      "name": "C",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 2,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<N1>/move",
+   "json": {
+    "parent_id": "<P>",
+    "position": "top"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "status": "ok"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<P>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<N1>",
+      "name": "A",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 0,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N2>",
+      "name": "B",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 1,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N3>",
+      "name": "C",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 2,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     }
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<N3>/move",
+   "json": {
+    "parent_id": "<P>",
+    "position": "top"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "status": "ok"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<P>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<N1>",
+      "name": "A",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 200,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N2>",
+      "name": "B",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 300,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     },
+     {
+      "id": "<N3>",
+      "name": "C",
+      "note": "",
+      "parent_id": "<P>",
+      "priority": 100,
+      "completed": false,
+      "data": {
+       "layoutMode": "p"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     }
+    ]
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "move_self_top_in_min0_parent",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "cc9afc59-6ed6-4019-89cf-b8cb40ea2fdb",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance move_self_top_in_min0_parent",
+  "setup_window": [
+   1791838645.382414,
+   1791838645.5901403
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838648.5903378,
+    "t1": 1791838648.8072557,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "cc9afc59-6ed6-4019-89cf-b8cb40ea2fdb",
+     "name": "P\nA\nB\nC"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:28 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"417fb945-943f-4fd7-97cd-07ec3fd0c6dd\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "417fb945-943f-4fd7-97cd-07ec3fd0c6dd",
+    "name": "P"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838648.8073256,
+    "t1": 1791838648.954462,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "417fb945-943f-4fd7-97cd-07ec3fd0c6dd"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:28 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"30ce5dc0-fcba-4ceb-a5f6-1170e30f2ca3\", \"name\": \"A\", \"note\": \"\", \"parent_id\": \"417fb945-943f-4fd7-97cd-07ec3fd0c6dd\", \"priority\": 0, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838648, \"modifiedAt\": 1791838648, \"completedAt\": null}, {\"id\": \"2ec3ea9b-42f3-4920-8475-2e73674a7021\", \"name\": \"B\", \"note\": \"\", \"parent_id\": \"417fb945-943f-4fd7-97cd-07ec3fd0c6dd\", \"priority\": 1, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838648, \"modifiedAt\": 1791838648, \"completedAt\": null}, {\"id\": \"745e9007-4fe4-4400-a755-6ca74b3064cd\", \"name\": \"C\", \"note\": \"\", \"parent_id\": \"417fb945-943f-4fd7-97cd-07ec3fd0c6dd\", \"priority\": 2, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838648, \"modifiedAt\": 1791838648, \"completedAt\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838648.9545305,
+    "t1": 1791838649.1551015,
+    "method": "POST",
+    "path": "/api/v1/nodes/30ce5dc0-fcba-4ceb-a5f6-1170e30f2ca3/move",
+    "params": null,
+    "json": {
+     "parent_id": "417fb945-943f-4fd7-97cd-07ec3fd0c6dd",
+     "position": "top"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:29 GMT",
+     "content-type": "application/json",
+     "content-length": "16",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"status\": \"ok\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838649.1553724,
+    "t1": 1791838649.3029258,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "417fb945-943f-4fd7-97cd-07ec3fd0c6dd"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:29 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"30ce5dc0-fcba-4ceb-a5f6-1170e30f2ca3\", \"name\": \"A\", \"note\": \"\", \"parent_id\": \"417fb945-943f-4fd7-97cd-07ec3fd0c6dd\", \"priority\": 0, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838648, \"modifiedAt\": 1791838649, \"completedAt\": null}, {\"id\": \"2ec3ea9b-42f3-4920-8475-2e73674a7021\", \"name\": \"B\", \"note\": \"\", \"parent_id\": \"417fb945-943f-4fd7-97cd-07ec3fd0c6dd\", \"priority\": 1, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838648, \"modifiedAt\": 1791838648, \"completedAt\": null}, {\"id\": \"745e9007-4fe4-4400-a755-6ca74b3064cd\", \"name\": \"C\", \"note\": \"\", \"parent_id\": \"417fb945-943f-4fd7-97cd-07ec3fd0c6dd\", \"priority\": 2, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838648, \"modifiedAt\": 1791838648, \"completedAt\": null}]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838649.3032496,
+    "t1": 1791838649.4882076,
+    "method": "POST",
+    "path": "/api/v1/nodes/745e9007-4fe4-4400-a755-6ca74b3064cd/move",
+    "params": null,
+    "json": {
+     "parent_id": "417fb945-943f-4fd7-97cd-07ec3fd0c6dd",
+     "position": "top"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:29 GMT",
+     "content-type": "application/json",
+     "content-length": "16",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"status\": \"ok\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838649.488477,
+    "t1": 1791838649.6456995,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "417fb945-943f-4fd7-97cd-07ec3fd0c6dd"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:57:29 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"30ce5dc0-fcba-4ceb-a5f6-1170e30f2ca3\", \"name\": \"A\", \"note\": \"\", \"parent_id\": \"417fb945-943f-4fd7-97cd-07ec3fd0c6dd\", \"priority\": 200, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838648, \"modifiedAt\": 1791838649, \"completedAt\": null}, {\"id\": \"2ec3ea9b-42f3-4920-8475-2e73674a7021\", \"name\": \"B\", \"note\": \"\", \"parent_id\": \"417fb945-943f-4fd7-97cd-07ec3fd0c6dd\", \"priority\": 300, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838648, \"modifiedAt\": 1791838648, \"completedAt\": null}, {\"id\": \"745e9007-4fe4-4400-a755-6ca74b3064cd\", \"name\": \"C\", \"note\": \"\", \"parent_id\": \"417fb945-943f-4fd7-97cd-07ec3fd0c6dd\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"p\"}, \"createdAt\": 1791838648, \"modifiedAt\": 1791838649, \"completedAt\": null}]}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

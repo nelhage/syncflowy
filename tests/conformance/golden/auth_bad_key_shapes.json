@@ -1,0 +1,661 @@
+{
+ "scenario": "auth_bad_key_shapes",
+ "doc": "401 body depends on method: GET -> {\"errors\": ...}; POST/DELETE -> {code, message} (\u00a72.3).",
+ "recorded_at": "2026-10-12T20:51:24+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "a"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<A>"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>",
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<ROOT>"
+   },
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "x"
+   },
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_credentials",
+    "message": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "json": {
+    "name": "x"
+   },
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_credentials",
+    "message": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "DELETE /api/v1/nodes/<A>",
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_credentials",
+    "message": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/move",
+   "json": {
+    "parent_id": "<ROOT>"
+   },
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_credentials",
+    "message": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/complete",
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_credentials",
+    "message": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/uncomplete",
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_credentials",
+    "message": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>/mirror",
+   "json": {
+    "parent_id": "<ROOT>"
+   },
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_credentials",
+    "message": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "DELETE /api/v1/nodes/<A>/mirror",
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_credentials",
+    "message": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>",
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "node": {
+     "id": "<A>",
+     "name": "a",
+     "note": null,
+     "parent_id": "<ROOT>",
+     "priority": 100,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": "<E1>",
+     "modifiedAt": "<E1>",
+     "completedAt": null
+    }
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes",
+   "params": {
+    "parent_id": "<ROOT>"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "nodes": [
+     {
+      "id": "<A>",
+      "name": "a",
+      "note": null,
+      "parent_id": "<ROOT>",
+      "priority": 100,
+      "completed": false,
+      "data": {
+       "layoutMode": "bullets"
+      },
+      "createdAt": "<E1>",
+      "modifiedAt": "<E1>",
+      "completedAt": null
+     }
+    ]
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "auth_bad_key_shapes",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "98da05bc-db01-4a43-9ba9-d8883f030dd9",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance auth_bad_key_shapes",
+  "setup_window": [
+   1791838279.3075027,
+   1791838279.4945207
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838282.4947295,
+    "t1": 1791838282.7246032,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "98da05bc-db01-4a43-9ba9-d8883f030dd9",
+     "name": "a"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:22 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"74525a3e-c365-4be3-b19c-422f64ed0909\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "74525a3e-c365-4be3-b19c-422f64ed0909",
+    "name": "A"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838282.7250211,
+    "t1": 1791838282.868362,
+    "method": "GET",
+    "path": "/api/v1/nodes/74525a3e-c365-4be3-b19c-422f64ed0909",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:22 GMT",
+     "content-type": "application/json",
+     "content-length": "45",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838282.8686407,
+    "t1": 1791838283.0049477,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "98da05bc-db01-4a43-9ba9-d8883f030dd9"
+    },
+    "json": null,
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:22 GMT",
+     "content-type": "application/json",
+     "content-length": "45",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838283.0052261,
+    "t1": 1791838283.140669,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "98da05bc-db01-4a43-9ba9-d8883f030dd9",
+     "name": "x"
+    },
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:23 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_credentials\", \"message\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838283.1409621,
+    "t1": 1791838283.2841227,
+    "method": "POST",
+    "path": "/api/v1/nodes/74525a3e-c365-4be3-b19c-422f64ed0909",
+    "params": null,
+    "json": {
+     "name": "x"
+    },
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:23 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_credentials\", \"message\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838283.2843993,
+    "t1": 1791838283.4240139,
+    "method": "DELETE",
+    "path": "/api/v1/nodes/74525a3e-c365-4be3-b19c-422f64ed0909",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:23 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_credentials\", \"message\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838283.4242961,
+    "t1": 1791838283.568847,
+    "method": "POST",
+    "path": "/api/v1/nodes/74525a3e-c365-4be3-b19c-422f64ed0909/move",
+    "params": null,
+    "json": {
+     "parent_id": "98da05bc-db01-4a43-9ba9-d8883f030dd9"
+    },
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:23 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_credentials\", \"message\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838283.569128,
+    "t1": 1791838283.7057042,
+    "method": "POST",
+    "path": "/api/v1/nodes/74525a3e-c365-4be3-b19c-422f64ed0909/complete",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:23 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_credentials\", \"message\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838283.7059975,
+    "t1": 1791838283.8460684,
+    "method": "POST",
+    "path": "/api/v1/nodes/74525a3e-c365-4be3-b19c-422f64ed0909/uncomplete",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:23 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_credentials\", \"message\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838283.846346,
+    "t1": 1791838283.984442,
+    "method": "POST",
+    "path": "/api/v1/nodes/74525a3e-c365-4be3-b19c-422f64ed0909/mirror",
+    "params": null,
+    "json": {
+     "parent_id": "98da05bc-db01-4a43-9ba9-d8883f030dd9"
+    },
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:23 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_credentials\", \"message\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838283.9847236,
+    "t1": 1791838284.1286378,
+    "method": "DELETE",
+    "path": "/api/v1/nodes/74525a3e-c365-4be3-b19c-422f64ed0909/mirror",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:24 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_credentials\", \"message\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838284.1289315,
+    "t1": 1791838284.2761939,
+    "method": "GET",
+    "path": "/api/v1/nodes/74525a3e-c365-4be3-b19c-422f64ed0909",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:24 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"node\": {\"id\": \"74525a3e-c365-4be3-b19c-422f64ed0909\", \"name\": \"a\", \"note\": null, \"parent_id\": \"98da05bc-db01-4a43-9ba9-d8883f030dd9\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838282, \"modifiedAt\": 1791838282, \"completedAt\": null}}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838284.2764943,
+    "t1": 1791838284.4326596,
+    "method": "GET",
+    "path": "/api/v1/nodes",
+    "params": {
+     "parent_id": "98da05bc-db01-4a43-9ba9-d8883f030dd9"
+    },
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:24 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"nodes\": [{\"id\": \"74525a3e-c365-4be3-b19c-422f64ed0909\", \"name\": \"a\", \"note\": null, \"parent_id\": \"98da05bc-db01-4a43-9ba9-d8883f030dd9\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838282, \"modifiedAt\": 1791838282, \"completedAt\": null}]}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

@@ -1,0 +1,278 @@
+{
+ "scenario": "move_wrong_methods",
+ "doc": "GET/PUT/DELETE on /move give the HTML-empty 405 with Allow: POST (\u00a72.1).",
+ "recorded_at": "2026-10-12T20:58:03+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "a"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<A>"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>/move",
+   "status": 405,
+   "content-type": "text/html; charset=utf-8",
+   "allow": "POST",
+   "text": ""
+  },
+  {
+   "request": "PUT /api/v1/nodes/<A>/move",
+   "status": 405,
+   "content-type": "text/html; charset=utf-8",
+   "allow": "POST",
+   "text": ""
+  },
+  {
+   "request": "DELETE /api/v1/nodes/<A>/move",
+   "status": 405,
+   "content-type": "text/html; charset=utf-8",
+   "allow": "POST",
+   "text": ""
+  },
+  {
+   "request": "PATCH /api/v1/nodes/<A>/move",
+   "status": 405,
+   "content-type": "text/html; charset=utf-8",
+   "allow": "POST",
+   "text": ""
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>",
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "node": {
+     "id": "<A>",
+     "name": "a",
+     "note": null,
+     "parent_id": "<ROOT>",
+     "priority": 100,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": "<E1>",
+     "modifiedAt": "<E1>",
+     "completedAt": null
+    }
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "move_wrong_methods",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "7196494f-3ba4-46c8-b430-2a7de33622f6",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance move_wrong_methods",
+  "setup_window": [
+   1791838679.341802,
+   1791838679.85131
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838682.8515902,
+    "t1": 1791838683.0776978,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "7196494f-3ba4-46c8-b430-2a7de33622f6",
+     "name": "a"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:58:03 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"e939e43d-0589-457e-a4c3-23a6fa00fa52\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "e939e43d-0589-457e-a4c3-23a6fa00fa52",
+    "name": "A"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838683.0780818,
+    "t1": 1791838683.2233937,
+    "method": "GET",
+    "path": "/api/v1/nodes/e939e43d-0589-457e-a4c3-23a6fa00fa52/move",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:58:03 GMT",
+     "content-type": "text/html; charset=utf-8",
+     "content-length": "0",
+     "connection": "keep-alive",
+     "allow": "POST",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "",
+    "body_is_json": false
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838683.223573,
+    "t1": 1791838683.3602083,
+    "method": "PUT",
+    "path": "/api/v1/nodes/e939e43d-0589-457e-a4c3-23a6fa00fa52/move",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:58:03 GMT",
+     "content-type": "text/html; charset=utf-8",
+     "content-length": "0",
+     "connection": "keep-alive",
+     "allow": "POST",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "",
+    "body_is_json": false
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838683.3603814,
+    "t1": 1791838683.4955873,
+    "method": "DELETE",
+    "path": "/api/v1/nodes/e939e43d-0589-457e-a4c3-23a6fa00fa52/move",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:58:03 GMT",
+     "content-type": "text/html; charset=utf-8",
+     "content-length": "0",
+     "connection": "keep-alive",
+     "allow": "POST",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "",
+    "body_is_json": false
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838683.4957616,
+    "t1": 1791838683.631767,
+    "method": "PATCH",
+    "path": "/api/v1/nodes/e939e43d-0589-457e-a4c3-23a6fa00fa52/move",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:58:03 GMT",
+     "content-type": "text/html; charset=utf-8",
+     "content-length": "0",
+     "connection": "keep-alive",
+     "allow": "POST",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "",
+    "body_is_json": false
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838683.6319692,
+    "t1": 1791838683.7779093,
+    "method": "GET",
+    "path": "/api/v1/nodes/e939e43d-0589-457e-a4c3-23a6fa00fa52",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:58:03 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"node\": {\"id\": \"e939e43d-0589-457e-a4c3-23a6fa00fa52\", \"name\": \"a\", \"note\": null, \"parent_id\": \"7196494f-3ba4-46c8-b430-2a7de33622f6\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838682, \"modifiedAt\": 1791838682, \"completedAt\": null}}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

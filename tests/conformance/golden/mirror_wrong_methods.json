@@ -1,0 +1,296 @@
+{
+ "scenario": "mirror_wrong_methods",
+ "doc": "GET/PUT on /mirror give the JSON 405 with allowed_methods [POST, DELETE] (\u00a72.1).",
+ "recorded_at": "2026-10-12T20:55:59+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "origin"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<O>"
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<O>/mirror",
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "POST",
+     "DELETE"
+    ]
+   }
+  },
+  {
+   "request": "PUT /api/v1/nodes/<O>/mirror",
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "POST",
+     "DELETE"
+    ]
+   }
+  },
+  {
+   "request": "PATCH /api/v1/nodes/<O>/mirror",
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "POST",
+     "DELETE"
+    ]
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<O>/mirror/x",
+   "json": {
+    "parent_id": "<ROOT>"
+   },
+   "status": 404,
+   "content-type": "text/html; charset=utf-8",
+   "text": ""
+  },
+  {
+   "request": "GET /api/v1/nodes/<O>",
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "node": {
+     "id": "<O>",
+     "name": "origin",
+     "note": null,
+     "parent_id": "<ROOT>",
+     "priority": 100,
+     "completed": false,
+     "data": {
+      "layoutMode": "bullets"
+     },
+     "createdAt": "<E1>",
+     "modifiedAt": "<E1>",
+     "completedAt": null
+    }
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "mirror_wrong_methods",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "91f4a756-deb8-417a-9196-40756b1b6000",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance mirror_wrong_methods",
+  "setup_window": [
+   1791838555.6802754,
+   1791838555.8682601
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838558.8684633,
+    "t1": 1791838559.0925288,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "91f4a756-deb8-417a-9196-40756b1b6000",
+     "name": "origin"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:59 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"826abec0-4270-4d02-9285-cf55cc3099b8\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "826abec0-4270-4d02-9285-cf55cc3099b8",
+    "name": "O"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838559.0925887,
+    "t1": 1791838559.2242427,
+    "method": "GET",
+    "path": "/api/v1/nodes/826abec0-4270-4d02-9285-cf55cc3099b8/mirror",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:59 GMT",
+     "content-type": "application/json",
+     "content-length": "70",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"POST\", \"DELETE\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838559.2245255,
+    "t1": 1791838559.3564,
+    "method": "PUT",
+    "path": "/api/v1/nodes/826abec0-4270-4d02-9285-cf55cc3099b8/mirror",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:59 GMT",
+     "content-type": "application/json",
+     "content-length": "70",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"POST\", \"DELETE\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838559.3566732,
+    "t1": 1791838559.489363,
+    "method": "PATCH",
+    "path": "/api/v1/nodes/826abec0-4270-4d02-9285-cf55cc3099b8/mirror",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:59 GMT",
+     "content-type": "application/json",
+     "content-length": "70",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"POST\", \"DELETE\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838559.48942,
+    "t1": 1791838559.6312518,
+    "method": "POST",
+    "path": "/api/v1/nodes/826abec0-4270-4d02-9285-cf55cc3099b8/mirror/x",
+    "params": null,
+    "json": {
+     "parent_id": "91f4a756-deb8-417a-9196-40756b1b6000"
+    },
+    "content": null,
+    "headers": null,
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:59 GMT",
+     "content-type": "text/html; charset=utf-8",
+     "content-length": "0",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval' 'nonce-ZLZglA3l1vqbDZ6devuWuw=='; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval' 'nonce-ZLZglA3l1vqbDZ6devuWuw=='; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "",
+    "body_is_json": false
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838559.6314154,
+    "t1": 1791838559.772741,
+    "method": "GET",
+    "path": "/api/v1/nodes/826abec0-4270-4d02-9285-cf55cc3099b8",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:55:59 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"node\": {\"id\": \"826abec0-4270-4d02-9285-cf55cc3099b8\", \"name\": \"origin\", \"note\": null, \"parent_id\": \"91f4a756-deb8-417a-9196-40756b1b6000\", \"priority\": 100, \"completed\": false, \"data\": {\"layoutMode\": \"bullets\"}, \"createdAt\": 1791838558, \"modifiedAt\": 1791838558, \"completedAt\": null}}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

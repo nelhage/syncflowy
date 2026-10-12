@@ -290,10 +290,20 @@ as `404 Item not found`.
 | `Token <key>` | **accepted** |
 | `Bearer  <key>` (two spaces) | **accepted** |
 | `Bearer ` (trailing space) | not sendable (httpx rejects illegal header) |
+| `BEARER <key>` | accepted (conformance golden `auth_header_variants`) |
+| `Bearer <key> extra` (a third token) | **401** (conformance golden `auth_header_variants`) |
 
-*Inferred*: the server splits the header on whitespace and uses the second
-token as the key, ignoring the scheme word; a single token is rejected.
-(`Basic …` presumably fails only because its token is not a valid key.)
+*Inferred*: the server splits the header on whitespace and needs **exactly two**
+tokens; the second is the key and the scheme word is ignored. A single token,
+or three or more tokens, is rejected. (`Basic …` presumably fails only because
+its token is not a valid key.)
+
+> **Corrected 2026-10-12** (conformance recording): earlier versions of this doc
+> said "at least 2 tokens". The golden `tests/conformance/golden/auth_header_variants.json`
+> shows `Bearer <key> extra` → 401 while `Bearer  <key>` (two spaces) → 200, so
+> extra tokens are rejected. Either "exactly 2 whitespace tokens" or "everything
+> after the first whitespace run is the key" fits; the mock should use
+> `len(h.split()) == 2`.
 
 **401 body depends on HTTP method** (deterministic, byte-exact):
 
@@ -541,7 +551,7 @@ Precise behaviour to implement (in this order for each request):
      and OPTIONS also 405 (HEAD with no body).
    - `/move`, `/complete`, `/uncomplete`: 405, `text/html; charset=utf-8`,
      empty body, `Allow: POST`. `/targets`: `Allow: GET, HEAD`.
-3. **Auth**: header `Authorization` split on whitespace; need ≥ 2 tokens; the
+3. **Auth**: header `Authorization` split on whitespace; need exactly 2 tokens (corrected, see §4); the
    second token must equal a known API key (scheme word ignored). Failure →
    401, body by method: GET → `{"errors": "Invalid Credentials, try again."}`;
    otherwise `{"code": "invalid_credentials", "message": "Invalid Credentials, try again."}`.

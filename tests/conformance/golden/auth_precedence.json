@@ -1,0 +1,349 @@
+{
+ "scenario": "auth_precedence",
+ "doc": "Routing and method checks precede auth; auth precedes body parsing and lookup (\u00a72.2).",
+ "recorded_at": "2026-10-12T20:51:34+00:00",
+ "normalized": [
+  {
+   "request": "POST /api/v1/nodes",
+   "json": {
+    "parent_id": "<ROOT>",
+    "name": "a"
+   },
+   "status": 200,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "item_id": "<A>"
+   }
+  },
+  {
+   "request": "GET /api/v1/nope",
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 404,
+   "content-type": "text/html; charset=utf-8",
+   "text": "<HTML page title='404'>"
+  },
+  {
+   "request": "PUT /api/v1/nodes/<A>",
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 405,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "error": "Method not allowed",
+    "allowed_methods": [
+     "GET",
+     "POST",
+     "DELETE"
+    ]
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<A>/move",
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 405,
+   "content-type": "text/html; charset=utf-8",
+   "allow": "POST",
+   "text": ""
+  },
+  {
+   "request": "POST /api/v1/nodes/<A>",
+   "content": "{bad",
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000",
+    "Content-Type": "application/json"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_credentials",
+    "message": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "GET /api/v1/nodes/<N1>",
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "errors": "Invalid Credentials, try again."
+   }
+  },
+  {
+   "request": "POST /api/v1/nodes/<N1>",
+   "json": {
+    "name": 1
+   },
+   "headers": {
+    "Authorization": "Bearer not-a-real-key-0000"
+   },
+   "status": 401,
+   "content-type": "application/json",
+   "json_bytes": "python-default",
+   "body": {
+    "code": "invalid_credentials",
+    "message": "Invalid Credentials, try again."
+   }
+  }
+ ],
+ "raw": {
+  "scenario": "auth_precedence",
+  "backend": "prod",
+  "clock_kind": "real",
+  "root": "4abec68c-b876-431a-8f49-6ca8557209bd",
+  "sandbox_parent": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+  "sandbox_name": "sandbox: conformance auth_precedence",
+  "setup_window": [
+   1791838289.6120358,
+   1791838289.8396823
+  ],
+  "steps": [
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838292.8399231,
+    "t1": 1791838293.1315513,
+    "method": "POST",
+    "path": "/api/v1/nodes",
+    "params": null,
+    "json": {
+     "parent_id": "4abec68c-b876-431a-8f49-6ca8557209bd",
+     "name": "a"
+    },
+    "content": null,
+    "headers": null,
+    "status": 200,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:33 GMT",
+     "content-type": "application/json",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+     "content-encoding": "gzip"
+    },
+    "body_text": "{\"item_id\": \"77fe1855-47d0-4ca1-809c-cfba29130133\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "alias",
+    "id": "77fe1855-47d0-4ca1-809c-cfba29130133",
+    "name": "A"
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838293.131969,
+    "t1": 1791838293.2652667,
+    "method": "GET",
+    "path": "/api/v1/nope",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 404,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:33 GMT",
+     "content-type": "text/html; charset=utf-8",
+     "transfer-encoding": "chunked",
+     "connection": "keep-alive",
+     "content-encoding": "gzip",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval' 'nonce-WqQgOmhonxvvDbvDrfEqHQ=='; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval' 'nonce-WqQgOmhonxvvDbvDrfEqHQ=='; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "<!DOCTYPE html>\n<html lang=\"en-US\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>404</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <meta name=\"description\" content=\"\">\n\n  <link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/favicon-32x32.png\">\n  <link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/favicon-16x16.png\">\n  <link rel=\"shortcut icon\" href=\"/media/home/images/favicon.2f5b671c0ae6.png\" type=\"image/x-icon\">\n  <link rel=\"apple-touch-icon\" href=\"/media/home/images/webclip.png\">\n  <link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/apple-touch-icon.png\">\n\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/css/reset.11b989919d8b.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/css/tailwind.4b903fc42b5a.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/themes/design.406173c7336d.css\">\n  <link rel=\"stylesheet\" type=\"text/css\" href=\"/media/themes/default.596f0f5da931.css\">\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n  <link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;0,800;1,300;1,400;1,600;1,700;1,800&family=Roboto:wght@300;400;700&display=swap\">\n\n  <style nonce=\"WqQgOmhonxvvDbvDrfEqHQ==\">\n    * { box-sizing: border-box; }\n  </style>\n\n  \n\n  <script src=\"/media/commands.7ec9dd11cd28.js\"></script>\n  <script defer src=\"/media/alpine-3.15.1.20a1849ea337.js\"></script>\n  <style>[x-cloak] { display: none !important; }</style>\n</head>\n\n<body\n  class=\"\n    _theme-default\n    [font-family:var(--wf-font-family-brand)]\n    !max-w-[100vw]\n    bg-primary\n    text-primary\n    leading-base\n\n    [&_h1]:text-2xl\n    md:[&_h1]:text-5xl\n\n    [&_h2]:text-l\n    md:[&_h2]:text-3xl\n\n    [&_h3]:text-m\n    md:[&_h3]:text-xl\n    [&_h3]:font-semi-bold\n\n    [&_h4]:text-base\n    md:[&_h4]:text-l\n    [&_h4]:font-normal\n\n    [&_p]:text-base\n\n    [&_a]:no-underline\n    [&_a:hover]:underline\n    [&_a]:text-secondary\n\n    [&_.button:hover]:no-underline\n    [&_.button]:font-normal\n    [&_.button]:text-primary\n    [&_.button]:rounded-pill\n    [&_.button]:text-center\n    [&_.button]:py-m\n    [&_.button]:px-xl\n    [&_.button]:bg-secondary\n    [&_.button]:transition-all\n    [&_.button]:cursor-pointer\n    [&_.button:hover]:bg-tertiary\n\n    [&_.button.primary]:bg-tint\n    [&_.button.primary:hover]:!bg-tint\n    [&_.button.primary]:text-on-color\n\n    [&_.section]:flex\n    [&_.section]:flex-col\n    [&_.section]:gap-l\n    md:[&_.section]:gap-xl\n    [&_.section]:px-l\n    [&_.section]:py-2xl\n    [&_.section]:w-full\n    md:[&_.section]:py-4xl\n    md:[&_.section]:items-center\n  \"\n>\n            <script nonce=\"WqQgOmhonxvvDbvDrfEqHQ==\">\n                if ('caches' in window) {\n                    caches.keys().then(function(cacheNames) {\n                        cacheNames.forEach(function(cacheName) {\n                            caches.delete(cacheName);\n                        });\n                    });\n                }\n            </script>\n            \n  \n    <div id=\"header\" class=\"bg-primary border-b border-solid border-primary z-10 sticky top-0 !text-s\">\n  <div role=\"banner\" class=\"relative\">\n    <div class=\"max-w-7xl mx-auto px-l sm:px-xl lg:px-2xl\">\n      <div class=\"flex items-center justify-between h-4xl\">\n        <a\n          href=\"/\"\n          class=\"flex items-center space-x-m hover:opacity-80 transition-opacity no-underline\"\n        >\n          <img\n            loading=\"lazy\"\n            src=\"/media/home/images/workflowy-logo.svg\"\n            alt=\"\"\n            class=\"h-xl w-xl\"\n          />\n          <div class=\"text-base font-bold text-primary\">Workflowy</div>\n        </a>\n\n        <div class=\"md:hidden flex items-center gap-s\">\n          \n\n          <button\n            id=\"mobile-menu-button\"\n            type=\"button\"\n            aria-label=\"Open menu\"\n            class=\"!bg-white border border-solid border-primary hover:!bg-secondary rounded-m p-m text-secondary flex items-center justify-center hover:text-primary\"\n          >\n            <svg\n              class=\"w-xl h-xl\"\n              fill=\"none\"\n              stroke=\"currentColor\"\n              viewBox=\"0 0 24 24\"\n              aria-hidden=\"true\"\n            >\n              <path\n                stroke-linecap=\"round\"\n                stroke-linejoin=\"round\"\n                stroke-width=\"2\"\n                d=\"M4 6h16M4 12h16M4 18h16\"\n              />\n            </svg>\n          </button>\n        </div>\n\n        <nav\n          id=\"main-nav\"\n          class=\"\n            hidden md:flex md:items-center md:space-x-2xl absolute md:relative\n            top-full md:top-auto left-0 right-0 md:left-auto md:right-auto\n            bg-primary md:bg-transparent border-t md:border-t-0 border-subtle px-l\n            md:px-0 py-l md:py-0 flex-col md:flex-row space-y-l md:space-y-0 z-50\n          \"\n        >\n          <div class=\"relative group\">\n            <a\n              href=\"/help/get-started\"\n              class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal flex items-center gap-xs\"\n            >\n              Using Workflowy\n              <svg class=\"w-m h-m\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">\n                <path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M19 9l-7 7-7-7\" />\n              </svg>\n            </a>\n            <div\n              class=\"\n                flex flex-col pl-l mt-s space-y-s\n                md:hidden md:group-hover:flex md:group-focus-within:flex\n                md:absolute md:top-full md:left-0 md:mt-0 md:pl-0 md:space-y-0\n                md:bg-primary md:border md:border-solid border-primary md:rounded-m md:shadow-lg\n                md:py-s md:min-w-[200px]\n              \"\n            >\n              <a href=\"/help/get-started\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Help</a>\n              <a href=\"/help/guides-and-workflows\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Guides and workflows</a>\n              <a href=\"/help/integrations\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Integrate other apps</a>\n              <a href=\"/api-reference/\" class=\"text-secondary hover:text-primary no-underline transition-colors md:block md:px-l md:py-s md:hover:bg-secondary\">Developer API</a>\n            </div>\n          </div>\n          <a href=\"/pricing/\" class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal\">Pricing</a>\n          <a href=\"/download/\" class=\"text-secondary hover:text-primary no-underline transition-colors font-semibold md:font-normal\">Downloads</a>\n          <a href=\"/login/\" class=\"button primary no-underline\">Sign up / Log in</a>\n        </nav>\n      </div>\n    </div>\n  </div>\n\n  <script nonce=\"WqQgOmhonxvvDbvDrfEqHQ==\">\n    (function () {\n      const button = document.getElementById(\"mobile-menu-button\");\n      const menu = document.getElementById(\"main-nav\");\n\n      if (button && menu) {\n        button.addEventListener(\"click\", function () {\n          const isHidden = menu.classList.contains(\"hidden\");\n          if (isHidden) {\n            menu.classList.remove(\"hidden\");\n            menu.classList.add(\"flex\");\n          } else {\n            menu.classList.add(\"hidden\");\n            menu.classList.remove(\"flex\");\n          }\n        });\n      }\n\n    })();\n  </script>\n\n  <style>\n    #main-nav a,\n    #main-nav button {\n      -webkit-tap-highlight-color: transparent;\n      tap-highlight-color: transparent;\n    }\n  </style>\n</div>\n  \n\n  \n  <div class=\"section flex flex-col my-4xl !gap-3xl\">\n    <div class=\"flex flex-col items-center text-center gap-2xl max-w-2xl\">\n      <h1 class=\"font-bold\">4O4.</h1>\n      <p class=\"!text-m text-tertiary\">Sorry, the page you\u2019re looking for is no longer there or you don&#39;t have permission to view it.</p>\n    </div>\n\n  </div>\n\n\n  \n    <div\n  class=\"\n    grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5\n    p-xl\n    md:p-3xl\n    gap-xl\n    mx-auto\n\n    border-t\n    border-solid\n    border-primary\n    !text-s\n\n    [&_li]:my-xs\n  \"\n>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Product</h5>\n    <ul>\n      <li><a href=\"/team-signup/\" title=\"Teams\">Teams</a></li>\n      <li><a href=\"/edu/\" title=\"Education\">Education</a></li>\n      <li><a href=\"/integrations/\" title=\"Integrations\">Integrations</a></li>\n      <li><a href=\"/whats-new/\" title=\"What's New\">What's New</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Resources</h5>\n    <ul>\n      <li><a href=\"/help/get-started\" title=\"Get Started\">Get Started</a></li>\n      <li><a href=\"/templates/\" title=\"Templates\">Templates</a></li>\n      <li><a href=\"/help/find-your-productivity-system\" title=\"Guides\">Guides</a></li>\n      <li><a href=\"https://community.workflowy.com\" title=\"Forum\">Community</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Use Cases</h5>\n    <ul>\n      <li><a href=\"/help/bullet-journal/\" title=\"Bullet Journaling\">Bullet Journaling</a></li>\n      <li><a href=\"/help/para-method/\" title=\"Using Kanban\">PARA Method</a></li>\n      <li><a href=\"/help/kanban-board/\" title=\"Using Kanban\">Using Kanban</a></li>\n      <li><a href=\"/list-maker/\" title=\"List Making\">List Making</a></li>\n      <li><a href=\"/help/checklist/\" title=\"Creating Checklists\">Creating Checklists</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>About</h5>\n    <ul>\n      <li><a href=\"https://blog.workflowy.com/\" title=\"Blog\">Blog</a></li>\n      <li><a href=\"/privacy-policy/\" title=\"Privacy\">Privacy</a></li>\n      <li><a href=\"/ai-terms/\" title=\"Workflowy AI\">Workflowy AI</a></li>\n      <li><a href=\"/affiliates/\" title=\"Affiliates\">Affiliates</a></li>\n      <li><a href=\"https://status.workflowy.com/\" title=\"System Status\">System Status</a></li>\n    </ul>\n  </div>\n  <div class=\"flex-1 flex flex-col gap-s\">\n    <h5>Follow us</h5>\n    <ul>\n      <li><a href=\"https://www.youtube.com/user/workflowy\" title=\"YouTube\">YouTube</a></li>\n      <li><a href=\"https://twitter.com/workflowy\" title=\"X/Twitter\">X/Twitter</a></li>\n      <li><a href=\"https://www.reddit.com/r/Workflowy/\" title=\"Reddit\">Reddit</a></li>\n      <li><a href=\"https://join.slack.com/t/workflowyusergroup/shared_invite/zt-1d4al6zv8-~rSCkIaobbMm~GmnhyWjjA\" title=\"Slack Group\">Slack Group</a></li>\n      <li><a href=\"https://www.linkedin.com/company/workflowy/\" title=\"LinkedIn\">LinkedIn</a></li>\n      <li><a href=\"https://www.tiktok.com/@workflowyapp\" title=\"TikTok\">TikTok</a></li>\n      <li><a href=\"https://t.me/workflowy\" title=\"Telegram\">Telegram</a></li>\n    </ul>\n  </div>\n</div>\n  \n\n  \n</body>\n</html>",
+    "body_is_json": false
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838293.265484,
+    "t1": 1791838293.3954878,
+    "method": "PUT",
+    "path": "/api/v1/nodes/77fe1855-47d0-4ca1-809c-cfba29130133",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:33 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"error\": \"Method not allowed\", \"allowed_methods\": [\"GET\", \"POST\", \"DELETE\"]}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838293.3955736,
+    "t1": 1791838293.5320456,
+    "method": "GET",
+    "path": "/api/v1/nodes/77fe1855-47d0-4ca1-809c-cfba29130133/move",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 405,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:33 GMT",
+     "content-type": "text/html; charset=utf-8",
+     "content-length": "0",
+     "connection": "keep-alive",
+     "allow": "POST",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval' 'nonce-Za9SYgMpGyVZ+sU6p/R5ZQ=='; script-src * data: blob: 'unsafe-inline' 'unsafe-eval' 'nonce-Za9SYgMpGyVZ+sU6p/R5ZQ=='",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "",
+    "body_is_json": false
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838293.5322242,
+    "t1": 1791838293.6702318,
+    "method": "POST",
+    "path": "/api/v1/nodes/77fe1855-47d0-4ca1-809c-cfba29130133",
+    "params": null,
+    "json": null,
+    "content": "{bad",
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000",
+     "Content-Type": "application/json"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:33 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_credentials\", \"message\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838293.6705015,
+    "t1": 1791838293.8082767,
+    "method": "GET",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001",
+    "params": null,
+    "json": null,
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:33 GMT",
+     "content-type": "application/json",
+     "content-length": "45",
+     "connection": "keep-alive",
+     "content-security-policy": "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"errors\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   },
+   {
+    "type": "request",
+    "epoch": 1,
+    "t0": 1791838293.808552,
+    "t1": 1791838293.9443567,
+    "method": "POST",
+    "path": "/api/v1/nodes/00000000-0000-4000-8000-000000000001",
+    "params": null,
+    "json": {
+     "name": 1
+    },
+    "content": null,
+    "headers": {
+     "Authorization": "Bearer not-a-real-key-0000"
+    },
+    "status": 401,
+    "response_headers": {
+     "server": "nginx",
+     "date": "Mon, 12 Oct 2026 20:51:33 GMT",
+     "content-type": "application/json",
+     "content-length": "77",
+     "connection": "keep-alive",
+     "content-security-policy": "script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src-elem * data: blob: 'unsafe-inline' 'unsafe-eval'; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+     "referrer-policy": "same-origin",
+     "service-worker-allowed": "/",
+     "vary": "Accept-Encoding, Cookie, Origin",
+     "x-content-type-options": "nosniff",
+     "x-frame-options": "SAMEORIGIN",
+     "x-xss-protection": "1; mode=block",
+     "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body_text": "{\"code\": \"invalid_credentials\", \"message\": \"Invalid Credentials, try again.\"}",
+    "body_is_json": true
+   }
+  ]
+ }
+}

@@ -21,6 +21,9 @@ Covers `POST /api/v1/nodes/:id` (update), `POST /api/v1/nodes/:id/complete` and
    single newlines (see the contrast table below).
 2. **`layoutMode` is free-form.** Any string is accepted and stored as sent,
    including `"nonsense"`, `"H1"` and `""`. A non-string value gives 400.
+   Unlike `name` and `note`, it is **not** control-character stripped:
+   `"h\x01\x0b1"` is stored and returned unchanged (added 2026-10-12, conformance
+   golden `tests/conformance/golden/update_layoutmode_control_chars.json`).
 3. **In the update body, `null` means "leave this field unchanged"**, for
    `name`, `note` and `layoutMode`. There is no way to set `note` back to
    `null` through the API. `""` is the closest you can get.

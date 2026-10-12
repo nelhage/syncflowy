@@ -529,6 +529,7 @@ The leaked children have `completedAt == createdAt`. Lines **before** the first
 | `` p\n\n```js\nx = 1\n```\n\nAfter `` | `p` | `js\nx = 1` (code-block), `After` (p) |
 | `` p\n\n```inline```\n\nafter `` | `p` | `inline``` after` (code-block) |
 | `` p\n\n```\nUpper\n```\n\nq `` | `p` | `Upper\n``` q` (code-block) |
+| `` ```\nunclosed\nMore `` | `" unclosed\nMore"` (code-block): no closing line, so no join-free region; the opener joined with `unclosed` (conformance golden `text_multiline_code_fences`) | — |
 | `` first\n\n```\ncode\nmore\n```\n\nafter `` | `first` | `code\nmore\n``` after` (code-block) |
 
 Model that fits **[I]**:
@@ -537,6 +538,11 @@ Model that fits **[I]**:
   ```` ``` ```` opens a fence unless it is longer than 3 chars and also ends with
   ```` ``` ```` (a one-line fence). The region is the opening line plus the
    following lines, up to but **not including** the next line that ends with ```` ``` ````.
+   **Corrected 2026-10-12**: if no later line ends with ```` ``` ```` (an unclosed fence),
+   there is **no region**, and the join applies to the opener's newline as well:
+   ```` ```\nunclosed\nMore ```` is created as one code-block named `" unclosed\nMore"`
+   (the opener and `unclosed` were joined by step 2, then step 3 grouped the rest).
+   Evidence: `tests/conformance/golden/text_multiline_code_fences.json`, step 5.
 2. Apply the join regex (§5.1) only to text outside those regions. The closing
    fence line is outside, so ```` ```\n\nafter ```` joins into ```` ``` after ````.
 3. Split into lines. A line starting with ```` ``` ```` starts a code block that

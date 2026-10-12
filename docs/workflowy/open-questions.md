@@ -16,7 +16,7 @@ scope rules confine every request to the scratchpad. **Prod** means a few more A
 | S5 | **`GET /nodes-export`**: response order, whether it includes detached cycles and orphan shells, whether it exposes mirror metadata (`mirror_origin_id`?) or collapse state, and the 1 req/min limit's **429 body and `Retry-After`**. | flat `{"nodes": [...]}` in `create_seq` order, no metadata. The 429 is a guess |
 | S6 | **`GET /targets`**: the real shape, which system targets exist, and `name` values. | per upstream |
 | S7 | Do mutating endpoints accept special or shortcut keys as the path `:id`? Probably not, given that short ids fail. | no |
-| S8 | Uppercase or dashless UUIDs of an **existing** node on delete, move, complete, uncomplete and mirror. We inferred 404, the same as update. To test this, `AllowList.contains` in `prod_client.py` must normalise case and dashes, which is a coordinator decision. | 404 |
+| S8 | ~~Uppercase or dashless UUIDs of an **existing** node on delete, move, complete, uncomplete and mirror.~~ **Answered: 404** (`Item not found`, nothing changed) on update, complete, uncomplete, move, mirror POST/DELETE (conformance golden `ids_mutations_need_exact_uuid`) and plain DELETE (`delete_by_short_id_is_noop`). | 404 |
 
 ## 2. Needs a human in the UI
 
@@ -41,14 +41,14 @@ scope rules confine every request to the scratchpad. **Prod** means a few more A
 
 | # | question | notes |
 |---|---|---|
-| P1 | Date regex edges: 1–3 digit years, single-digit minutes (`[2026-01-15 9:5]`), and whether the text depends on the account's timezone. | text-and-content §7 |
-| P2 | Create-path details: inside a fence, are entities decoded and is single-line ```` ```**x**``` ```` markdown-parsed? Does an entity such as `&#10;` or `&#35; ` act as a line break or a prefix (unescape runs before splitting)? | inferred yes |
-| P3 | Where does `note` go when a multi-block create name makes children? Presumably block 0. | |
-| P4 | Is `layoutMode` on update also control-character stripped? | |
-| P5 | Does `uncomplete` with a huge garbage body still succeed? Minor. | |
-| P6 | Is the URL `parent_id` regex boundary exact? What about characters after the 12 hex digits other than `/`, `?` (e.g. `-`, `#`, `.`)? | followup-2 |
-| P7 | Do PUT and DELETE on `/move` give 405 HTML like GET does? | inferred yes |
-| P8 | Is the NUL-in-create-note **500** stable, or a bug? Re-check occasionally. | mock copies it |
+| P1 | ~~Date regex edges~~ **Answered** (golden `text_dates_edges`): minutes are 1–2 digits (`9:5` → `9:05 AM`), `\d` is Unicode (Arabic-Indic/full-width digits convert), 1–3 and 5 digit years and `0000` stay literal, `0001` converts. Still open: whether the text depends on the account's timezone/locale (H11). | data-model §6.2 step 11 |
+| P2 | ~~Create-path entity/fence details~~ **Answered** (golden `text_entities_structural`): entities are decoded inside fences, fence content gets no markdown (also single-line ```` ```**x**``` ````), and `&#10;`/`&#13;`/`&#35; `/`&#45; [x]` act as line breaks and prefixes. | data-model §6.2 step 2 |
+| P3 | ~~Where does `note` go for a multi-block create?~~ **Answered: block 0**; children get `""` (golden `text_multiline_note_and_layout_param`). | |
+| P4 | ~~Is `layoutMode` on update also control-character stripped?~~ **Answered: no**, it is stored verbatim. | conformance golden `update_layoutmode_control_chars` |
+| P5 | ~~Huge garbage body on complete/uncomplete?~~ **Answered: ignored, 200** (50 KB, golden `complete_huge_garbage_body`). | |
+| P6 | ~~URL `parent_id` boundary~~ **Answered** (golden `ids_url_parent_boundaries`): only end, `/` or `?` may follow the 12 hex digits; `-`, `#`, `.`, `g`, `_`, space, `&` and a hex digit give `Location '…' not found`. | data-model §3.2 |
+| P7 | Do PUT and DELETE on `/move` give 405 HTML like GET does? | DELETE, HEAD, OPTIONS: **yes** (405 HTML, `Allow: POST`, also on `/complete` and `/uncomplete`; conformance golden `http_405_html_routes`). PUT and PATCH also **yes** (golden `move_wrong_methods`). |
+| P8 | Is the NUL-in-create-note **500** stable, or a bug? Re-check occasionally. The same 500 now also covers NUL in `layoutMode` (create and update) and lone surrogates in the create note and `layoutMode` (goldens `create_layoutmode_controls_nul_and_surrogates`, `update_nul_layoutmode_and_lone_surrogates`). | mock copies it |
 | P9 | Request body limit above 20 MB, and maximum name length. | mock: no limit |
 | P10 | Does a renumber also happen at large bottom priorities (overflow)? We never went above about 1600. Costly to test via the API, because each bottom insert is +100. | none |
 
