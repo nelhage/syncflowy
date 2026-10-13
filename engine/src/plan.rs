@@ -58,7 +58,11 @@
 //! * `simulate(&plan, remote)` succeeds, and its outline below the root equals
 //!   `merge.merged` with `tree::DiffScope::Visible` after mapping temp ids (they are kept
 //!   as temp ids by `simulate`), ignoring nodes deferred from deletion.
-//! * Hidden nodes are never the subject of a `Move` or an `Update*`.
+//! * Hidden nodes are never the subject of a `Move` or an `Update*` unless the merge
+//!   asked for it: reorders never touch them, but a node completed remotely and edited
+//!   locally is still pushed (§6.2 table, `ReportEvent::VanishedWork`), so pushes and
+//!   moves from the merge are taken as given. [`GuardReason::HiddenNode`] is raised for
+//!   a completed node in a target order.
 //! * The number of reorder moves for a parent is `n − |longest block|` (§8.1).
 //!
 //! # Decisions made here (not dictated by the design)
@@ -95,6 +99,10 @@
 //!   children of their parent in `S`. Anything else is [`PlanError::Inconsistent`].
 //!   Redundant intents (a move to the current parent, a tick of a completed node, a
 //!   delete under an already deleted node, a push of the current value) are dropped.
+//! * **Creates under a node moving in.** Creates run before moves (§7.1), so a create
+//!   whose parent a cross-file move brings in (§6.4) happens in the other root and the
+//!   child travels with the move. The create guard therefore asks that the parent be in
+//!   `merge.merged` and inside one of the managed roots in `S`.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -919,6 +927,9 @@ const CREATE_RISKY_CHARS: &[char] = &['&', '*', '[', ']', '`', '~', '#', '<', '>
 /// completion leak); no `*`, `` ` ``, `~`, `[`, `]`, `\` (step 10 inline markdown, step 11
 /// dates, which need `[`).
 pub fn create_name_is_safe(name_wf: &str) -> bool {
+    // UNVERIFIED: checked against the mock's model of the create pipeline, which DM§6.2
+    // fitted to ~200 observed cases; production was not probed with these exact rules.
+    // Rejecting everything markdown- or entity-shaped leaves a wide margin.
     if name_wf.is_empty() || name_wf.starts_with(' ') || name_wf.ends_with(' ') {
         return false;
     }
@@ -988,7 +999,11 @@ pub fn simulate_op(op: &Op, tree: &mut Tree) -> Result<(), TreeError> {
             // update that follows it (§7.2).
             let mut node = Node::new(temp.clone(), Some(parent.clone()), name.value());
             node.note = note.clone();
-            node.layout = layout.clone();
+            // Verbatim, except that an empty layoutMode gives `bullets` (DM§4.3; the
+            // names the planner sends directly or as a nonce have no prefix layout).
+            if !layout.is_empty() {
+                node.layout = layout.clone();
+            }
             tree.place(node, Some(parent), Position::Bottom)
         }
         Op::UpdateName { node, name, .. } => tree.set_name(node, name.clone()),
