@@ -60,16 +60,49 @@
 //!   as temp ids by `simulate`), ignoring nodes deferred from deletion.
 //! * Hidden nodes are never the subject of a `Move` or an `Update*`.
 //! * The number of reorder moves for a parent is `n − |longest block|` (§8.1).
+//!
+//! # Decisions made here (not dictated by the design)
+//!
+//! * **Re-parenting order.** The merge lists moves in its own order, but a set of moves
+//!   whose end state is acyclic can still pass through a cycle in a bad order (swap a
+//!   parent and its child). The planner emits, at each step, the first pending move that
+//!   passes the cycle guard against `S`; such a move always exists when the end state is
+//!   acyclic (take a blocked move; the path from its node down to its destination must
+//!   contain another pending node with a strictly smaller subtree, and so on). Only when
+//!   every pending move is blocked is the plan refused with [`GuardReason::Cycle`]: that
+//!   is a genuine cycle, including one that only appears after earlier moves.
+//! * **Reorders only touch the target's members.** `C` is the visible children of the
+//!   parent in `S` *restricted to the nodes of `T`*. Other visible siblings in `S` (nodes
+//!   still to be ticked or deleted in steps 5–6, deferred deletes, children hidden by
+//!   `mdblock::View`'s other rules) stay where they are, exactly like completed ones:
+//!   top and bottom moves of the others keep the relative order exact.
+//! * **Priority ties (§6.3).** `C` is `S`'s `(priority, id)` order, ties included, and
+//!   the block uses positions in it as §8.1 says. So when the merge keeps a tied remote
+//!   order (`T == C`), nothing is written because of the tie; a tie inside an unmoved
+//!   block stays a tie, exactly as unstable as it was before the sync. (Requiring
+//!   strictly increasing priorities instead would make the result tie-free, but would
+//!   move tied nodes the user never touched.)
+//! * **Boundary roots.** The boundary guard uses [`PlanConfig::sync_roots`] plus
+//!   `merge.root` (so an empty set means "this root only"). The node of a move must lie
+//!   strictly inside one of them (a root itself is never moved).
+//! * **Brake counts.** Deletes are counted over all of `merge.deletes`, deferred ones
+//!   included: the brake is about the local diff (§8.3), and a truncated file must stop
+//!   the run at once, not ten minutes later. Each count is the larger of `merge.stats`
+//!   and the sum over the [`crate::merge::DeleteIntent`]s, so an inconsistent `stats`
+//!   can only make the brake stricter. Completions count `merge.ticks` (existing nodes);
+//!   new items typed ticked are not a mass change.
+//! * **Consistency.** Pushes must name the remote value as `expected`; orders must list
+//!   children of their parent in `S`. Anything else is [`PlanError::Inconsistent`].
+//!   Redundant intents (a move to the current parent, a tick of a completed node, a
+//!   delete under an already deleted node, a push of the current value) are dropped.
 
-#![allow(unused_variables, dead_code)] // stubs; remove when implemented
-
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::merge::MergeResult;
-use crate::tree::{NodeId, Position, Tree, TreeError};
+use crate::merge::{MergeResult, MoveIntent};
+use crate::tree::{Node, NodeId, Position, Tree, TreeError};
 
 /// How a create sends the name (§7.2).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -356,7 +389,461 @@ impl Default for PlanConfig {
 
 /// Build the plan (module docs). `remote` is the export the merge saw.
 pub fn plan(merge: &MergeResult, remote: &Tree, cfg: &PlanConfig) -> Result<Plan, PlanError> {
-    todo!()
+    if !remote.contains(&merge.root) {
+        return Err(PlanError::Inconsistent(format!(
+            "sync root {} is not in the remote tree",
+            merge.root
+        )));
+    }
+    if !cfg.force {
+        check_brakes(merge, &cfg.brakes).map_err(PlanError::Brake)?;
+    }
+    let mut roots = cfg.sync_roots.clone();
+    roots.insert(merge.root.clone());
+    let mut b = Builder {
+        root: &merge.root,
+        roots: &roots,
+        s: remote.clone(),
+        ops: Vec::new(),
+        summary: PlanSummary::default(),
+    };
+    b.creates(merge, cfg)?;
+    b.moves(merge)?;
+    b.updates(merge)?;
+    b.reorders(merge)?;
+    b.completions(merge)?;
+    b.deletes(merge, cfg)?;
+    let mut summary = b.summary;
+    summary.requests = b.ops.iter().map(Op::requests).sum();
+    Ok(Plan {
+        root: merge.root.clone(),
+        ops: b.ops,
+        summary,
+    })
+}
+
+/// §8.3: the brakes, evaluated on the merge's local diff (module docs, "Brake counts").
+fn check_brakes(merge: &MergeResult, cfg: &BrakeConfig) -> Result<(), Brake> {
+    let base_visible = merge.stats.base_visible;
+    let intents_visible: usize = merge
+        .deletes
+        .iter()
+        .map(|d| 1 + d.visible_descendants)
+        .sum();
+    let intents_hidden: usize = merge.deletes.iter().map(|d| d.hidden_descendants).sum();
+    let visible = merge.stats.deleted_visible.max(intents_visible);
+    let hidden = merge.stats.deleted_hidden.max(intents_hidden);
+    // "If the file is missing or empty, refuse" (§8.3): every visible node is deleted.
+    if base_visible > 0 && visible >= base_visible {
+        return Err(Brake::EmptyFile { base_visible });
+    }
+    // Hidden descendants count toward the threshold: the user cannot see them (§4.5).
+    let total = visible + hidden;
+    if exceeds(
+        total,
+        base_visible,
+        cfg.max_deletes,
+        cfg.max_delete_fraction,
+        cfg.min_deletes_for_fraction,
+    ) {
+        return Err(Brake::TooManyDeletes {
+            visible,
+            hidden,
+            base_visible,
+        });
+    }
+    // Ticks are not deletes, but a separate, higher threshold is cheap insurance (§8.3).
+    let completes = merge.ticks.len();
+    if exceeds(
+        completes,
+        base_visible,
+        cfg.max_completes,
+        cfg.max_complete_fraction,
+        cfg.min_completes_for_fraction,
+    ) {
+        return Err(Brake::TooManyCompletes {
+            completes,
+            base_visible,
+        });
+    }
+    Ok(())
+}
+
+/// `count` is over the absolute limit, or at least `min_for_fraction` and over `fraction`
+/// of `base`.
+fn exceeds(count: usize, base: usize, max: usize, fraction: f64, min_for_fraction: usize) -> bool {
+    count > max || (count >= min_for_fraction && count as f64 > fraction * base as f64)
+}
+
+/// Which §7.1 step a move belongs to (for the summary).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum MoveKind {
+    Reparent,
+    Reorder,
+}
+
+/// The planner's state: the simulated remote tree `S` and the ops emitted so far.
+struct Builder<'a> {
+    root: &'a NodeId,
+    roots: &'a BTreeSet<NodeId>,
+    s: Tree,
+    ops: Vec<Op>,
+    summary: PlanSummary,
+}
+
+impl Builder<'_> {
+    /// Append `op` and apply it to `S`. Guards have been checked by the caller; a tree
+    /// error here means the merge result disagrees with the remote tree.
+    fn emit(&mut self, op: Op) -> Result<(), PlanError> {
+        simulate_op(&op, &mut self.s)
+            .map_err(|e| PlanError::Inconsistent(format!("{e} (while planning {op:?})")))?;
+        self.ops.push(op);
+        Ok(())
+    }
+
+    fn guard(op: &Op, reason: GuardReason) -> PlanError {
+        PlanError::Guard {
+            op: Box::new(op.clone()),
+            reason,
+        }
+    }
+
+    /// `id` is the sync root or inside its subtree in `S`.
+    fn in_root(&self, id: &NodeId) -> bool {
+        id == self.root || self.s.is_descendant(id, self.root)
+    }
+
+    /// `id` is one of the sync roots or inside one in `S`.
+    fn in_sync_roots(&self, id: &NodeId) -> bool {
+        self.roots
+            .iter()
+            .any(|r| id == r || self.s.is_descendant(id, r))
+    }
+
+    /// `id` is strictly inside one of the sync roots in `S`.
+    fn strictly_in_sync_roots(&self, id: &NodeId) -> bool {
+        self.roots.iter().any(|r| self.s.is_descendant(id, r))
+    }
+
+    /// §8.2 for a move of `node` under `dest`, against `S`.
+    fn check_move(&self, node: &NodeId, dest: &NodeId) -> Result<(), GuardReason> {
+        if !self.s.contains(node) || !self.s.contains(dest) {
+            return Err(GuardReason::UnknownNode);
+        }
+        // The API would answer 200 and detach the subtree (DM§4.7.5).
+        if dest == node || self.s.is_descendant(dest, node) {
+            return Err(GuardReason::Cycle);
+        }
+        // We never move nodes into parts of the account we do not manage, and never move
+        // a sync root (or anything outside the managed roots) itself.
+        if !self.in_sync_roots(dest) || !self.strictly_in_sync_roots(node) {
+            return Err(GuardReason::OutsideSyncRoots);
+        }
+        Ok(())
+    }
+
+    /// Emit a move after checking the guards.
+    fn emit_move(
+        &mut self,
+        node: &NodeId,
+        parent: &NodeId,
+        position: Position,
+        kind: MoveKind,
+    ) -> Result<(), PlanError> {
+        let op = Op::Move {
+            node: node.clone(),
+            parent: parent.clone(),
+            position,
+            expected_parent: if node.is_temp() {
+                None
+            } else {
+                self.s.parent(node).cloned()
+            },
+        };
+        self.check_move(node, parent)
+            .map_err(|r| Self::guard(&op, r))?;
+        self.emit(op)?;
+        match kind {
+            MoveKind::Reparent => self.summary.moves += 1,
+            MoveKind::Reorder => self.summary.reorders += 1,
+        }
+        Ok(())
+    }
+
+    /// §7.1 step 1 and §7.2: creates in the merge's order (parents first), each at the
+    /// bottom of its parent, which in pre-order gives the right order with no extra moves.
+    fn creates(&mut self, merge: &MergeResult, cfg: &PlanConfig) -> Result<(), PlanError> {
+        for n in &merge.creates {
+            let name = if cfg.fast_path_creates && create_name_is_safe(&n.name) {
+                CreateName::Direct(n.name.clone())
+            } else {
+                CreateName::Deferred(n.name.clone())
+            };
+            let op = Op::Create {
+                temp: n.temp.clone(),
+                parent: n.parent.clone(),
+                name,
+                note: n.note.clone(),
+                layout: n.layout.clone(),
+            };
+            if !self.s.contains(&n.parent) {
+                return Err(Self::guard(&op, GuardReason::UnknownNode));
+            }
+            if !self.in_root(&n.parent) {
+                return Err(Self::guard(&op, GuardReason::OutsideRoot));
+            }
+            if self.s.contains(&n.temp) {
+                return Err(PlanError::Inconsistent(format!(
+                    "create {} reuses an existing id",
+                    n.temp
+                )));
+            }
+            self.emit(op)?;
+            self.summary.creates += 1;
+        }
+        Ok(())
+    }
+
+    /// §7.1 step 2 and §8.2: re-parentings, each to the bottom of its new parent, each
+    /// guarded against `S`. Order: the first pending move that passes the cycle guard
+    /// (module docs).
+    fn moves(&mut self, merge: &MergeResult) -> Result<(), PlanError> {
+        let mut pending: Vec<&MoveIntent> = Vec::new();
+        for m in &merge.moves {
+            if !self.s.contains(&m.node) || !self.s.contains(&m.to) {
+                let op = Op::Move {
+                    node: m.node.clone(),
+                    parent: m.to.clone(),
+                    position: Position::Bottom,
+                    expected_parent: self.s.parent(&m.node).cloned(),
+                };
+                return Err(Self::guard(&op, GuardReason::UnknownNode));
+            }
+            // Already there: the reorder step places it.
+            if self.s.parent(&m.node) != Some(&m.to) {
+                pending.push(m);
+            }
+        }
+        while !pending.is_empty() {
+            let next = pending
+                .iter()
+                .position(|m| self.check_move(&m.node, &m.to) != Err(GuardReason::Cycle))
+                .unwrap_or(0);
+            let m = pending.remove(next);
+            self.emit_move(&m.node, &m.to, Position::Bottom, MoveKind::Reparent)?;
+        }
+        Ok(())
+    }
+
+    /// §7.1 step 3: field updates, with the remote value as `expected` for the pre-write
+    /// GET. Name, note, layout per node, nodes in id order.
+    fn updates(&mut self, merge: &MergeResult) -> Result<(), PlanError> {
+        for (id, push) in &merge.pushes {
+            let Some(cur) = self.s.get(id).cloned() else {
+                let op = Op::UpdateName {
+                    node: id.clone(),
+                    expected: String::new(),
+                    name: String::new(),
+                };
+                return Err(Self::guard(&op, GuardReason::UnknownNode));
+            };
+            let mut ops = Vec::new();
+            if let Some(c) = &push.name {
+                check_expected(id, "name", &c.expected, &cur.name)?;
+                if c.new != cur.name {
+                    ops.push(Op::UpdateName {
+                        node: id.clone(),
+                        expected: c.expected.clone(),
+                        name: c.new.clone(),
+                    });
+                }
+            }
+            if let Some(c) = &push.note {
+                check_expected(id, "note", &c.expected, &cur.note)?;
+                let Some(new) = &c.new else {
+                    // The API cannot write null (DM§6.4).
+                    return Err(PlanError::Inconsistent(format!(
+                        "push of a null note to {id}"
+                    )));
+                };
+                if c.new != cur.note {
+                    ops.push(Op::UpdateNote {
+                        node: id.clone(),
+                        expected: c.expected.clone(),
+                        note: new.clone(),
+                    });
+                }
+            }
+            if let Some(c) = &push.layout {
+                check_expected(id, "layout", &c.expected, &cur.layout)?;
+                if c.new != cur.layout {
+                    ops.push(Op::UpdateLayout {
+                        node: id.clone(),
+                        expected: c.expected.clone(),
+                        layout: c.new.clone(),
+                    });
+                }
+            }
+            for op in ops {
+                if !self.in_root(id) {
+                    return Err(Self::guard(&op, GuardReason::OutsideRoot));
+                }
+                self.emit(op)?;
+                self.summary.updates += 1;
+            }
+        }
+        Ok(())
+    }
+
+    /// §7.1 step 4 and §8.1: same-parent top/bottom moves that realise `merge.orders`
+    /// over the visible members of each target order. Parents in pre-order of `S`.
+    fn reorders(&mut self, merge: &MergeResult) -> Result<(), PlanError> {
+        let mut parents: Vec<NodeId> = self
+            .s
+            .preorder(self.root)
+            .into_iter()
+            .filter(|p| merge.orders.contains_key(p))
+            .collect();
+        let seen: BTreeSet<&NodeId> = parents.iter().collect();
+        let rest: Vec<NodeId> = merge
+            .orders
+            .keys()
+            .filter(|p| !seen.contains(p))
+            .cloned()
+            .collect();
+        for p in &rest {
+            if !self.s.contains(p) {
+                return Err(PlanError::Inconsistent(format!(
+                    "order given for {p}, which is not in the tree"
+                )));
+            }
+        }
+        parents.extend(rest);
+        for p in &parents {
+            let target = &merge.orders[p];
+            let members: BTreeSet<&NodeId> = target.iter().collect();
+            if members.len() != target.len() {
+                return Err(PlanError::Inconsistent(format!(
+                    "order of {p} lists a node twice"
+                )));
+            }
+            for t in target {
+                if self.s.parent(t) != Some(p) {
+                    return Err(PlanError::Inconsistent(format!(
+                        "order of {p} lists {t}, which is not its child"
+                    )));
+                }
+                if self.s.get(t).is_some_and(|n| n.completed) {
+                    // Completed siblings are never in T and never moved (§4.5, §8.1).
+                    let op = Op::Move {
+                        node: t.clone(),
+                        parent: p.clone(),
+                        position: Position::Top,
+                        expected_parent: Some(p.clone()),
+                    };
+                    return Err(Self::guard(&op, GuardReason::HiddenNode));
+                }
+            }
+            // C: the visible children of p in S, restricted to T's members (module docs).
+            let current: Vec<NodeId> = self
+                .s
+                .visible_children(p)
+                .into_iter()
+                .filter(|c| members.contains(c))
+                .collect();
+            let moves = reorder_moves(target, &current);
+            if let Some((node, position)) = moves.first()
+                && !self.in_root(p)
+            {
+                let op = Op::Move {
+                    node: node.clone(),
+                    parent: p.clone(),
+                    position: *position,
+                    expected_parent: Some(p.clone()),
+                };
+                return Err(Self::guard(&op, GuardReason::OutsideRoot));
+            }
+            for (node, position) in moves {
+                self.emit_move(&node, p, position, MoveKind::Reorder)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// §7.1 step 5: ticks, then new nodes typed ticked. After every edit, so a
+    /// half-applied sync never hides work that was not pushed yet.
+    fn completions(&mut self, merge: &MergeResult) -> Result<(), PlanError> {
+        let new_ticked = merge.creates.iter().filter(|n| n.ticked).map(|n| &n.temp);
+        for id in merge.ticks.iter().chain(new_ticked) {
+            let op = Op::Complete { node: id.clone() };
+            let Some(node) = self.s.get(id) else {
+                return Err(Self::guard(&op, GuardReason::UnknownNode));
+            };
+            if node.completed {
+                // The API never re-completes (DM§4.5); nothing to do.
+                continue;
+            }
+            if !self.in_root(id) {
+                return Err(Self::guard(&op, GuardReason::OutsideRoot));
+            }
+            self.emit(op)?;
+            self.summary.completes += 1;
+        }
+        Ok(())
+    }
+
+    /// §7.1 step 6: deletes, top-most only (delete is recursive), minus deferred ones
+    /// (§9.1 guard 2).
+    fn deletes(&mut self, merge: &MergeResult, cfg: &PlanConfig) -> Result<(), PlanError> {
+        let mut removed: BTreeSet<NodeId> = BTreeSet::new();
+        for d in &merge.deletes {
+            if cfg.deferred_deletes.contains(&d.node) {
+                continue;
+            }
+            if !self.s.contains(&d.node) {
+                if removed.contains(&d.node) {
+                    continue; // below an earlier delete
+                }
+                let op = Op::Delete {
+                    node: d.node.clone(),
+                    hidden_descendants: d.hidden_descendants,
+                };
+                return Err(Self::guard(&op, GuardReason::UnknownNode));
+            }
+            let op = Op::Delete {
+                node: d.node.clone(),
+                hidden_descendants: self.s.count_hidden_descendants(&d.node),
+            };
+            if &d.node == self.root || !self.in_root(&d.node) {
+                return Err(Self::guard(&op, GuardReason::OutsideRoot));
+            }
+            removed.extend(self.s.preorder(&d.node));
+            if let Op::Delete {
+                hidden_descendants, ..
+            } = &op
+            {
+                self.summary.hidden_deleted += hidden_descendants;
+            }
+            self.emit(op)?;
+            self.summary.deletes += 1;
+        }
+        Ok(())
+    }
+}
+
+fn check_expected<T: PartialEq + std::fmt::Debug>(
+    id: &NodeId,
+    field: &str,
+    expected: &T,
+    current: &T,
+) -> Result<(), PlanError> {
+    if expected == current {
+        Ok(())
+    } else {
+        Err(PlanError::Inconsistent(format!(
+            "push of {field} of {id} expects {expected:?} but the remote has {current:?}"
+        )))
+    }
 }
 
 /// §8.1: the moves that turn the order `current` into `target` using only top and
@@ -365,9 +852,52 @@ pub fn plan(merge: &MergeResult, remote: &Tree, cfg: &PlanConfig) -> Result<Plan
 /// increasing in `current`; nodes before it go to the top (emitted in reverse target
 /// order), nodes after it go to the bottom (in target order). Cost `n − |block|`;
 /// empty when `current == target`.
+///
+/// Ids of `target` missing from `current` are never part of the block (they are moved);
+/// ids of `current` missing from `target` are ignored (left in place).
 pub fn reorder_moves(target: &[NodeId], current: &[NodeId]) -> Vec<(NodeId, Position)> {
-    todo!()
+    let pos: BTreeMap<&NodeId, usize> = current.iter().enumerate().map(|(i, id)| (id, i)).collect();
+    let ranks: Vec<Option<usize>> = target.iter().map(|id| pos.get(id).copied()).collect();
+    let (start, len) = longest_block(&ranks);
+    let mut out = Vec::with_capacity(target.len() - len);
+    // Before the block: to the top, last first, so they end up in target order.
+    for id in target[..start].iter().rev() {
+        out.push((id.clone(), Position::Top));
+    }
+    // After the block: to the bottom, in target order.
+    for id in &target[start + len..] {
+        out.push((id.clone(), Position::Bottom));
+    }
+    out
 }
+
+/// The first longest run of strictly increasing positions (`None`: absent from the
+/// current order, never in a block): `(start, len)`. A linear scan (§8.1).
+fn longest_block(ranks: &[Option<usize>]) -> (usize, usize) {
+    let (mut best_start, mut best_len) = (0, 0);
+    let mut i = 0;
+    while i < ranks.len() {
+        if ranks[i].is_none() {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        i += 1;
+        while i < ranks.len() && matches!((ranks[i - 1], ranks[i]), (Some(a), Some(b)) if b > a) {
+            i += 1;
+        }
+        if i - start > best_len {
+            (best_start, best_len) = (start, i - start);
+        }
+    }
+    (best_start, best_len)
+}
+
+/// Characters never accepted by [`create_name_is_safe`]: entities (`&`), the inline
+/// markdown of DM§6.2 step 10 (`*`, `[`, `]`, backtick, `~`, and `\` escapes), heading
+/// prefixes (`#`), markup and quotes (`<`, `>`, `"`) and `_` (not converted today, but
+/// markdown-shaped; conservative).
+const CREATE_RISKY_CHARS: &[char] = &['&', '*', '[', ']', '`', '~', '#', '<', '>', '\\', '_', '"'];
 
 /// §7.2 whitelist: true only if sending `name_wf` as a create `name` stores exactly
 /// `name_wf` (the create pipeline, DM§6.2, leaves it unchanged). Must be conservative:
@@ -375,10 +905,39 @@ pub fn reorder_moves(target: &[NodeId], current: &[NodeId]) -> Vec<(NodeId, Posi
 /// NBSP); no control characters, line or paragraph separators; none of the characters
 /// `&`, `*`, `[`, `]`, backtick, `~`, `#`, `<`, `>`, `\`, `_`, `"` anywhere; does not start
 /// with `-`, `+`, `>` or a digit run followed by `.`; no `http` (autolink-like text).
-/// The implementer must add a test that sends whitelisted names (and near misses)
-/// through the mock's create endpoint and checks the stored name.
+///
+/// Checked differentially against the mock's `text.py` and through the mock's create
+/// endpoint (`tests/plan_create_oracle.rs`). Why each rule holds, by pipeline step
+/// (DM§6.2): no control characters (step 1 strip; step 6 splits on `\v`, `\f`,
+/// `\x1c`–`\x1e`, `\x85`); no `&` (step 2 `html.unescape`); no `\r`/`\n` (steps 3–5 join
+/// and split); no whitespace other than U+0020 anywhere and no space at either end
+/// (step 6 splits on U+2028/U+2029; step 7 `str.strip` also strips NBSP, U+2003,
+/// U+3000); no backtick (fences, code); no `-`/`#` at the start (step 8 prefixes, step 9
+/// completion leak); no `*`, `` ` ``, `~`, `[`, `]`, `\` (step 10 inline markdown, step 11
+/// dates, which need `[`).
 pub fn create_name_is_safe(name_wf: &str) -> bool {
-    todo!()
+    if name_wf.is_empty() || name_wf.starts_with(' ') || name_wf.ends_with(' ') {
+        return false;
+    }
+    let bad_char = |c: char| {
+        c.is_control() || (c.is_whitespace() && c != ' ') || CREATE_RISKY_CHARS.contains(&c)
+    };
+    if name_wf.chars().any(bad_char) {
+        return false;
+    }
+    if name_wf.starts_with(['-', '+', '>']) {
+        return false;
+    }
+    // "1." looks like an ordered-list item (plain today, DM§6.2 step 8; conservative).
+    let after_digits = name_wf.trim_start_matches(char::is_numeric);
+    if after_digits.len() < name_wf.len() && after_digits.starts_with('.') {
+        return false;
+    }
+    // Autolink-like text (not converted today, DM§6.2 step 10; conservative).
+    if name_wf.to_lowercase().contains("http") {
+        return false;
+    }
+    true
 }
 
 /// Simulation failures.
@@ -400,11 +959,421 @@ pub enum SimError {
 /// nodes keep their temp ids. Used for property tests and by `apply` as its latest known
 /// remote tree.
 pub fn simulate(plan: &Plan, tree: &Tree) -> Result<Tree, SimError> {
-    todo!()
+    let mut t = tree.clone();
+    for (index, op) in plan.ops.iter().enumerate() {
+        simulate_op(op, &mut t).map_err(|source| SimError::Tree { index, source })?;
+    }
+    Ok(t)
 }
 
 /// Apply one op to `tree` in place (the step function of [`simulate`]). `apply` calls it
 /// after each successful request, with temp ids already mapped to real ids.
+///
+/// A move into the node itself or a descendant fails with [`TreeError::Cycle`] instead
+/// of reproducing the API's detached cycle (DM§4.7.5); the planner never emits one.
+/// Timestamps (`createdAt`, `modifiedAt`, `completedAt`) are not simulated.
 pub fn simulate_op(op: &Op, tree: &mut Tree) -> Result<(), TreeError> {
-    todo!()
+    match op {
+        Op::Create {
+            temp,
+            parent,
+            name,
+            note,
+            layout,
+        } => {
+            // The final name either way: a deferred create's nonce is replaced by the
+            // update that follows it (§7.2).
+            let mut node = Node::new(temp.clone(), Some(parent.clone()), name.value());
+            node.note = note.clone();
+            node.layout = layout.clone();
+            tree.place(node, Some(parent), Position::Bottom)
+        }
+        Op::UpdateName { node, name, .. } => tree.set_name(node, name.clone()),
+        Op::UpdateNote { node, note, .. } => tree.set_note(node, Some(note.clone())),
+        Op::UpdateLayout { node, layout, .. } => tree.set_layout(node, layout.clone()),
+        Op::Move {
+            node,
+            parent,
+            position,
+            ..
+        } => tree.move_node(node, Some(parent), *position),
+        Op::Complete { node } => {
+            let already = tree
+                .get(node)
+                .ok_or_else(|| TreeError::UnknownNode(node.clone()))?
+                .completed;
+            if already {
+                Ok(()) // never re-completes (DM§4.5)
+            } else {
+                tree.set_completed(node, true, None)
+            }
+        }
+        Op::Delete { node, .. } => tree.remove_subtree(node).map(|_| ()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn ids(n: usize) -> Vec<NodeId> {
+        (0..n)
+            .map(|i| NodeId::from_api(format!("00000000-0000-4000-8000-{i:012x}")))
+            .collect()
+    }
+
+    /// Apply `moves` to a plain sequence with top/bottom semantics.
+    fn apply_moves(current: &[NodeId], moves: &[(NodeId, Position)]) -> Vec<NodeId> {
+        let mut v = current.to_vec();
+        for (id, pos) in moves {
+            v.retain(|x| x != id);
+            match pos {
+                Position::Top => v.insert(0, id.clone()),
+                Position::Bottom => v.push(id.clone()),
+            }
+        }
+        v
+    }
+
+    /// Brute force: the longest run of `target` whose positions in `current` increase.
+    fn longest_valid_block(target: &[NodeId], current: &[NodeId]) -> usize {
+        let pos = |id: &NodeId| current.iter().position(|c| c == id).unwrap();
+        let mut best = 0;
+        for i in 0..target.len() {
+            for j in i..target.len() {
+                if (i..j).all(|k| pos(&target[k]) < pos(&target[k + 1])) {
+                    best = best.max(j - i + 1);
+                }
+            }
+        }
+        best
+    }
+
+    fn cost(target: &[NodeId], current: &[NodeId]) -> usize {
+        let moves = reorder_moves(target, current);
+        assert_eq!(
+            apply_moves(current, &moves),
+            target,
+            "moves realise the target"
+        );
+        moves.len()
+    }
+
+    // ----- the §8.1 cost table ---------------------------------------------------------
+
+    #[test]
+    fn cost_append_is_zero() {
+        // A new node created at the bottom (§7.1) that belongs at the end.
+        for n in 0..8 {
+            let order = ids(n + 1);
+            assert_eq!(cost(&order, &order), 0);
+        }
+    }
+
+    #[test]
+    fn cost_insert_at_k_is_min_k_n_minus_k() {
+        // A new node x created at the bottom (§7.1) that belongs at 1-based position k
+        // of the final list of n siblings (k − 1 siblings before it, n − k after): move x
+        // to the top and the k − 1 before it above it (k moves), or the n − k after it
+        // to the bottom (n − k moves).
+        for n in 1..10 {
+            for k in 1..=n {
+                let old = ids(n - 1);
+                let x = NodeId::from_api("ffffffff-0000-4000-8000-000000000000");
+                let mut current = old.clone();
+                current.push(x.clone());
+                let mut target = old.clone();
+                target.insert(k - 1, x.clone());
+                assert_eq!(cost(&target, &current), k.min(n - k), "n={n} k={k}");
+            }
+        }
+    }
+
+    #[test]
+    fn cost_end_to_front_is_one() {
+        for n in 2..10 {
+            let current = ids(n);
+            let mut target = current.clone();
+            let last = target.pop().unwrap();
+            target.insert(0, last);
+            assert_eq!(cost(&target, &current), 1);
+        }
+    }
+
+    #[test]
+    fn cost_front_into_middle_is_min_k_n_minus_k() {
+        // The first item moved to 0-based index k of n.
+        for n in 2..10 {
+            for k in 1..n {
+                let current = ids(n);
+                let mut target = current.clone();
+                let first = target.remove(0);
+                target.insert(k, first);
+                assert_eq!(cost(&target, &current), k.min(n - k), "n={n} k={k}");
+            }
+        }
+    }
+
+    #[test]
+    fn cost_reverse_is_n_minus_one() {
+        for n in 1..10 {
+            let current = ids(n);
+            let mut target = current.clone();
+            target.reverse();
+            assert_eq!(cost(&target, &current), n - 1);
+        }
+    }
+
+    #[test]
+    fn identical_orders_need_no_moves() {
+        assert!(reorder_moves(&[], &[]).is_empty());
+        let o = ids(5);
+        assert!(reorder_moves(&o, &o).is_empty());
+    }
+
+    #[test]
+    fn moves_before_block_go_top_in_reverse_after_go_bottom_in_order() {
+        let [a, b, c, d, e] = <[NodeId; 5]>::try_from(ids(5)).unwrap();
+        let current = vec![a.clone(), b.clone(), c.clone(), d.clone(), e.clone()];
+        // Target d e b c a: blocks "d e" (positions 3, 4) and "b c" (1, 2) tie; the first
+        // one in target order wins.
+        let target = vec![d.clone(), e.clone(), b.clone(), c.clone(), a.clone()];
+        assert_eq!(
+            reorder_moves(&target, &current),
+            vec![
+                (b.clone(), Position::Bottom),
+                (c.clone(), Position::Bottom),
+                (a.clone(), Position::Bottom)
+            ]
+        );
+        // Target c a b d e: "a b d e" is increasing (0, 1, 3, 4).
+        let target = vec![c.clone(), a.clone(), b.clone(), d.clone(), e.clone()];
+        assert_eq!(
+            reorder_moves(&target, &current),
+            vec![(c.clone(), Position::Top)]
+        );
+        // Two before the block: emitted in reverse so they end up in target order.
+        let target = vec![d.clone(), e.clone(), a.clone(), b.clone(), c.clone()];
+        assert_eq!(
+            reorder_moves(&target, &current),
+            vec![(e.clone(), Position::Top), (d.clone(), Position::Top)]
+        );
+    }
+
+    #[test]
+    fn unknown_target_ids_are_moved() {
+        let [a, b, c] = <[NodeId; 3]>::try_from(ids(3)).unwrap();
+        let moves = reorder_moves(&[a.clone(), b.clone(), c.clone()], &[a.clone(), c.clone()]);
+        assert_eq!(
+            moves,
+            vec![(b.clone(), Position::Bottom), (c.clone(), Position::Bottom)]
+        );
+    }
+
+    fn permutation_pair() -> impl Strategy<Value = (Vec<NodeId>, Vec<NodeId>)> {
+        (0usize..14).prop_flat_map(|n| {
+            let base = ids(n);
+            (Just(base.clone()).prop_shuffle(), Just(base).prop_shuffle())
+        })
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(512))]
+
+        /// §8.1: the moves realise the target, cost n − |longest valid block| ≤ n − 1.
+        #[test]
+        fn reorder_moves_realise_target_at_optimal_block_cost(
+            (target, current) in permutation_pair()
+        ) {
+            let moves = reorder_moves(&target, &current);
+            prop_assert_eq!(apply_moves(&current, &moves), target.clone());
+            let n = target.len();
+            prop_assert!(moves.len() <= n.saturating_sub(1));
+            prop_assert_eq!(moves.len(), n - longest_valid_block(&target, &current));
+            // Every node is moved at most once.
+            let moved: BTreeSet<&NodeId> = moves.iter().map(|(id, _)| id).collect();
+            prop_assert_eq!(moved.len(), moves.len());
+        }
+
+        /// Hidden siblings interleaved anywhere stay in place and the visible order is
+        /// exact, when the moves run on a real tree with the API's priority algorithm.
+        #[test]
+        fn reorder_moves_on_a_tree_keep_hidden_siblings_in_place(
+            (target, current) in permutation_pair(),
+            hidden_slots in proptest::collection::vec(0usize..15, 0..6),
+        ) {
+            let parent = NodeId::from_api("aaaaaaaa-0000-4000-8000-000000000000");
+            let mut nodes = vec![Node::new(parent.clone(), None, "p")];
+            let mut full: Vec<(NodeId, bool)> =
+                current.iter().map(|id| (id.clone(), false)).collect();
+            for (i, slot) in hidden_slots.iter().enumerate() {
+                let h = NodeId::from_api(format!("bbbbbbbb-0000-4000-8000-{i:012x}"));
+                full.insert((*slot).min(full.len()), (h, true));
+            }
+            for (i, (id, hidden)) in full.iter().enumerate() {
+                let mut n = Node::new(id.clone(), Some(parent.clone()), "");
+                n.priority = 100 * (i as i64 + 1);
+                n.completed = *hidden;
+                nodes.push(n);
+            }
+            let mut tree = Tree::from_nodes(nodes).unwrap();
+            let hidden_of = |t: &Tree| -> Vec<NodeId> {
+                t.children(&parent)
+                    .iter()
+                    .filter(|c| t.get(c).unwrap().completed)
+                    .cloned()
+                    .collect()
+            };
+            let hidden_before = hidden_of(&tree);
+            for (id, pos) in reorder_moves(&target, &current) {
+                tree.move_node(&id, Some(&parent), pos).unwrap();
+            }
+            prop_assert_eq!(tree.visible_children(&parent), target);
+            prop_assert_eq!(hidden_of(&tree), hidden_before);
+        }
+    }
+
+    // ----- the create-name whitelist (more in tests/plan_create_oracle.rs) -------------
+
+    #[test]
+    fn whitelist_accepts_plain_names() {
+        for s in [
+            "Plain",
+            "two words",
+            "Buy milk, eggs and bread.",
+            "Résumé – naïve café ✓ 中文",
+            "a  b",
+            "What? Yes! (maybe)",
+            "100% of 3/4",
+            "x - y",
+            "1 2 3",
+        ] {
+            assert!(create_name_is_safe(s), "{s:?}");
+        }
+    }
+
+    #[test]
+    fn whitelist_rejects_risky_names() {
+        for s in [
+            "",
+            " lead",
+            "trail ",
+            "\u{a0}nbsp",
+            "nbsp\u{a0}",
+            "inner\u{a0}nbsp",
+            "line\nbreak",
+            "cr\rx",
+            "tab\tx",
+            "ls\u{2028}x",
+            "ps\u{2029}x",
+            "nel\u{85}x",
+            "vt\u{b}x",
+            "- item",
+            "- [x] done",
+            "- [ ] todo",
+            "-dash",
+            "+ plus",
+            "> quote",
+            "# heading",
+            "1. first",
+            "12.5",
+            "a &amp; b",
+            "&#42;x&#42;",
+            "**bold**",
+            "*it*",
+            "`code`",
+            "~~strike~~",
+            "[link](x)",
+            "[2026-01-15]",
+            "a\\*b",
+            "snake_case",
+            "say \"hi\"",
+            "<b>x</b>",
+            "see http://x",
+            "HTTPS://X",
+        ] {
+            assert!(!create_name_is_safe(s), "{s:?}");
+        }
+    }
+
+    // ----- simulation -----------------------------------------------------------------
+
+    #[test]
+    fn simulate_op_semantics() {
+        let p = NodeId::from_api("aaaaaaaa-0000-4000-8000-000000000000");
+        let a = NodeId::from_api("aaaaaaaa-0000-4000-8000-000000000001");
+        let mut root = Node::new(p.clone(), None, "p");
+        root.priority = 100;
+        let mut na = Node::new(a.clone(), Some(p.clone()), "a");
+        na.priority = 100;
+        let mut t = Tree::from_nodes([root, na]).unwrap();
+        let x = NodeId::temp(1);
+        let create = Op::Create {
+            temp: x.clone(),
+            parent: p.clone(),
+            name: CreateName::Deferred("X &amp; y".into()),
+            note: Some("n".into()),
+            layout: "todo".into(),
+        };
+        simulate_op(&create, &mut t).unwrap();
+        assert_eq!(t.children(&p), &[a.clone(), x.clone()]);
+        let n = t.get(&x).unwrap();
+        assert_eq!(
+            (n.name.as_str(), n.note.as_deref(), n.layout.as_str()),
+            ("X &amp; y", Some("n"), "todo")
+        );
+        let to_top = Op::Move {
+            node: x.clone(),
+            parent: p.clone(),
+            position: Position::Top,
+            expected_parent: None,
+        };
+        simulate_op(&to_top, &mut t).unwrap();
+        assert_eq!(t.children(&p), &[x.clone(), a.clone()]);
+        simulate_op(&Op::Complete { node: a.clone() }, &mut t).unwrap();
+        assert!(t.get(&a).unwrap().completed);
+        assert_eq!(t.get(&a).unwrap().completed_at, None);
+        // Completing again is a no-op, not an error.
+        simulate_op(&Op::Complete { node: a.clone() }, &mut t).unwrap();
+        let cycle = Op::Move {
+            node: p.clone(),
+            parent: x.clone(),
+            position: Position::Bottom,
+            expected_parent: None,
+        };
+        assert!(matches!(
+            simulate_op(&cycle, &mut t),
+            Err(TreeError::Cycle { .. })
+        ));
+        let delete = Op::Delete {
+            node: x.clone(),
+            hidden_descendants: 0,
+        };
+        simulate_op(&delete, &mut t).unwrap();
+        assert!(!t.contains(&x));
+        let plan = Plan {
+            root: p.clone(),
+            ops: vec![Op::Complete { node: x.clone() }],
+            summary: PlanSummary::default(),
+        };
+        assert_eq!(
+            simulate(&plan, &t),
+            Err(SimError::Tree {
+                index: 0,
+                source: TreeError::UnknownNode(x)
+            })
+        );
+    }
+
+    #[test]
+    fn brake_threshold_arithmetic() {
+        // > max, or >= min and > fraction * base.
+        assert!(!exceeds(50, 1000, 50, 0.2, 5));
+        assert!(exceeds(51, 1000, 50, 0.2, 5));
+        assert!(!exceeds(4, 10, 50, 0.2, 5));
+        assert!(exceeds(5, 10, 50, 0.2, 5));
+        assert!(!exceeds(5, 25, 50, 0.2, 5));
+        assert!(exceeds(6, 25, 50, 0.2, 5));
+    }
 }
