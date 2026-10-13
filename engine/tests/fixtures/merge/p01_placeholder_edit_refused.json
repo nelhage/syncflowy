@@ -1,0 +1,109 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      },
+      {
+        "children": [
+          {
+            "id": "e1",
+            "name": "shell child"
+          }
+        ],
+        "id": "e",
+        "name": ""
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§10: typing into a placeholder is refused without force.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\"",
+      "  e \"\"",
+      "    e1 \"shell child\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c",
+        "e"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "ReadOnlyEditRefused": {
+          "line": 10,
+          "node": "e"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 7,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 7,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "kind": null,
+      "name": "typed into shell",
+      "op": "set",
+      "tag": "e"
+    }
+  ]
+}

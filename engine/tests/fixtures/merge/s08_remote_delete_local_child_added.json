@@ -1,0 +1,129 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§6.2: a node deleted remotely with a local child added is resurrected, and the child created under it.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 9,
+        "name": "Gamma",
+        "note": null,
+        "parent": "root",
+        "resurrects": "c",
+        "temp": "temp-1",
+        "ticked": false
+      },
+      {
+        "layout": "bullets",
+        "line": 10,
+        "name": "Typed child",
+        "note": null,
+        "parent": "temp-1",
+        "resurrects": null,
+        "temp": "temp-2",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  temp-1 \"Gamma\"",
+      "    temp-2 \"Typed child\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "temp-1"
+      ],
+      "temp-1": [
+        "temp-2"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "Resurrected": {
+          "new": "temp-1",
+          "old": "c"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 2,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 7,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 0,
+      "item": {
+        "name": "Typed child"
+      },
+      "op": "insert",
+      "parent": "c"
+    }
+  ],
+  "remote_edits": [
+    {
+      "id": "c",
+      "op": "delete"
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§6.2 table row 2: edited (and child added) locally, completed remotely (an ancestor): push the edits and creates anyway, report the vanished work.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 6,
+        "name": "Typed under a1",
+        "note": null,
+        "parent": "a1",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\" [done]",
+      "    a1 \"Alpha one edited\"",
+      "      temp-1 \"Typed under a1\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {
+      "a1": {
+        "name": [
+          "Alpha one",
+          "Alpha one edited"
+        ]
+      }
+    },
+    "report": [
+      {
+        "Disappeared": {
+          "node": "a"
+        }
+      },
+      {
+        "VanishedWork": {
+          "completed_ancestor": "a",
+          "node": "a1"
+        }
+      },
+      {
+        "VanishedWork": {
+          "completed_ancestor": "a",
+          "node": "temp-1"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 1,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 7,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Alpha one edited",
+      "op": "set",
+      "tag": "a1"
+    },
+    {
+      "index": 0,
+      "item": {
+        "name": "Typed under a1"
+      },
+      "op": "insert",
+      "parent": "a1"
+    }
+  ],
+  "remote_edits": [
+    {
+      "completed": true,
+      "id": "a",
+      "op": "set"
+    }
+  ]
+}

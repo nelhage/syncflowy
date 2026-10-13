@@ -1,0 +1,128 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "config": {
+    "todo_from_checkbox": true
+  },
+  "description": "§4.3: new items typed with [ ] get layout todo only if configured so.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "todo",
+        "line": 10,
+        "name": "A todo",
+        "note": null,
+        "parent": "root",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      },
+      {
+        "layout": "bullets",
+        "line": 11,
+        "name": "A bullet",
+        "note": null,
+        "parent": "root",
+        "resurrects": null,
+        "temp": "temp-2",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\"",
+      "  temp-1 \"A todo\" layout=todo",
+      "  temp-2 \"A bullet\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c",
+        "temp-1",
+        "temp-2"
+      ]
+    },
+    "pushes": {},
+    "report": [],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 2,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 8,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 3,
+      "item": {
+        "check": " ",
+        "name": "A todo"
+      },
+      "op": "insert",
+      "parent": null
+    },
+    {
+      "index": 4,
+      "item": {
+        "name": "A bullet"
+      },
+      "op": "insert",
+      "parent": null
+    }
+  ]
+}

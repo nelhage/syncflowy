@@ -1,0 +1,47 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "The sync root must be in the export.",
+  "expected": {
+    "error": "sync root 00000000-0000-4000-8000-0000726f6f74 is not in the export"
+  },
+  "remote": [
+    {
+      "id": "else",
+      "name": "Elsewhere"
+    }
+  ]
+}

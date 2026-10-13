@@ -1,0 +1,124 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      },
+      {
+        "children": [
+          {
+            "id": "e1",
+            "name": "shell child"
+          }
+        ],
+        "id": "e",
+        "name": ""
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§10: an item typed under a placeholder is refused there and created under the placeholder's parent instead.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 11,
+        "name": "typed under shell",
+        "note": null,
+        "parent": "root",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\"",
+      "  e \"\"",
+      "    e1 \"shell child\"",
+      "  temp-1 \"typed under shell\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c",
+        "e",
+        "temp-1"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "ReadOnlyEditRefused": {
+          "line": 11,
+          "node": "e"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 7,
+      "conflicts": 0,
+      "created": 1,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 8,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 0,
+      "item": {
+        "name": "typed under shell"
+      },
+      "op": "insert",
+      "parent": "e"
+    }
+  ]
+}

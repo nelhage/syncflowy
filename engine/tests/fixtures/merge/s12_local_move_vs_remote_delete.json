@@ -1,0 +1,113 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§6.2 move vs delete: the (local) move wins; the node is resurrected at its new place.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 7,
+        "name": "Gamma",
+        "note": null,
+        "parent": "a",
+        "resurrects": "c",
+        "temp": "temp-1",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "    temp-1 \"Gamma\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2",
+        "temp-1"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "Resurrected": {
+          "new": "temp-1",
+          "old": "c"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 1,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 2,
+      "op": "move",
+      "parent": "a",
+      "tag": "c"
+    }
+  ],
+  "remote_edits": [
+    {
+      "id": "c",
+      "op": "delete"
+    }
+  ]
+}

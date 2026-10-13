@@ -1,0 +1,123 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          },
+          {
+            "completed": true,
+            "id": "a3",
+            "name": "Alpha three"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§9.1 guard 3 (structure): a tagged item not in the base and hidden remotely is a merge artefact: dropped, never a move; untagged text under it is kept.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 10,
+        "name": "typed under artefact",
+        "note": null,
+        "parent": "b",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "    a3 \"Alpha three\" [done]",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "    temp-1 \"typed under artefact\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1",
+        "temp-1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "ResurrectionDropped": {
+          "line": 9,
+          "node": "a3"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 1,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 8,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 1,
+      "item": {
+        "children": [
+          {
+            "name": "typed under artefact"
+          }
+        ],
+        "name": "Alpha three",
+        "tag": "a3"
+      },
+      "op": "insert",
+      "parent": "b"
+    }
+  ]
+}

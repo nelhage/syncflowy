@@ -1,0 +1,127 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§4.4 deleted-tag fallback pairs each untagged item with the most similar unmatched base item of the same parent.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one.\"",
+      "    a2 \"Alpha two.\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {
+      "a1": {
+        "name": [
+          "Alpha one",
+          "Alpha one."
+        ]
+      },
+      "a2": {
+        "name": [
+          "Alpha two",
+          "Alpha two."
+        ]
+      }
+    },
+    "report": [
+      {
+        "Rematched": {
+          "line": 5,
+          "node": "a1"
+        }
+      },
+      {
+        "Rematched": {
+          "line": 6,
+          "node": "a2"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 2,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Alpha one.",
+      "op": "set",
+      "tag": "a1"
+    },
+    {
+      "op": "untag",
+      "tag": "a1"
+    },
+    {
+      "name": "Alpha two.",
+      "op": "set",
+      "tag": "a2"
+    },
+    {
+      "op": "untag",
+      "tag": "a2"
+    }
+  ]
+}

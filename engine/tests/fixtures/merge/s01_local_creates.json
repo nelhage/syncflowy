@@ -1,0 +1,143 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§6.2: local creates never conflict; temp ids are numbered in file pre-order and placed after their local predecessor.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 8,
+        "name": "New first under Beta",
+        "note": null,
+        "parent": "b",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      },
+      {
+        "layout": "bullets",
+        "line": 11,
+        "name": "New last",
+        "note": null,
+        "parent": "root",
+        "resurrects": null,
+        "temp": "temp-2",
+        "ticked": false
+      },
+      {
+        "layout": "bullets",
+        "line": 12,
+        "name": "New child",
+        "note": null,
+        "parent": "temp-2",
+        "resurrects": null,
+        "temp": "temp-3",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    temp-1 \"New first under Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\"",
+      "  temp-2 \"New last\"",
+      "    temp-3 \"New child\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "temp-1",
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c",
+        "temp-2"
+      ],
+      "temp-2": [
+        "temp-3"
+      ]
+    },
+    "pushes": {},
+    "report": [],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 3,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 9,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 0,
+      "item": {
+        "name": "New first under Beta"
+      },
+      "op": "insert",
+      "parent": "b"
+    },
+    {
+      "index": 3,
+      "item": {
+        "children": [
+          {
+            "name": "New child"
+          }
+        ],
+        "name": "New last"
+      },
+      "op": "insert",
+      "parent": null
+    }
+  ]
+}

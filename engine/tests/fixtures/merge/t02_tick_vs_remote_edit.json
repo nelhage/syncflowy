@@ -1,0 +1,100 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§6.2 table row 1: ticked locally, edited remotely: push nothing but the completion and keep the remote edit.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha remote\" note=\"zero\\none\\ntwo\\nthree\" [done]",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 0,
+      "ticked": 1
+    },
+    "ticks": [
+      "a"
+    ]
+  },
+  "local_edits": [
+    {
+      "check": "x",
+      "name": "Alpha local",
+      "note": [
+        "one",
+        "two",
+        "three",
+        "four"
+      ],
+      "op": "set",
+      "tag": "a"
+    }
+  ],
+  "remote_edits": [
+    {
+      "id": "a",
+      "name": "Alpha remote",
+      "note": "zero\none\ntwo\nthree",
+      "op": "set"
+    }
+  ]
+}

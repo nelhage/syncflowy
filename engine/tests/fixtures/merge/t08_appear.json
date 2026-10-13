@@ -1,0 +1,136 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          },
+          {
+            "completed": true,
+            "id": "a3",
+            "name": "Alpha three"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§6.2 table row 7 / §4.5: a hidden node uncompleted remotely appears at its remote position; never a conflict with local edits.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 7,
+        "name": "Typed last",
+        "note": null,
+        "parent": "a",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one edited\"",
+      "    a2 \"Alpha two\"",
+      "    temp-1 \"Typed last\"",
+      "    a3 \"Alpha three\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2",
+        "temp-1",
+        "a3"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {
+      "a1": {
+        "name": [
+          "Alpha one",
+          "Alpha one edited"
+        ]
+      }
+    },
+    "report": [
+      {
+        "Appeared": {
+          "node": "a3"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 1,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 7,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Alpha one edited",
+      "op": "set",
+      "tag": "a1"
+    },
+    {
+      "index": 2,
+      "item": {
+        "name": "Typed last"
+      },
+      "op": "insert",
+      "parent": "a"
+    }
+  ],
+  "remote_edits": [
+    {
+      "completed": false,
+      "id": "a3",
+      "op": "set"
+    }
+  ]
+}
