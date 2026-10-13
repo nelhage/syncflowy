@@ -589,7 +589,10 @@ impl Builder<'_> {
             if !self.s.contains(&n.parent) {
                 return Err(Self::guard(&op, GuardReason::UnknownNode));
             }
-            if !self.in_root(&n.parent) {
+            // The parent belongs to this root in M. Creates run before moves (§7.1), so a
+            // parent that a cross-file move brings in (§6.4) is still in its old root:
+            // in S it only has to be inside one of the managed roots.
+            if !merge.merged.contains(&n.parent) || !self.in_sync_roots(&n.parent) {
                 return Err(Self::guard(&op, GuardReason::OutsideRoot));
             }
             if self.s.contains(&n.temp) {
