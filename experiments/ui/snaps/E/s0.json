@@ -1,0 +1,21 @@
+{
+ "nodes": {
+  "9caffef2-51a7-4e0c-b6c3-99bd93f04e7a": {
+   "id": "9caffef2-51a7-4e0c-b6c3-99bd93f04e7a",
+   "name": "sandbox: ui: E",
+   "note": null,
+   "parent_id": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+   "priority": 12400,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791848571,
+   "modifiedAt": 1791848571,
+   "completedAt": null
+  }
+ },
+ "list_order": {
+  "9caffef2-51a7-4e0c-b6c3-99bd93f04e7a": []
+ }
+}

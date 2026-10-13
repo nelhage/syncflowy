@@ -1,0 +1,88 @@
+{
+ "nodes": {
+  "cb288df7-6399-4a9f-a852-1caa123d5cb3": {
+   "id": "cb288df7-6399-4a9f-a852-1caa123d5cb3",
+   "name": "sandbox: ui: D2",
+   "note": null,
+   "parent_id": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+   "priority": 12300,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791848489,
+   "modifiedAt": 1791848489,
+   "completedAt": null
+  },
+  "55a5ff38-ec86-400f-ae2b-793df8301ea1": {
+   "id": "55a5ff38-ec86-400f-ae2b-793df8301ea1",
+   "name": "P",
+   "note": null,
+   "parent_id": "cb288df7-6399-4a9f-a852-1caa123d5cb3",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791848489,
+   "modifiedAt": 1791848489,
+   "completedAt": null
+  },
+  "1539dbeb-6cc4-4a54-a3e8-b0e5ba70c9dc": {
+   "id": "1539dbeb-6cc4-4a54-a3e8-b0e5ba70c9dc",
+   "name": "c1",
+   "note": null,
+   "parent_id": "55a5ff38-ec86-400f-ae2b-793df8301ea1",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791848490,
+   "modifiedAt": 1791848490,
+   "completedAt": null
+  },
+  "636fd03a-45b6-42e1-99c4-15d1d2ef377d": {
+   "id": "636fd03a-45b6-42e1-99c4-15d1d2ef377d",
+   "name": "c2",
+   "note": null,
+   "parent_id": "55a5ff38-ec86-400f-ae2b-793df8301ea1",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791848490,
+   "modifiedAt": 1791848490,
+   "completedAt": null
+  },
+  "81ece9fa-da8c-4e96-8260-0f0db27727cf": {
+   "id": "81ece9fa-da8c-4e96-8260-0f0db27727cf",
+   "name": "g1",
+   "note": null,
+   "parent_id": "636fd03a-45b6-42e1-99c4-15d1d2ef377d",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791848490,
+   "modifiedAt": 1791848490,
+   "completedAt": null
+  }
+ },
+ "list_order": {
+  "cb288df7-6399-4a9f-a852-1caa123d5cb3": [
+   "55a5ff38-ec86-400f-ae2b-793df8301ea1"
+  ],
+  "55a5ff38-ec86-400f-ae2b-793df8301ea1": [
+   "1539dbeb-6cc4-4a54-a3e8-b0e5ba70c9dc",
+   "636fd03a-45b6-42e1-99c4-15d1d2ef377d"
+  ],
+  "636fd03a-45b6-42e1-99c4-15d1d2ef377d": [
+   "81ece9fa-da8c-4e96-8260-0f0db27727cf"
+  ],
+  "81ece9fa-da8c-4e96-8260-0f0db27727cf": [],
+  "1539dbeb-6cc4-4a54-a3e8-b0e5ba70c9dc": []
+ }
+}

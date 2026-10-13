@@ -1,0 +1,104 @@
+{
+ "nodes": {
+  "ba10a5d8-7be3-48a7-95fc-382c1c0a9de2": {
+   "id": "ba10a5d8-7be3-48a7-95fc-382c1c0a9de2",
+   "name": "sandbox: ui: H2",
+   "note": null,
+   "parent_id": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+   "priority": 12800,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791850371,
+   "modifiedAt": 1791850371,
+   "completedAt": null
+  },
+  "e1d62885-1aac-4e25-b61a-b7c34216d0e0": {
+   "id": "e1d62885-1aac-4e25-b61a-b7c34216d0e0",
+   "name": "O name-in-mirror",
+   "note": "O note edited-in-mirror",
+   "parent_id": "ba10a5d8-7be3-48a7-95fc-382c1c0a9de2",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "todo"
+   },
+   "createdAt": 1791850371,
+   "modifiedAt": 1791851110,
+   "completedAt": null
+  },
+  "9dc481ce-df11-44ff-8830-13df2b2ae538": {
+   "id": "9dc481ce-df11-44ff-8830-13df2b2ae538",
+   "name": "D",
+   "note": null,
+   "parent_id": "ba10a5d8-7be3-48a7-95fc-382c1c0a9de2",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791850371,
+   "modifiedAt": 1791850371,
+   "completedAt": null
+  },
+  "4a02bc0f-32c3-468c-8924-bea66a286444": {
+   "id": "4a02bc0f-32c3-468c-8924-bea66a286444",
+   "name": "",
+   "note": null,
+   "parent_id": "9dc481ce-df11-44ff-8830-13df2b2ae538",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791850554,
+   "modifiedAt": 1791850554,
+   "completedAt": null
+  },
+  "d3ef9d4b-9709-4562-b4c1-61b747363d92": {
+   "id": "d3ef9d4b-9709-4562-b4c1-61b747363d92",
+   "name": "o1",
+   "note": null,
+   "parent_id": "e1d62885-1aac-4e25-b61a-b7c34216d0e0",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791850371,
+   "modifiedAt": 1791850371,
+   "completedAt": null
+  },
+  "5d29a479-48b1-4fad-9d47-9146c038823c": {
+   "id": "5d29a479-48b1-4fad-9d47-9146c038823c",
+   "name": "o2",
+   "note": null,
+   "parent_id": "e1d62885-1aac-4e25-b61a-b7c34216d0e0",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791850371,
+   "modifiedAt": 1791850371,
+   "completedAt": null
+  }
+ },
+ "list_order": {
+  "ba10a5d8-7be3-48a7-95fc-382c1c0a9de2": [
+   "e1d62885-1aac-4e25-b61a-b7c34216d0e0",
+   "9dc481ce-df11-44ff-8830-13df2b2ae538"
+  ],
+  "9dc481ce-df11-44ff-8830-13df2b2ae538": [
+   "4a02bc0f-32c3-468c-8924-bea66a286444"
+  ],
+  "4a02bc0f-32c3-468c-8924-bea66a286444": [],
+  "e1d62885-1aac-4e25-b61a-b7c34216d0e0": [
+   "d3ef9d4b-9709-4562-b4c1-61b747363d92",
+   "5d29a479-48b1-4fad-9d47-9146c038823c"
+  ],
+  "5d29a479-48b1-4fad-9d47-9146c038823c": [],
+  "d3ef9d4b-9709-4562-b4c1-61b747363d92": []
+ }
+}

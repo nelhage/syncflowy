@@ -1,0 +1,104 @@
+{
+ "nodes": {
+  "1a7d1639-fa52-405a-809c-c589afd4faa0": {
+   "id": "1a7d1639-fa52-405a-809c-c589afd4faa0",
+   "name": "sandbox: ui: C1",
+   "note": null,
+   "parent_id": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d",
+   "priority": 12000,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791847359,
+   "modifiedAt": 1791847359,
+   "completedAt": null
+  },
+  "4f621080-ca7e-403e-bada-b2e64359bf2a": {
+   "id": "4f621080-ca7e-403e-bada-b2e64359bf2a",
+   "name": "X",
+   "note": null,
+   "parent_id": "1a7d1639-fa52-405a-809c-c589afd4faa0",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791847359,
+   "modifiedAt": 1791847359,
+   "completedAt": null
+  },
+  "6cdd444d-fb53-47c3-a794-450a2a97a57c": {
+   "id": "6cdd444d-fb53-47c3-a794-450a2a97a57c",
+   "name": "Y",
+   "note": null,
+   "parent_id": "1a7d1639-fa52-405a-809c-c589afd4faa0",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791847359,
+   "modifiedAt": 1791847359,
+   "completedAt": null
+  },
+  "019e69e1-801c-4a56-acbd-53305e2fef4d": {
+   "id": "019e69e1-801c-4a56-acbd-53305e2fef4d",
+   "name": "y1",
+   "note": null,
+   "parent_id": "6cdd444d-fb53-47c3-a794-450a2a97a57c",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791847360,
+   "modifiedAt": 1791847360,
+   "completedAt": null
+  },
+  "90784940-346b-4b3f-b346-cf05c25e7e89": {
+   "id": "90784940-346b-4b3f-b346-cf05c25e7e89",
+   "name": "x1",
+   "note": null,
+   "parent_id": "4f621080-ca7e-403e-bada-b2e64359bf2a",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791847359,
+   "modifiedAt": 1791847359,
+   "completedAt": null
+  },
+  "a67be550-1dfb-4d77-85e1-db01c04c2026": {
+   "id": "a67be550-1dfb-4d77-85e1-db01c04c2026",
+   "name": "x2",
+   "note": null,
+   "parent_id": "4f621080-ca7e-403e-bada-b2e64359bf2a",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791847359,
+   "modifiedAt": 1791847359,
+   "completedAt": null
+  }
+ },
+ "list_order": {
+  "1a7d1639-fa52-405a-809c-c589afd4faa0": [
+   "4f621080-ca7e-403e-bada-b2e64359bf2a",
+   "6cdd444d-fb53-47c3-a794-450a2a97a57c"
+  ],
+  "6cdd444d-fb53-47c3-a794-450a2a97a57c": [
+   "019e69e1-801c-4a56-acbd-53305e2fef4d"
+  ],
+  "019e69e1-801c-4a56-acbd-53305e2fef4d": [],
+  "4f621080-ca7e-403e-bada-b2e64359bf2a": [
+   "90784940-346b-4b3f-b346-cf05c25e7e89",
+   "a67be550-1dfb-4d77-85e1-db01c04c2026"
+  ],
+  "a67be550-1dfb-4d77-85e1-db01c04c2026": [],
+  "90784940-346b-4b3f-b346-cf05c25e7e89": []
+ }
+}
