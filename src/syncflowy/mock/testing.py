@@ -12,7 +12,9 @@ server derives every timestamp from ``int(clock())`` (plus any offset set via
 ``POST /_mock/clock``). ``db_path=None`` uses a fresh temporary file that is
 removed afterwards; pass a path to persist (or to reopen an existing db).
 ``id_seed`` makes node ids reproducible (a seeded UUIDv4 sequence that
-restarts on ``POST /_mock/reset``).
+restarts on ``POST /_mock/reset``). ``xml_check`` ("off" / "warn" / "reject")
+controls the mock-only WF-HTML well-formedness check of API-written names and
+notes (see docs/mock-server.md).
 """
 
 from __future__ import annotations
@@ -48,6 +50,7 @@ def running_mock(
     export_min_interval: float = 0.0,
     extra_api_keys: tuple[str, ...] = (),
     id_seed: int | None = None,
+    xml_check: str = "warn",
 ) -> Iterator[MockURL]:
     tmpdir = None
     if db_path is None:
@@ -58,7 +61,9 @@ def running_mock(
         store,
         api_keys=(api_key, *extra_api_keys),
         clock=clock,
-        config=Config(faithful_cycles=faithful_cycles, export_min_interval=export_min_interval),
+        config=Config(
+            faithful_cycles=faithful_cycles, export_min_interval=export_min_interval, xml_check=xml_check
+        ),
         id_seed=id_seed,
     )
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

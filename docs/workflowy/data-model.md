@@ -47,8 +47,10 @@ Where the per-area docs disagree, this document records the resolution (see §13
 | `create_seq` | monotonically increasing int | **no** | needed for list order, because `createdAt` ties within one second [O: M§6, F0] |
 | `mirror_origin_id` | UUID or NULL | **no** | set only on mirror shells. Kept (dangling) after the origin is deleted [O: D§5] |
 
-Deletion is **hard** (the row and its subtree disappear, §9.5). No tombstones are visible
-through the API [O: D§1].
+Deletion **looks hard through the API** (the row and its subtree disappear, §9.5; no tombstones are visible
+[O: D§1]) but is **soft server-side**: API- and UI-deleted subtrees appear in the web UI's Trash and can be
+restored (Trash or undo) with the same ids, priorities, `createdAt` and list position, every restored node's
+`modifiedAt` being bumped [O: ui-findings B1/B2, corrected 2026-10-13]. A deleted id can therefore come back.
 
 Timestamps are `int(time.time())` (floor of wall-clock seconds) [O: U]. The mock
 should take an injectable clock.
@@ -378,12 +380,14 @@ completion [O].
 [O: D§1, D§4.2, D§7]
 
 - Exact UUID only, otherwise `404 Item not found`. A short id does NOT delete. Deleting twice gives 404.
-- Hard-deletes the node and its whole subtree (everything under it then gives `404 Item not found` / `Parent item not found`).
+- Deletes the node and its whole subtree (everything under it then gives `404 Item not found` / `Parent item not found`).
+  The delete is **soft** (Trash), contrary to the upstream docs' "permanently deletes … cannot be undone": the
+  subtree can be restored from the UI with the same ids [O: ui-findings B2].
 - No sibling renumbering. Nobody's `modifiedAt` is bumped: not the parent, and not the origin if the node is a mirror shell.
 - Mirrors elsewhere whose origin lies in the deleted subtree survive as **orphans** (`mirror_origin_id` dangling) [O].
 - Deleting a subtree that contains a mirror shell removes the shell and does not bump its origin [O: D§4.2].
 - The body is ignored. Returns `200 {"status": "ok"}`.
-- There is no trash or restore endpoint [O].
+- There is no trash or restore *API endpoint* [O]; restoring is UI-only (the mock offers `/_mock/ui/restore`).
 
 ### 4.7 `POST /api/v1/nodes/:id/move`
 
@@ -619,7 +623,8 @@ Evidence:
 
 ## 9. Structural invariants and anomalies
 
-1. **Hard delete** of the subtree, immediately visible [O].
+1. **Delete** of the subtree, immediately visible through the API as if hard [O]; soft (restorable from the UI
+   Trash, same ids) [O: ui-findings B1/B2].
 2. **Cycles via move** are possible in production (§4.7.5) [O].
 3. **Orphan mirror shells** (origin deleted) persist and behave as ordinary nodes, except in mirror operations (§10.4) [O].
 4. **Recursive mirrors**: mirroring O under O's own child or grandchild is allowed (200) [O: D§2.6, E§7].
@@ -709,7 +714,7 @@ source it gives `Item not found`. As a mirror parent it gives `Parent item not f
 
 ## 12. Mock implementation checklist
 
-- [ ] SQLite schema per §1.1, including `create_seq` and `mirror_origin_id`. Hard delete via recursive CTE.
+- [ ] SQLite schema per §1.1, including `create_seq` and `mirror_origin_id`. Delete via recursive CTE, moving rows to a trash table (soft delete).
 - [ ] Global write lock, one transaction per request. Injectable clock.
 - [ ] Routing, 405 styles and HTML 404 per §2.1.
 - [ ] Auth per §2.3 (configurable key list).

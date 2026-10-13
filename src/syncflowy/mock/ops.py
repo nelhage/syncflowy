@@ -27,6 +27,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from .. import wfhtml
 from . import models
 from .models import (
     CreateItemRequest,
@@ -107,12 +108,21 @@ class Config:
     #: upstream; the default 6 is inferred from the observed 500 window
     #: 0001-01-01..06 (global-readonly.md).
     week_start: int = 6
+    #: MOCK-ONLY well-formedness check of names/notes written through the API
+    #: (ui-findings F1/F2: the UI renders malformed XML as an empty bullet and
+    #: destroys it on the next edit). "off": nothing; "warn" (default): record
+    #: a warning, readable at GET /_mock/warnings -- API responses unchanged;
+    #: "reject": a mock-specific 400 (production accepts anything).
+    xml_check: str = "warn"
+
+    XML_CHECK_MODES = ("off", "warn", "reject")
 
     def to_json(self) -> dict[str, Any]:
         return {
             "faithful_cycles": self.faithful_cycles,
             "export_min_interval": self.export_min_interval,
             "week_start": self.week_start,
+            "xml_check": self.xml_check,
         }
 
 
@@ -169,6 +179,8 @@ class Ops:
     #: Id generator. None -> random uuid4; a :class:`SeededIds` makes ids reproducible.
     id_factory: Callable[[], str] | None = None
     _export_last: dict[str, float] = field(default_factory=dict)
+    #: xml_check="warn" findings, oldest first (GET /_mock/warnings).
+    warnings: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         # Startup config, restored by reset(full=True).
@@ -235,6 +247,32 @@ class Ops:
             seen.add(cur.id)
             cur = tx.get(cur.parent_id) if cur.parent_id is not None else None
         return False
+
+    def _xml_check(self, op: str, node_id: str, values: list[tuple[str, str | None]]) -> None:
+        """Apply ``config.xml_check`` to the *stored* values of a write.
+
+        Called after all production checks (validation, lookups) and before
+        anything is written, so "reject" leaves the outline unchanged.
+        """
+        mode = self.config.xml_check
+        if mode == "off":
+            return
+        bad = [(f, v) for f, v in values if v is not None and not wfhtml.is_well_formed(v)]
+        if not bad:
+            return
+        if mode == "reject":
+            # MOCK-SPECIFIC (not production): production stores anything.
+            raise ApiError(
+                400,
+                {
+                    "code": "mock_malformed_xml",
+                    "message": "Mock xml_check=reject: "
+                    + ", ".join(f for f, _ in bad)
+                    + " is not well-formed WF-HTML (the Workflowy UI would show an empty bullet)",
+                },
+            )
+        for f, v in bad:
+            self.warnings.append({"op": op, "node_id": node_id, "field": f, "value": v, "time": self.now()})
 
     # ------------------------------------------------------ parent resolution
 
@@ -470,8 +508,12 @@ class Ops:
             now = self.now()
             first = blocks[0]
             layout = req.layoutMode if req.layoutMode else (first.layout or "bullets")
+            new_id = self._new_id()
+            checks: list[tuple[str, str | None]] = [("name", first.name), ("note", req.note)]
+            checks += [(f"name[{i + 1}]", b.name) for i, b in enumerate(blocks[1:])]
+            self._xml_check("create", new_id, checks)
             node = tx.insert(
-                node_id=self._new_id(),
+                node_id=new_id,
                 parent_id=parent.id,
                 name=first.name,
                 note=req.note,  # verbatim; null when absent or null
@@ -519,6 +561,7 @@ class Ops:
                 if "\x00" in req.layoutMode or has_lone_surrogate(req.layoutMode):
                     raise internal_error()
                 fields["layout_mode"] = req.layoutMode
+            self._xml_check("update", node.id, [(f, fields.get(f)) for f in ("name", "note") if f in fields])
             # Always bumped, even for {} or a no-op (§4.4 step 4).
             fields["modified_at"] = self.now()
             tx.set_fields(node.id, **fields)
@@ -538,10 +581,16 @@ class Ops:
             return OK
 
     def delete(self, node_id: str) -> dict[str, Any]:
-        """DELETE /nodes/:id (§4.6): hard, recursive, bumps nobody."""
+        """DELETE /nodes/:id (§4.6): recursive, bumps nobody.
+
+        Soft: the subtree moves to the trash (restorable via
+        ``/_mock/ui/restore``) [O: ui-findings B2 -- API-deleted nodes appear in
+        the UI's Trash and restore with the same ids]. Through the API it is
+        indistinguishable from a hard delete (404 afterwards).
+        """
         with self.store.transaction() as tx:
             node = self._lookup_exact(tx, node_id)
-            tx.delete_subtree(node.id)
+            tx.delete_subtree(node.id, self.now())
             return OK
 
     def move(self, node_id: str, body: Any) -> dict[str, Any]:
@@ -612,7 +661,7 @@ class Ops:
             node = self._lookup_exact(tx, node_id)
             if node.mirror_origin_id is None:
                 raise invalid_request("Node is not a mirror")
-            tx.delete_subtree(node.id)
+            tx.delete_subtree(node.id, self.now())
             # Orphans succeed; bump the origin only if it still exists (it may
             # even have been inside the deleted subtree).
             if tx.get(node.mirror_origin_id) is not None:
@@ -684,6 +733,7 @@ class Ops:
         with self.store.transaction() as tx:
             return {
                 "nodes": [n.to_dump() for n in tx.all_nodes()],
+                "trash": tx.trash_dump(),
                 "shortcuts": [{"key": k, "node_id": v} for k, v in tx.shortcuts()],
                 "config": self.config.to_json(),
                 "now": self.now(),
@@ -697,6 +747,7 @@ class Ops:
         """
         self.store.reset()
         self._export_last.clear()
+        self.warnings.clear()
         if isinstance(self.id_factory, SeededIds):
             self.id_factory.reset()
         if full:

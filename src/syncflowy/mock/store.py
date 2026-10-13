@@ -25,12 +25,25 @@ Schema (see also docs/mock-server.md §Storage)::
       key        TEXT PRIMARY KEY
       node_id    TEXT NOT NULL             -- may dangle after the node is deleted
       created_seq INTEGER NOT NULL
+    trash                                  -- soft-deleted nodes (schema v2)
+      <every nodes column>                 -- the row exactly as it was when deleted
+      deleted_at        INTEGER NOT NULL   -- unix seconds of the delete
+      delete_op         INTEGER NOT NULL   -- one id per delete operation (subtree)
+      op_root           INTEGER NOT NULL   -- 1 for the node the delete was issued on
     meta
-      key   TEXT PRIMARY KEY               -- "schema_version", "next_create_seq"
-      value TEXT NOT NULL
+      key   TEXT PRIMARY KEY               -- "schema_version", "next_create_seq",
+      value TEXT NOT NULL                  -- "next_delete_op"
 
-Deletion is hard: rows are removed (with their subtree) and nothing else
-remembers them, exactly as the API exposes it (data-model.md §4.6).
+Deletion is **soft** (ui-findings.md B1/B2: API- and UI-deleted nodes both land
+in the Trash and can be restored with the same ids). A delete *moves* the
+subtree's rows from ``nodes`` into ``trash``; ``nodes`` therefore always holds
+exactly the live outline, so every API-visible query (GET, list, export,
+short-id lookup) is unchanged and deleted nodes 404 exactly as before.
+Restoring (``/_mock/ui/restore``) moves a delete operation's rows back.
+
+Migration: schema v1 files (no ``trash`` table) are upgraded in place on open
+(``CREATE TABLE IF NOT EXISTS`` + ``schema_version`` bump); nodes hard-deleted
+under v1 are of course not recoverable.
 
 Concurrency: a single connection guarded by one re-entrant lock. Every API
 request runs inside :meth:`Store.transaction`, which holds the lock and wraps
@@ -48,7 +61,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS nodes (
@@ -74,6 +87,26 @@ CREATE TABLE IF NOT EXISTS shortcuts (
     node_id     TEXT NOT NULL,
     created_seq INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS trash (
+    id               TEXT PRIMARY KEY,
+    short_id         TEXT NOT NULL,
+    parent_id        TEXT,
+    name             TEXT NOT NULL,
+    note             TEXT,
+    priority         INTEGER NOT NULL,
+    completed        INTEGER NOT NULL DEFAULT 0,
+    completed_at     INTEGER,
+    layout_mode      TEXT NOT NULL,
+    created_at       INTEGER NOT NULL,
+    modified_at      INTEGER NOT NULL,
+    create_seq       INTEGER NOT NULL,
+    mirror_origin_id TEXT,
+    system_key       TEXT,
+    deleted_at       INTEGER NOT NULL,
+    delete_op        INTEGER NOT NULL,
+    op_root          INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS trash_by_op ON trash(delete_op);
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -153,6 +186,9 @@ class Store:
                 "INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,)
             )
             self.conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('next_create_seq', '1')")
+            self.conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('next_delete_op', '1')")
+            # v1 -> v2: the trash table was created above; record the upgrade.
+            self.conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_version'", (SCHEMA_VERSION,))
 
     def close(self) -> None:
         with self.lock:
@@ -178,7 +214,8 @@ class Store:
         with self.transaction() as tx:
             tx.conn.execute("DELETE FROM nodes")
             tx.conn.execute("DELETE FROM shortcuts")
-            tx.conn.execute("UPDATE meta SET value = '1' WHERE key = 'next_create_seq'")
+            tx.conn.execute("DELETE FROM trash")
+            tx.conn.execute("UPDATE meta SET value = '1' WHERE key IN ('next_create_seq', 'next_delete_op')")
 
 
 class Tx:
@@ -277,23 +314,90 @@ class Tx:
     def touch(self, node_id: str, now: int) -> None:
         self.set_fields(node_id, modified_at=now)
 
-    def delete_subtree(self, node_id: str) -> None:
-        """Hard-delete a node and everything under it.
-
-        ``UNION`` (not ``UNION ALL``) makes the recursion terminate even if a
-        faithful-cycles move created a parent cycle.
-        """
-        self.conn.execute(
-            """
-            WITH RECURSIVE sub(id) AS (
-                SELECT ?
-                UNION
-                SELECT n.id FROM nodes n JOIN sub ON n.parent_id = sub.id
-            )
-            DELETE FROM nodes WHERE id IN (SELECT id FROM sub)
-            """,
-            (node_id,),
+    _SUBTREE_CTE = """
+        WITH RECURSIVE sub(id) AS (
+            SELECT ?
+            UNION
+            SELECT n.id FROM nodes n JOIN sub ON n.parent_id = sub.id
         )
+    """
+
+    def subtree_ids(self, node_id: str) -> list[str]:
+        """Ids of a live node and all its descendants (cycle-safe)."""
+        return [r[0] for r in self.conn.execute(self._SUBTREE_CTE + "SELECT id FROM sub", (node_id,))]
+
+    def delete_subtree(self, node_id: str, now: int) -> int:
+        """Soft-delete a node and everything under it; returns the delete op id.
+
+        The rows move to ``trash`` (see the module docstring). ``UNION`` (not
+        ``UNION ALL``) makes the recursion terminate even if a faithful-cycles
+        move created a parent cycle.
+        """
+        (v,) = self.conn.execute("SELECT value FROM meta WHERE key = 'next_delete_op'").fetchone()
+        op = int(v)
+        self.conn.execute("UPDATE meta SET value = ? WHERE key = 'next_delete_op'", (str(op + 1),))
+        self.conn.execute(
+            self._SUBTREE_CTE
+            + f"""INSERT OR REPLACE INTO trash ({NODE_COLUMNS}, deleted_at, delete_op, op_root)
+            SELECT {NODE_COLUMNS}, ?, ?, id = ? FROM nodes WHERE id IN (SELECT id FROM sub)""",
+            (node_id, now, op, node_id),
+        )
+        self.conn.execute(self._SUBTREE_CTE + "DELETE FROM nodes WHERE id IN (SELECT id FROM sub)", (node_id,))
+        return op
+
+    # -- trash ---------------------------------------------------------------
+
+    def trashed(self, node_id: str) -> tuple[Node, int, bool, int] | None:
+        """(node, delete_op, op_root, deleted_at) for a soft-deleted id."""
+        row = self.conn.execute(
+            f"SELECT {NODE_COLUMNS}, delete_op, op_root, deleted_at FROM trash WHERE id = ?", (node_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return Node.from_row(row[:14]), row[14], bool(row[15]), row[16]
+
+    def trash_ops(self) -> list[dict[str, Any]]:
+        """Delete operations, most recent first (the Trash view)."""
+        rows = self.conn.execute(
+            "SELECT delete_op, id, deleted_at, (SELECT COUNT(*) FROM trash t2 WHERE t2.delete_op = t.delete_op) "
+            "FROM trash t WHERE op_root = 1 ORDER BY delete_op DESC"
+        ).fetchall()
+        return [{"delete_op": op, "id": i, "deleted_at": at, "count": n} for op, i, at, n in rows]
+
+    def trash_dump(self) -> list[dict[str, Any]]:
+        rows = self.conn.execute(
+            f"SELECT {NODE_COLUMNS}, delete_op, op_root, deleted_at FROM trash ORDER BY delete_op, create_seq"
+        ).fetchall()
+        out = []
+        for r in rows:
+            d = Node.from_row(r[:14]).to_dump()
+            d.update(_delete_op=r[14], _op_root=bool(r[15]), _deleted_at=r[16])
+            out.append(d)
+        return out
+
+    def restore_op(self, op: int, now: int) -> list[str]:
+        """Move a delete operation's rows back into ``nodes``, bumping each
+        restored node's modifiedAt to ``now`` [O: ui-findings B1/B2].
+
+        Rows whose id or system key is live again are skipped (UNVERIFIED;
+        only reachable via re-materialised calendar nodes). Returns the
+        restored ids in creation order.
+        """
+        ids = [
+            r[0]
+            for r in self.conn.execute(
+                "SELECT id FROM trash WHERE delete_op = ? ORDER BY create_seq", (op,)
+            ).fetchall()
+        ]
+        self.conn.execute(
+            f"INSERT OR IGNORE INTO nodes ({NODE_COLUMNS}) SELECT {NODE_COLUMNS} FROM trash WHERE delete_op = ?",
+            (op,),
+        )
+        self.conn.execute("DELETE FROM trash WHERE delete_op = ?", (op,))
+        restored = [i for i in ids if self.get(i) is not None]
+        for i in restored:
+            self.touch(i, now)
+        return restored
 
     # -- shortcuts -----------------------------------------------------------
 

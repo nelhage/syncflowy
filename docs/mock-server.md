@@ -30,6 +30,7 @@ direnv exec . uv run python -m syncflowy.mock --db ./mock.sqlite3  # same thing
 | `--faithful-cycles` | off | accept a move into the node's own descendant and create a parent cycle, as production does (see [deviations](#known-deviations-and-unverified-choices)) |
 | `--export-min-interval S` | `0` | minimum seconds between `nodes-export` calls per key. `0` (the default) disables the limit: production did not enforce its documented 1 req/min. |
 | `--id-seed N` | off | generate node ids from a seeded RNG (well-formed UUIDv4s, reproducible run to run; the sequence restarts on `POST /_mock/reset`) |
+| `--xml-check MODE` | `warn` | mock-only WF-HTML well-formedness check of API-written names/notes: `off`, `warn` (record in `GET /_mock/warnings`; responses unchanged) or `reject` (mock-specific 400). See [xml_check](#xml_check-mock-only). |
 | `--log-level` | `info` | uvicorn and app log level |
 
 Then point any client at it with `Authorization: Bearer <key>`:
@@ -54,7 +55,7 @@ with running_mock(db_path="x.sqlite3", api_key="k", clock=my_clock) as base_url:
     base_url.app                                       # the live MockApp (base_url is a str subclass)
 ```
 
-`running_mock(db_path=None, api_key="test-key", clock=None, *, faithful_cycles=False, export_min_interval=0.0, extra_api_keys=(), id_seed=None)`
+`running_mock(db_path=None, api_key="test-key", clock=None, *, faithful_cycles=False, export_min_interval=0.0, extra_api_keys=(), id_seed=None, xml_check="warn")`
 starts uvicorn in a daemon thread on a free port and yields the base URL. With `db_path=None` it uses a temporary file
 that is removed on exit. `clock` is a zero-argument callable that returns float unix time. Every timestamp is
 `int(clock())`, plus any offset set through `POST /_mock/clock`. `id_seed` makes node ids deterministic (see
@@ -118,10 +119,18 @@ SQLite via stdlib `sqlite3`, in WAL mode. The schema is in `store.py`:
 | `nodes.mirror_origin_id` | TEXT NULL | **hidden** | set on mirror shells only. Never cleared, so orphans keep a dangling link (§10). |
 | `nodes.system_key` | TEXT UNIQUE NULL | **hidden, mock-only** | `inbox`, `calendar`, `calendar:YYYY`, `calendar:YYYY-MM`, `calendar:YYYY-MM-DD` for materialised special locations. Calendar nodes get deterministic UUIDv5 ids derived from the key, as in production |
 | `shortcuts.key`, `node_id`, `created_seq` | | via `/targets` | user "jump-to" shortcuts. Created through the admin API, because the real API cannot create them. |
-| `meta.key`, `value` | | – | `schema_version`, `next_create_seq` |
+| `trash.*` | every `nodes` column, plus `deleted_at`, `delete_op`, `op_root` | **hidden, mock-only** | soft-deleted rows, exactly as they were. One `delete_op` per delete operation; `op_root` marks the node the delete was issued on (what the UI's Trash lists). |
+| `meta.key`, `value` | | – | `schema_version` (now `2`), `next_create_seq`, `next_delete_op` |
 
-Deletes are hard: a recursive CTE removes the subtree. It uses `UNION`, so it terminates even inside a faithful-mode
-cycle. Nothing records deleted rows, which matches what the API exposes (§4.6).
+**Deletes are soft** (ui-findings B1/B2: the UI's Trash and undo restore API- and UI-deleted subtrees with the same
+ids). A delete *moves* the subtree's rows from `nodes` to `trash` (a recursive CTE with `UNION`, so it terminates even
+inside a faithful-mode cycle). Because `nodes` always holds exactly the live outline, every API-visible query — GET,
+list, export, short-id and URL resolution, error bodies — is byte-identical to the former hard delete; deleted ids 404.
+We chose a separate table over a `deleted_at` column so that no existing query needed a filter. Restores go through
+`POST /_mock/ui/restore`. `create_seq` is preserved, so a restored node regains its list (creation-order) position.
+
+**Migration:** opening a schema-v1 file (no `trash` table) upgrades it in place (`CREATE TABLE IF NOT EXISTS` plus a
+`schema_version` bump); nodes deleted under v1 were hard-deleted and cannot be restored.
 
 ---
 
@@ -131,10 +140,14 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 
 | route | body | effect |
 |---|---|---|
-| `POST /_mock/reset` | – or `{"all": true}` | delete all nodes and shortcuts, reset `create_seq`, clear export rate-limit state, and restart a seeded id sequence. Config and clock are unchanged, unless `{"all": true}` is sent: then the config returns to its startup values and the clock offset to 0. |
-| `GET /_mock/dump` | – | `{"nodes": [...], "shortcuts": [...], "config": {...}, "now": int}`. Nodes are in creation order and include the hidden `_create_seq`, `_mirror_origin_id` and `_system_key` fields. |
+| `POST /_mock/reset` | – or `{"all": true}` | delete all nodes, trash and shortcuts, reset `create_seq`, clear export rate-limit state and `xml_check` warnings, and restart a seeded id sequence. Config and clock are unchanged, unless `{"all": true}` is sent: then the config returns to its startup values and the clock offset to 0. |
+| `GET /_mock/dump` | – | `{"nodes": [...], "trash": [...], "shortcuts": [...], "config": {...}, "now": int}`. Nodes are in creation order and include the hidden `_create_seq`, `_mirror_origin_id` and `_system_key` fields; trash rows also carry `_delete_op`, `_op_root`, `_deleted_at`. |
 | `GET /_mock/config` | – | current config |
-| `POST /_mock/config` | any of `{"faithful_cycles": bool, "export_min_interval": float, "week_start": 0-6}` | update the config (`week_start` 0 = Monday … 6 = Sunday; default 6) |
+| `POST /_mock/config` | any of `{"faithful_cycles": bool, "export_min_interval": float, "week_start": 0-6, "xml_check": "off"\|"warn"\|"reject"}` | update the config (`week_start` 0 = Monday … 6 = Sunday; default 6) |
+| `GET /_mock/warnings` | – | `{"warnings": [{"op", "node_id", "field", "value", "time"}, ...]}` recorded by `xml_check: "warn"` |
+| `DELETE /_mock/warnings` | – | clear the warnings |
+| `POST /_mock/ui/<action>` | see [UI simulation](#ui-simulation-routes-_mockui) | apply an edit with web-UI semantics |
+| `GET /_mock/ui/trash` | – | `{"trash": [{"delete_op", "id", "deleted_at", "count"}, ...]}`, most recent first |
 | `GET /_mock/clock` | – | `{"now": float, "offset": float}` |
 | `POST /_mock/clock` | `{"advance": s}` / `{"now": t}` / `{"offset": s}` | shift the server clock (it is added to the injected clock) |
 | `POST /_mock/shortcuts` | `{"key": "home", "node_id": "<uuid>"}` | create or replace a user shortcut target (404 if the node does not exist) |
@@ -169,7 +182,7 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 | §4.3 create: block 0 = node, flat children with priorities 0..n-1, note `""`, layout param overrides the prefix (block 0 only), parent not bumped, NUL in note → 500 and nothing created | `Ops.create` |
 | §4.4 update: verbatim minus C0, null = unchanged, always bumps `modifiedAt`, never moves/completes; NUL or lone surrogate in `layoutMode` → 500, nothing changed | `Ops.update`, `text.strip_update_text` |
 | §4.5 complete/uncomplete: re-stamp, no cascade | `Ops.complete` |
-| §4.6 delete: hard, recursive, no renumber, bumps nothing, orphans shells | `Ops.delete`, `Tx.delete_subtree` |
+| §4.6 delete: soft (trash), recursive, no renumber, bumps nothing, orphans shells | `Ops.delete`, `Tx.delete_subtree` |
 | §4.7 move: priority recomputed (even same-parent), move-to-self only bumps the node, bumps node + destination, descendants travel | `Ops.move` |
 | §4.7.5 cycles: reject (mock-specific 400) or create them with `faithful_cycles` | `Ops.move`, `Ops._is_descendant`, `Config.faithful_cycles` |
 | §5 field semantics table | `Ops.create/update/complete/move/mirror` |
@@ -184,7 +197,7 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 | §6.3 create note and `layoutMode` verbatim; NUL or lone surrogate in either → 500, nothing created | `Ops.create`, `text.has_lone_surrogate` |
 | §7 `assign_priority` (top halving, renumber at min 0 without bumping, bottom `ceil((max+100)/100)*100`, shells included, exclude self on move) | `Ops.assign_priority` |
 | §8 `modifiedAt` table | `Ops.create/update/complete/move/mirror/delete_mirror` (`tx.touch` calls) |
-| §9 invariants (hard delete, cycles, orphans, recursive mirrors, completion) | `Ops`, `Tx.delete_subtree` |
+| §9 invariants (soft delete, cycles, orphans, recursive mirrors, completion) | `Ops`, `Tx.delete_subtree` |
 | §10.1 mirror identity: an independent empty shell plus a hidden origin link | `Ops.mirror` (`mirror_origin_id`) |
 | §10.2 mirror check order: src → origin (orphan → `Item not found`) → parent (exact, then redirect a shell to its origin; orphan → `Parent item not found`) → self check; bumps the origin only | `Ops.mirror`, `Ops._follow_mirror` |
 | §10.3 `DELETE /mirror`: `Node is not a mirror`, orphans OK, bumps the origin if it exists | `Ops.delete_mirror` |
@@ -265,11 +278,77 @@ These were UNVERIFIED rows above and are now backed by conformance goldens; the 
 
 ### Things the API cannot see that the mock does not model
 
-These are UI-only concepts: collapse state, tags and mentions as structured data, sharing, trash and undo, UI-side
-mirror rendering (the UI presumably shows origin content in shells), and how the UI assigns priorities (§7: the
-scratchpad has priority 28).
+These are UI-only concepts: collapse state (no API-visible effect, ui-findings C2), sharing, and UI-side mirror
+*rendering*. Trash/undo, UI placement and UI text canonicalisation are now modelled by the
+[UI simulation routes](#ui-simulation-routes-_mockui).
 
 ---
+
+## UI simulation routes (`/_mock/ui/*`)
+
+Production's web UI writes the same data model with different semantics (see
+[workflowy/ui-findings.md](workflowy/ui-findings.md)). These test-only routes (`src/syncflowy/mock/ui.py`) let a
+sync-engine test produce exactly what a human editing in the UI would. No auth; JSON object in, JSON out; ids are exact
+lowercase UUIDs. Errors: `404 {"code": "not_found", …}` for unknown or deleted ids, `400 {"code": "bad_ui_request", …}`
+for bad arguments.
+
+**Placement spec** (create, move, copy, mirror): `parent_id` (`null`/`"None"` = top level) and at most one of
+`after_id` / `before_id` (a sibling; the parent may then be omitted), `index` (0-based slot in display order) or
+`position` (`"top"` / `"bottom"`, the default). Priority rule [O: A1–A4, B4]: integer midpoint of the new neighbours
+(placed first: midpoint of 0 and the first sibling); placed last: `ceil((max+100)/100)*100`; empty parent: 100. No
+sibling is rewritten. A mirror shell as `parent_id` resolves to its origin [O: H4].
+
+| route | body | effect (observations in brackets) |
+|---|---|---|
+| `POST /_mock/ui/create` | placement + `text` (plain; escaped like the UI) or `name` (HTML; canonicalised), optional `note`/`note_text`, `layoutMode` | Enter + typing. Bumps only the new node; note `null` [A2]. → `{"id"}` |
+| `POST /_mock/ui/edit` | `id` + `name`/`text` or `append_text`, and/or `note`/`note_text` (null clears to `""`) | edit through a shell edits the origin [H3]. Names are canonicalised; `append_text` types at the end (inside a trailing format run; a malformed name counts as empty) [F step 2]. Bumps the edited node only [C1]. → `{"status", "id"}` (the edited id) |
+| `POST /_mock/ui/move` | `id` + placement + `method`: `"drag"` (default) or `"cut_paste"` | same id; bumps the node and destination parent, not the old parent [A1–A4, C1]; `cut_paste` also bumps every descendant [B4]. Refuses moves into the own subtree. → `{"status", "priority"}` |
+| `POST /_mock/ui/copy` | `id` + placement | deep copy, new ids; descendants get priorities 0, 1, …; null notes become `""`; createdAt = modifiedAt = now; nothing else bumped [B4]. → `{"id", "ids": {old: new}}` |
+| `POST /_mock/ui/complete`, `/uncomplete` | `id` | node only, no cascade; re-completing re-stamps `completedAt` [D1, D2] |
+| `POST /_mock/ui/mirror` | `id` + placement | new shell: name `""`, **note `null`**, `bullets`; bumps the origin only [H2]. → `{"id", "origin_id"}` |
+| `POST /_mock/ui/set_layout` | `id`, `layoutMode` | bumps the node. `board` adds one empty child; `table` adds `Headers`/`Row`, each with two empty cells at 0, 1; `divider` turns a null note into `""` [G2]. → `{"status", "id", "created"}` |
+| `POST /_mock/ui/delete` | `id` | soft delete, bumps nothing [B1, C1]. For an origin with live shells: **promotion** — the origin moves into its newest shell's place (parent, priority), that shell and its subtree are deleted, and origin, new parent and old parent are bumped [H6]. → `{"status", "deleted", "delete_op", "promoted"}` |
+| `POST /_mock/ui/restore` | `{"id": <delete root>}` or `{"last": true}` (undo) | same ids, parent, priorities, createdAt, list position; every restored node bumped; parent not bumped [B1, B2]. Works on API deletes. Restoring an origin re-attaches its orphaned shells. → `{"status", "restored"}` |
+| `GET /_mock/ui/trash` | – | the Trash: delete operations, most recent first |
+
+## xml_check (mock-only)
+
+The web UI parses names and notes as strict XML ([workflowy/ui-findings.md](workflowy/ui-findings.md) F1/F2): a
+malformed name renders as an **empty bullet** and is destroyed by the next UI edit. Production's API accepts anything,
+so the mock offers a check of the **stored** values of API `create` (every block's name, and the note) and `update`
+(name, note), using `syncflowy.wfhtml.is_well_formed`:
+
+- `"off"`: no check.
+- `"warn"` (default): record `{"op", "node_id", "field", "value", "time"}` at `GET /_mock/warnings`. API responses are
+  unchanged (byte-identical to production). Note that the API's create path *decodes* entities, so `AT&amp;T` sent to
+  create is stored as `AT&T` and warns.
+- `"reject"`: a mock-specific `400 {"code": "mock_malformed_xml", "message": …}` after all production checks
+  (validation, 404s), with nothing written.
+
+Set it with `--xml-check`, `running_mock(xml_check=…)` or `POST /_mock/config`.
+
+`src/syncflowy/wfhtml.py` (shared with the future sync engine) provides `escape_text`, `is_well_formed`,
+`canonicalize` (what a UI save stores), `to_plain_text` and `append_typed_text`; `tests/test_wfhtml.py` pins it to the
+E and F tables of ui-findings.md.
+
+### UNVERIFIED choices in the UI simulation and wfhtml
+
+| choice | why unverified |
+|---|---|
+| No integer gap between neighbours → renumber siblings 100, 200, … in display order (no bumps) | A5 not run |
+| Which shell is promoted when an origin with several shells is deleted: the most recently created; shells inside the origin's own subtree are never chosen | H6 had two shells; the newer won |
+| UI delete of a shell deletes just the shell, no origin bump | H7 not run |
+| Completing through a shell completes the origin | H5 not run |
+| Dragging a shell moves the shell itself; moves into the own subtree are refused | H8, B5 not run |
+| An orphan shell (origin deleted) used as a parent/edit target acts as an ordinary node | H11 not run |
+| Restore when the original parent is gone → top level; restoring a non-root member of a delete is refused; undo of a promotion is not modelled | not observed |
+| Board/table side effects only on childless nodes | G2 nodes had no children |
+| Copy keeps layouts and completion; shells inside a copied subtree are copied as shells | B4 used plain bullets |
+| `edit` with a null note stores `""`; notes are canonicalised like names; a note-only edit leaves the name as is | not observed |
+| Typing at the end extends trailing `<b>/<i>/<u>/<s>/<code>/<span>` runs but not `<a>`/`<time>` | F01/F02/F09/F10 only (`<u>`, `<span>`, `<b>`) |
+| wfhtml: numeric character references (`&#39;`) are accepted | F15 mixed them with the rejected `&nbsp;` |
+| wfhtml: a bare `&` inside an attribute value is tolerated (the UI writes `href="…?b=1&c=2"` itself, E5) | unknown whether the UI parser re-accepts it |
+| wfhtml: `<em>` → `<i>`; attributes on `<b>` etc. dropped; `<a>` without `href` unwrapped; spans kept only with a `colored…` class; `<time>` kept with all attributes | not observed |
 
 ## Using the mock as a sync-engine test double
 
@@ -283,7 +362,8 @@ Review notes (2026-10-12) on the properties a sync-engine test suite relies on:
   Python's default 5 s busy timeout), though that is not a tested configuration.
 - **Persistence.** SQLite in WAL mode with `synchronous=NORMAL`: committed requests survive a process crash or restart
   (`test_special_admin.py` restarts on the same file). `create_seq` lives in the `meta` table, so list order keeps
-  working across restarts. There is no schema migration: delete the file when the schema changes.
+  working across restarts. Schema v1 files are migrated to v2 (trash table) on open; otherwise delete the file when the
+  schema changes.
 - **Reset between tests.** `POST /_mock/reset` empties the outline in one transaction. Send `{"all": true}` to also
   restore the startup config (e.g. undo a test's `faithful_cycles`) and zero the clock offset. The pytest fixture in
   `tests/mock/conftest.py` shows the pattern: one server per session, reset per test.
@@ -313,6 +393,8 @@ few pure-function tests of `text.py`.
 | `test_mirror_delete.py` | delete, mirror identity, redirects, orphans, and the full `modifiedAt` table |
 | `test_special_admin.py` | root, special keys (GET/list matrix, calendar names and priorities, date-key 500s, week start), inbox, shortcuts, targets, export, admin routes, persistence across restart, CLI key parsing |
 | `test_review.py` | the behaviours settled by the 2026-10-12 review (URL boundary, date edges, NUL and lone surrogates), full reset, seeded ids |
+| `test_ui_sim.py` | soft delete (API delete → trash → restore, undo, orphan re-attachment, v1→v2 migration), every `/_mock/ui/*` route against the ui-findings scenarios (A1–A4, B1/B2/B4, C1, D1/D2, E1, F, G2, H2–H4, H6), and `xml_check` (warn/reject/off) |
+| `tests/test_wfhtml.py` | `syncflowy.wfhtml` against the E (typed text, UI output) and F (render + canonical form after a UI edit) tables |
 | `test_replay_log.py` | **replays `.prod-state/requests.jsonl`**: about 236 state-independent responses (validation, invalid_json, 401, 405, HTML 404) are re-sent and must match byte-for-byte in content, and about 860 logged creates are re-run in a fresh sandbox and compared with production's first observation of the node and its multiline children. Skipped if the log is absent. |
 
 Run them with:

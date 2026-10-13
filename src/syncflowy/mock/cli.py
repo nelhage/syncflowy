@@ -53,6 +53,13 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="generate node ids from a seeded RNG (reproducible; restarts on POST /_mock/reset)",
     )
+    p.add_argument(
+        "--xml-check",
+        choices=Config.XML_CHECK_MODES,
+        default="warn",
+        help="mock-only check that API-written names/notes are well-formed WF-HTML: off, warn "
+        "(default; GET /_mock/warnings) or reject (mock-specific 400)",
+    )
     p.add_argument("--log-level", default="info")
     args = p.parse_args(argv)
 
@@ -60,7 +67,11 @@ def main(argv: list[str] | None = None) -> None:
     app = MockApp(
         Store(args.db),
         api_keys=parse_keys(args.api_key),
-        config=Config(faithful_cycles=args.faithful_cycles, export_min_interval=args.export_min_interval),
+        config=Config(
+            faithful_cycles=args.faithful_cycles,
+            export_min_interval=args.export_min_interval,
+            xml_check=args.xml_check,
+        ),
         id_seed=args.id_seed,
     )
     family = socket.AF_INET6 if ":" in args.host else socket.AF_INET

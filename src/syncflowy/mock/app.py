@@ -30,6 +30,7 @@ from typing import Any
 from .models import RequestValidationFailed
 from .ops import ApiError, Clock, Config, Ops, SeededIds, internal_error
 from .store import Store
+from .ui import UiOps
 
 log = logging.getLogger("syncflowy.mock")
 
@@ -213,6 +214,7 @@ class MockApp:
         self.clock = Clock(base=clock) if clock is not None else Clock()
         ids = SeededIds(id_seed) if id_seed is not None else None
         self.ops = Ops(store, self.clock, config or Config(), id_factory=ids)
+        self.ui = UiOps(self.ops)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "lifespan":
@@ -373,7 +375,20 @@ class MockApp:
                         cfg.export_min_interval = float(body["export_min_interval"])
                     if "week_start" in body:
                         cfg.week_start = int(body["week_start"]) % 7
+                    if "xml_check" in body:
+                        if body["xml_check"] not in Config.XML_CHECK_MODES:
+                            raise ValueError(f"xml_check must be one of {Config.XML_CHECK_MODES}")
+                        cfg.xml_check = body["xml_check"]
                     return Response.json(200, cfg.to_json())
+                case ["warnings"], "GET":
+                    return Response.json(200, {"warnings": ops.warnings})
+                case ["warnings"], "DELETE":
+                    ops.warnings.clear()
+                    return Response.json(200, {"status": "ok"})
+                case ["ui", action], ("GET" | "POST"):
+                    out = self.ui.dispatch(action, method, body)
+                    if out is not None:
+                        return Response.json(200, out)
                 case ["clock"], "GET":
                     return Response.json(200, {"now": self.clock(), "offset": self.clock.offset})
                 case ["clock"], "POST":
