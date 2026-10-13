@@ -1,0 +1,19 @@
+// Remote completion of a node edited locally: the edits are pushed anyway and vanish
+// from view (§6.2 table). The merge asks for updates of hidden nodes here, and a
+// create under a hidden parent; nothing is reordered under it.
+== remote
+home
+  root
+    a A [x]
+      a1 A one
+    b B
+== merged
+root
+  a A edited [x]
+    a1 A one | added
+    +1 Typed under A
+  b B
+== ops
+create +1 in a direct "Typed under A" note=None layout=bullets
+update-name a "A" -> "A edited"
+update-note a1 None -> "added"

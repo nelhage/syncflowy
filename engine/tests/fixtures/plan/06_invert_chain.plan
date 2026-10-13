@@ -1,0 +1,20 @@
+// Invert a chain x > y > z into z > y > x. Every move is checked against the
+// simulated tree after the previous ones (§8.2).
+== remote
+home
+  root
+    x X
+      y Y
+        z Z
+    w W
+== merged
+root
+  z Z
+    y Y
+      x X
+  w W
+== ops
+move z to root bottom (from y)
+move y to z bottom (from x)
+move x to y bottom (from root)
+move w to root bottom (from root)

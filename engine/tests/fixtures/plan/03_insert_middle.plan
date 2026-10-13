@@ -1,0 +1,25 @@
+// A new item typed at 1-based position 3 of 7 is created at the bottom, then the
+// cheaper side is moved: min(k, n - k) = min(3, 4) = 3 moves (§8.1 table).
+== remote
+home
+  root
+    a A
+    b B
+    c C
+    d D
+    e E
+    f F
+== merged
+root
+  a A
+  b B
+  +1 New
+  c C
+  d D
+  e E
+  f F
+== ops
+create +1 in root direct "New" note=None layout=bullets
+move +1 to root top (from -)
+move b to root top (from root)
+move a to root top (from root)

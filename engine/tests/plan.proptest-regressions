@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc fc4f8995941598e7d3d72750241e1b91069ccaecde79e2ae80969dce5ade6591 # shrinks to specs = [(0, false, 0, 0), (0, false, 0, 0), (0, false, 0, 0)], edits = [MoveIn(278, 220, 688), Create(121, 0, 0, false)], fast_path = false
+cc 0bf06c1339995c8d2434257e0f24c4e5b1e77ae973f385a73dc2619df82b7b3b # shrinks to specs = [(0, false, 0, 0), (0, false, 0, 0)], edits = [Delete(0), Delete(0), MoveIn(29, 0, 0), MoveIn(0, 329, 0), Create(0, 12, 0, false), Delete(19)], fast_path = false
+cc 10f59f80046c77c7abd95bd23c72229f1c56630cafad3db5eafa43839eb6f9aa # shrinks to specs = [(0, false, 0, 0), (36, false, 0, 0), (14, false, 0, 0), (0, true, 0, 0), (56, false, 0, 0)], edits = [MoveIn(138, 156, 151), Move(321, 747, 0), Create(0, 481, 0, false), Delete(56), MoveIn(282, 0, 0)], fast_path = false

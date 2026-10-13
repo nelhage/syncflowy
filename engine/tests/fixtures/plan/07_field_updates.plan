@@ -1,0 +1,23 @@
+// Field updates carry the remote value they replace (for the pre-write GET, §7.1),
+// name, then note, then layout; the update path is verbatim, so any WF-HTML is fine.
+== remote
+home
+  root Old title
+    a Alpha
+    b Beta | old note
+    c Gamma {todo}
+    d Delta |
+== merged
+root New title
+  a Alpha &amp; <i>more</i> | new note
+  b Beta |
+  c Gamma {bullets}
+  d Delta {h2} | line\nbreak
+== ops
+update-name root "Old title" -> "New title"
+update-name a "Alpha" -> "Alpha &amp; <i>more</i>"
+update-note a None -> "new note"
+update-note b Some("old note") -> ""
+update-layout c todo -> bullets
+update-note d Some("") -> "line\nbreak"
+update-layout d bullets -> h2

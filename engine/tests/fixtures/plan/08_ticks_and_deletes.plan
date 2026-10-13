@@ -1,0 +1,33 @@
+// Ticks come after edits and reorders; deletes come last and only for the top-most
+// node (delete is recursive). b is ticked in a list that is also reordered: it is
+// not in the target order and is never moved. The delete of e reports its 2 hidden
+// descendants.
+== config
+force
+== remote
+home
+  root
+    a A
+    b B
+      b1 B one
+    c C
+    d D
+    e E
+      e1 E one
+        e11 E deep
+      e2 Done [x]
+        e21 Under done
+    f F
+== merged
+root
+  c C
+  b B two [x]
+    b1 B one
+  a A
+  d D
+  f F
+== ops
+update-name b "B" -> "B two"
+move c to root top (from root)
+complete b
+delete e (hidden 2)
