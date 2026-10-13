@@ -404,7 +404,9 @@ pub enum ReportEvent {
     Rematched { node: NodeId, line: usize },
     /// An untagged item was matched to a node from an interrupted apply.
     Adopted { node: NodeId, line: usize },
-    /// An edit of a read-only item or placeholder was refused (§5.3, §10).
+    /// An edit of a read-only item or placeholder was refused (§5.3, §10), or an item
+    /// typed or moved under a placeholder was. `line` 0 stands for the preamble (the
+    /// root's note).
     ReadOnlyEditRefused { node: NodeId, line: usize },
     /// A delete of a placeholder was refused without `force` (§10).
     PlaceholderDeleteRefused { node: NodeId },

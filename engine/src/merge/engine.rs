@@ -687,8 +687,15 @@ impl<'a, 'c> Engine<'a, 'c> {
                     continue;
                 };
                 let text = self.plain_of_md(li.item);
-                for (node, bi) in &self.base_items {
-                    if claimed.contains(node) || bi.parent != pn {
+                // Only the base items under the same parent are candidates.
+                let siblings = self
+                    .base_children
+                    .get(&pn)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]);
+                for node in siblings {
+                    let bi = &self.base_items[node];
+                    if claimed.contains(node) {
                         continue;
                     }
                     let dist = li.index.abs_diff(bi.index);

@@ -627,3 +627,54 @@ proptest! {
         }
     }
 }
+
+/// §9.1 guard 4 "tag lost in a merge" at scale: a 1500-node file whose tags were all
+/// stripped rematches every line (no creates, no deletes) in reasonable time.
+#[test]
+fn large_file_with_all_tags_lost_rematches_everything() {
+    let r = root();
+    let base = build_tree_wide(1500);
+    let spec = render_spec(&base, &r, &DocConfig::default(), &BTreeSet::new());
+    fn untag(items: &mut [ItemSpec]) {
+        for it in items {
+            it.tag = None;
+            untag(&mut it.children);
+        }
+    }
+    let mut local = spec.clone();
+    untag(&mut local.items);
+    let case = Case::new(
+        r.clone(),
+        base.clone(),
+        base,
+        build_doc(&r, &spec),
+        build_doc(&r, &local),
+    );
+    let start = std::time::Instant::now();
+    let res = case.run().expect("merge");
+    let elapsed = start.elapsed();
+    assert!(res.creates.is_empty(), "{} creates", res.creates.len());
+    assert!(res.deletes.is_empty(), "{} deletes", res.deletes.len());
+    assert!(res.pushes.is_empty());
+    assert!(elapsed.as_secs() < 60, "took {elapsed:?}");
+}
+
+/// A tree of `n` nodes that is both wide and deep (parents drawn from recent nodes).
+fn build_tree_wide(n: u32) -> Tree {
+    let r = root();
+    let mut t = Tree::from_nodes([Node::new(r.clone(), None, "Root")]).expect("tree");
+    let mut all = vec![r];
+    for k in 0..n {
+        let pick = (k.wrapping_mul(2654435761) >> 24) as usize;
+        let window = all.len().min(40);
+        let p = all[all.len() - 1 - (pick % window)].clone();
+        let nid = id(&format!("w{k}"));
+        let mut node = Node::new(nid.clone(), Some(p.clone()), word(u64::from(k)));
+        if k % 3 == 0 {
+            node.note = Some(word(7000 + u64::from(k)));
+        }
+        t.place(node, Some(&p), Position::Bottom).expect("place");
+        all.push(nid);
+    }
+    t
+}
