@@ -1,2 +1,5 @@
 .prod-state/
 .envrc.local
+engine/target/
+.venv/
+__pycache__/
