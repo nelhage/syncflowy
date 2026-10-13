@@ -1763,22 +1763,35 @@ impl<'a, 'c> Engine<'a, 'c> {
                 &kids,
                 !self.safe,
             );
-            // Hidden siblings are never moved (§6.3, §8.1): each stays right after the
-            // visible sibling that preceded it, which is where the planner's top/bottom
-            // moves of visible nodes leave it.
-            let mut anchored: BTreeMap<Option<NodeId>, Vec<NodeId>> = BTreeMap::new();
+            // Hidden siblings are never moved (§6.3, §8.1), so their mutual order is
+            // kept exactly; each follows the visible sibling that preceded it as soon as
+            // that one is placed, which is where top/bottom moves of the visible nodes
+            // leave it.
+            let mut hidden_queue: std::collections::VecDeque<(Option<NodeId>, NodeId)> =
+                std::collections::VecDeque::new();
             let mut anchor: Option<NodeId> = None;
             for c in &kids {
                 if keep.contains(c) {
                     anchor = Some(c.clone());
                 } else {
-                    anchored.entry(anchor.clone()).or_default().push(c.clone());
+                    hidden_queue.push_back((anchor.clone(), c.clone()));
                 }
             }
-            let mut full: Vec<NodeId> = anchored.remove(&None).unwrap_or_default();
+            let mut emitted: BTreeSet<NodeId> = BTreeSet::new();
+            let mut full: Vec<NodeId> = Vec::with_capacity(kids.len());
+            let mut flush = |full: &mut Vec<NodeId>, emitted: &BTreeSet<NodeId>| {
+                while let Some((a, _)) = hidden_queue.front() {
+                    if a.as_ref().is_some_and(|a| !emitted.contains(a)) {
+                        break;
+                    }
+                    full.push(hidden_queue.pop_front().expect("front").1);
+                }
+            };
+            flush(&mut full, &emitted);
             for v in &target {
                 full.push(v.clone());
-                full.extend(anchored.remove(&Some(v.clone())).unwrap_or_default());
+                emitted.insert(v.clone());
+                flush(&mut full, &emitted);
             }
             self.m.reorder_children(p, &full).expect("a permutation");
             orders.insert(p.clone(), target);
