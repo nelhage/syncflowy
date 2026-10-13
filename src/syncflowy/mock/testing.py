@@ -14,7 +14,8 @@ removed afterwards; pass a path to persist (or to reopen an existing db).
 ``id_seed`` makes node ids reproducible (a seeded UUIDv4 sequence that
 restarts on ``POST /_mock/reset``). ``xml_check`` ("off" / "warn" / "reject")
 controls the mock-only WF-HTML well-formedness check of API-written names and
-notes (see docs/mock-server.md).
+notes (see docs/mock-server.md). ``beta_mirrors`` switches on the beta API's
+mirror-aware semantics (data-model.md §10.5).
 """
 
 from __future__ import annotations
@@ -51,6 +52,7 @@ def running_mock(
     extra_api_keys: tuple[str, ...] = (),
     id_seed: int | None = None,
     xml_check: str = "warn",
+    beta_mirrors: bool = False,
 ) -> Iterator[MockURL]:
     tmpdir = None
     if db_path is None:
@@ -62,7 +64,10 @@ def running_mock(
         api_keys=(api_key, *extra_api_keys),
         clock=clock,
         config=Config(
-            faithful_cycles=faithful_cycles, export_min_interval=export_min_interval, xml_check=xml_check
+            faithful_cycles=faithful_cycles,
+            export_min_interval=export_min_interval,
+            xml_check=xml_check,
+            beta_mirrors=beta_mirrors,
         ),
         id_seed=id_seed,
     )

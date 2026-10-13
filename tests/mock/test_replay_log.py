@@ -31,6 +31,13 @@ from .conftest import WF
 RECORDS = golden.log_records()
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 pytestmark = pytest.mark.skipif(not RECORDS, reason="no production request log")
+PROD_HOST = "https://workflowy.com"
+
+
+def _is_prod(r: dict[str, Any]) -> bool:
+    """Records from before the ``host`` field are all production; beta-host
+    records follow different (mirror-aware) semantics and are not replayed."""
+    return r.get("host", PROD_HOST) == PROD_HOST
 
 
 def _param(r: dict[str, Any], key: str) -> Any:
@@ -56,7 +63,7 @@ def _kind(r: dict[str, Any]) -> str | None:
     return None
 
 
-STATELESS = [(i, r) for i, r in enumerate(RECORDS) if _kind(r)]
+STATELESS = [(i, r) for i, r in enumerate(RECORDS) if _is_prod(r) and _kind(r)]
 
 
 def _send(wf: WF, r: dict[str, Any], auth: bool):
@@ -100,7 +107,8 @@ def _create_cases() -> list[tuple[int, dict[str, Any], dict[str, Any], list[dict
     creates: dict[str, int] = {}
     for i, r in enumerate(RECORDS):
         if (
-            r["method"] == "POST"
+            _is_prod(r)
+            and r["method"] == "POST"
             and r["path"].rstrip("/") == "/api/v1/nodes"
             and r["status"] == 200
             and isinstance(r.get("request_json"), dict)

@@ -31,6 +31,7 @@ direnv exec . uv run python -m syncflowy.mock --db ./mock.sqlite3  # same thing
 | `--export-min-interval S` | `0` | minimum seconds between `nodes-export` calls per key. `0` (the default) disables the limit: production did not enforce its documented 1 req/min. |
 | `--id-seed N` | off | generate node ids from a seeded RNG (well-formed UUIDv4s, reproducible run to run; the sequence restarts on `POST /_mock/reset`) |
 | `--xml-check MODE` | `warn` | mock-only WF-HTML well-formedness check of API-written names/notes: `off`, `warn` (record in `GET /_mock/warnings`; responses unchanged) or `reject` (mock-specific 400). See [xml_check](#xml_check-mock-only). |
+| `--beta-mirrors` | off | the **beta API's** mirror-aware semantics (`beta.workflowy.com`, data-model.md §10.5) instead of production's. See [Beta mirrors](#beta-mirrors-beta_mirrors). |
 | `--log-level` | `info` | uvicorn and app log level |
 
 Then point any client at it with `Authorization: Bearer <key>`:
@@ -55,7 +56,7 @@ with running_mock(db_path="x.sqlite3", api_key="k", clock=my_clock) as base_url:
     base_url.app                                       # the live MockApp (base_url is a str subclass)
 ```
 
-`running_mock(db_path=None, api_key="test-key", clock=None, *, faithful_cycles=False, export_min_interval=0.0, extra_api_keys=(), id_seed=None, xml_check="warn")`
+`running_mock(db_path=None, api_key="test-key", clock=None, *, faithful_cycles=False, export_min_interval=0.0, extra_api_keys=(), id_seed=None, xml_check="warn", beta_mirrors=False)`
 starts uvicorn in a daemon thread on a free port and yields the base URL. With `db_path=None` it uses a temporary file
 that is removed on exit. `clock` is a zero-argument callable that returns float unix time. Every timestamp is
 `int(clock())`, plus any offset set through `POST /_mock/clock`. `id_seed` makes node ids deterministic (see
@@ -117,6 +118,7 @@ SQLite via stdlib `sqlite3`, in WAL mode. The schema is in `store.py`:
 | `nodes.created_at`, `modified_at` | INTEGER | yes | unix seconds |
 | `nodes.create_seq` | INTEGER UNIQUE | **hidden** | monotonically increasing. Defines list order (§4.2). Comes from `meta.next_create_seq`, so it never goes backwards after deletes. |
 | `nodes.mirror_origin_id` | TEXT NULL | **hidden** | set on mirror shells only. Never cleared, so orphans keep a dangling link (§10). |
+| `mirror_registry(origin_id, shell_id)` | table | **hidden** (beta: `mirror_ids`) | each origin's list of its mirrors, kept separately from `mirror_origin_id` because production lets them disagree (§10.5). Backfilled from the live shells when a v1/v2 file is opened (schema v3). |
 | `nodes.system_key` | TEXT UNIQUE NULL | **hidden, mock-only** | `inbox`, `calendar`, `calendar:YYYY`, `calendar:YYYY-MM`, `calendar:YYYY-MM-DD` for materialised special locations. Calendar nodes get deterministic UUIDv5 ids derived from the key, as in production |
 | `shortcuts.key`, `node_id`, `created_seq` | | via `/targets` | user "jump-to" shortcuts. Created through the admin API, because the real API cannot create them. |
 | `trash.*` | every `nodes` column, plus `deleted_at`, `delete_op`, `op_root` | **hidden, mock-only** | soft-deleted rows, exactly as they were. One `delete_op` per delete operation; `op_root` marks the node the delete was issued on (what the UI's Trash lists). |
@@ -141,9 +143,9 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 | route | body | effect |
 |---|---|---|
 | `POST /_mock/reset` | – or `{"all": true}` | delete all nodes, trash and shortcuts, reset `create_seq`, clear export rate-limit state and `xml_check` warnings, and restart a seeded id sequence. Config and clock are unchanged, unless `{"all": true}` is sent: then the config returns to its startup values and the clock offset to 0. |
-| `GET /_mock/dump` | – | `{"nodes": [...], "trash": [...], "shortcuts": [...], "config": {...}, "now": int}`. Nodes are in creation order and include the hidden `_create_seq`, `_mirror_origin_id` and `_system_key` fields; trash rows also carry `_delete_op`, `_op_root`, `_deleted_at`. |
+| `GET /_mock/dump` | – | `{"nodes": [...], "trash": [...], "mirror_registry": [{"origin_id", "shell_id"}, ...], "shortcuts": [...], "config": {...}, "now": int}`. Nodes are in creation order and include the hidden `_create_seq`, `_mirror_origin_id` and `_system_key` fields; trash rows also carry `_delete_op`, `_op_root`, `_deleted_at`. |
 | `GET /_mock/config` | – | current config |
-| `POST /_mock/config` | any of `{"faithful_cycles": bool, "export_min_interval": float, "week_start": 0-6, "xml_check": "off"\|"warn"\|"reject"}` | update the config (`week_start` 0 = Monday … 6 = Sunday; default 6) |
+| `POST /_mock/config` | any of `{"faithful_cycles": bool, "export_min_interval": float, "week_start": 0-6, "xml_check": "off"\|"warn"\|"reject", "beta_mirrors": bool}` | update the config (`week_start` 0 = Monday … 6 = Sunday; default 6) |
 | `GET /_mock/warnings` | – | `{"warnings": [{"op", "node_id", "field", "value", "time"}, ...]}` recorded by `xml_check: "warn"` |
 | `DELETE /_mock/warnings` | – | clear the warnings |
 | `POST /_mock/ui/<action>` | see [UI simulation](#ui-simulation-routes-_mockui) | apply an edit with web-UI semantics |
@@ -201,6 +203,7 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 | §10.1 mirror identity: an independent empty shell plus a hidden origin link | `Ops.mirror` (`mirror_origin_id`) |
 | §10.2 mirror check order: src → origin (orphan → `Item not found`) → parent (exact, then redirect a shell to its origin; orphan → `Parent item not found`) → self check; bumps the origin only | `Ops.mirror`, `Ops._follow_mirror` |
 | §10.3 `DELETE /mirror`: `Node is not a mirror`, orphans OK, bumps the origin if it exists | `Ops.delete_mirror` |
+| §10.5 beta mirror-aware semantics (`beta_mirrors`): `data.mirror`, a shell combined with its origin, list through a shell, create/update/complete through a shell, a refused delete of an origin with mirrors | `Ops._to_api`, `Ops._through_mirror`, `Ops.list_children`, `Ops._check_no_mirrored_origins`, `Tx.mirrors_of` |
 | §11 root, `None`, `inbox`, calendar keys, shortcuts, targets, export | `Ops.resolve_parent`, `get_node`, `_special_chain`, `_calendar_priority`, `_materialise`, `targets`, `export` (read paths observed, see below) |
 
 ---
@@ -245,6 +248,31 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
 | Short-id collisions | first match by `create_seq` | D3 |
 | Other unexpected storage failures | `500 internal_error`, rolled back | – |
 | Request body size, name length | unlimited | P9 |
+
+### Beta mirrors (`beta_mirrors`)
+
+Off by default, so the mock matches production as observed (and the recorded goldens). On, it follows data-model.md §10.5,
+which was observed on the beta host on 2026-10-13 (`experiments/beta-mirrors/`). This covers: `data.mirror`, with `mirror_ids` sorted
+by id; a shell reporting its origin's content; a list of a shell returning only the origin's children; export equal to GET, including
+hidden persisted children; create, update and complete through a shell reaching the origin; orphans refusing writes with 404;
+`Cannot delete a node that has mirrors`; and origins bumped when a plain delete removes their shells.
+
+`mirror_ids` and the delete check read a **mirror registry** (the hidden `mirror_registry` table, also in `GET /_mock/dump`). It is
+kept separately from the shells' origin links, as production does. With `beta_mirrors` off, a plain delete of a shell leaves a
+**ghost** registry row, as a production-host delete does. Switch the flag back on and that origin can no longer be deleted.
+`/_mock/ui/delete`'s promotion empties the origin's registry, as observed in H6.
+
+Remaining deviations and guesses:
+
+| topic | mock behaviour | ref |
+|---|---|---|
+| `DELETE /mirror` of a shell with nested shells | beta: unregisters them all; production: only the target. It bumps only the target's origin | R12, R4 |
+| UI delete of a shell, UI restore | the delete unregisters the shells; a restore does not re-register them | R12 |
+| ghosts with no API cause (seen in the user's data) | not modelled | R10 |
+
+The flag can be flipped at runtime (`POST /_mock/config`) on the same data. That models one account seen through both hosts, and
+it is how the tests make an orphan (they delete an origin with the flag off). The `/_mock/ui/*` routes are unaffected: they already
+treat a mirror as its origin.
 
 ### Observed with read-only GETs on 2026-10-12 ([global-readonly.md](workflowy/global-readonly.md))
 
@@ -391,6 +419,7 @@ few pure-function tests of `text.py`.
 | `test_update_complete.py` | partial updates, null semantics, C0 stripping, completion |
 | `test_ordering_move.py` | the priority algorithm (halving, renumber, bottom formula), list order, move semantics, cycles (both modes), concurrency |
 | `test_mirror_delete.py` | delete, mirror identity, redirects, orphans, and the full `modifiedAt` table |
+| `test_beta_mirrors.py` | `beta_mirrors`: `data.mirror`, shells combined with their origin, list/create/update/complete through a shell, move of and into a shell, the refused delete, orphans, export |
 | `test_special_admin.py` | root, special keys (GET/list matrix, calendar names and priorities, date-key 500s, week start), inbox, shortcuts, targets, export, admin routes, persistence across restart, CLI key parsing |
 | `test_review.py` | the behaviours settled by the 2026-10-12 review (URL boundary, date edges, NUL and lone surrogates), full reset, seeded ids |
 | `test_ui_sim.py` | soft delete (API delete → trash → restore, undo, orphan re-attachment, v1→v2 migration), every `/_mock/ui/*` route against the ui-findings scenarios (A1–A4, B1/B2/B4, C1, D1/D2, E1, F, G2, H2–H4, H6), and `xml_check` (warn/reject/off) |

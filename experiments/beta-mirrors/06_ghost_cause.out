@@ -1,0 +1,149 @@
+sandbox 84225e57-ac07-4192-92dd-cad06921b145
+
+===== prod plain DELETE of the shell
+--- create origin
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","name":"prod plain DELETE of the shell","position":"bottom"}
+    -> 200
+    {"item_id": "860510d6-06ec-44d2-afa2-81ffcff07e78"}
+--- beta mirror origin -> sb
+    [beta] POST /api/v1/nodes/860510d6-06ec-44d2-afa2-81ffcff07e78/mirror
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","position":"bottom"}
+    -> 200
+    {"item_id": "bb8f3cd8-b428-4d5c-96c1-3726afbf7c9f", "origin_id": "860510d6-06ec-44d2-afa2-81ffcff07e78"}
+--- prod plain DELETE of the shell
+    [prod] DELETE /api/v1/nodes/bb8f3cd8-b428-4d5c-96c1-3726afbf7c9f
+    -> 200
+    {"status": "ok"}
+--- beta GET origin
+    [beta] GET /api/v1/nodes/860510d6-06ec-44d2-afa2-81ffcff07e78
+    -> 200
+    {"node": {"id": "860510d6-06ec-44d2-afa2-81ffcff07e78", "name": "prod plain DELETE of the shell", "note": null, "parent_id": "84225e57-ac07-4192-92dd-cad06921b145", "priority": 100, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["bb8f3cd8-b428-4d5c-96c1-3726afbf7c9f"]}}, "createdAt": 1791932439, "modifiedAt": 1791932439, "completedAt": null}}
+--- beta DELETE origin
+    [beta] DELETE /api/v1/nodes/860510d6-06ec-44d2-afa2-81ffcff07e78
+    -> 400
+    {"code": "invalid_request", "message": "Cannot delete a node that has mirrors"}
+
+===== prod DELETE /mirror
+--- create origin
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","name":"prod DELETE /mirror","position":"bottom"}
+    -> 200
+    {"item_id": "01342d12-8632-4d9a-8e2d-1d0ebaeedbf8"}
+--- beta mirror origin -> sb
+    [beta] POST /api/v1/nodes/01342d12-8632-4d9a-8e2d-1d0ebaeedbf8/mirror
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","position":"bottom"}
+    -> 200
+    {"item_id": "215ab43f-a741-4143-9e2b-ca0f5f1b6a12", "origin_id": "01342d12-8632-4d9a-8e2d-1d0ebaeedbf8"}
+--- prod DELETE /mirror
+    [prod] DELETE /api/v1/nodes/215ab43f-a741-4143-9e2b-ca0f5f1b6a12/mirror
+    -> 200
+    {"status": "ok"}
+--- beta GET origin
+    [beta] GET /api/v1/nodes/01342d12-8632-4d9a-8e2d-1d0ebaeedbf8
+    -> 200
+    {"node": {"id": "01342d12-8632-4d9a-8e2d-1d0ebaeedbf8", "name": "prod DELETE /mirror", "note": null, "parent_id": "84225e57-ac07-4192-92dd-cad06921b145", "priority": 200, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932440, "modifiedAt": 1791932440, "completedAt": null}}
+--- beta DELETE origin
+    [beta] DELETE /api/v1/nodes/01342d12-8632-4d9a-8e2d-1d0ebaeedbf8
+    -> 200
+    {"status": "ok"}
+
+===== prod DELETE of the shell's parent
+--- create origin
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","name":"prod DELETE of the shell's parent","position":"bottom"}
+    -> 200
+    {"item_id": "52714732-0e22-46f8-9bb5-6f5f4ca818aa"}
+--- create holder
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","name":"holder","position":"bottom"}
+    -> 200
+    {"item_id": "6ddbd5f9-5d95-42ce-8f15-a1ed335fda90"}
+--- beta mirror origin -> holder
+    [beta] POST /api/v1/nodes/52714732-0e22-46f8-9bb5-6f5f4ca818aa/mirror
+    req: {"parent_id":"6ddbd5f9-5d95-42ce-8f15-a1ed335fda90"}
+    -> 200
+    {"item_id": "950f7680-1cb8-4954-8008-54f145fcd858", "origin_id": "52714732-0e22-46f8-9bb5-6f5f4ca818aa"}
+--- prod DELETE holder
+    [prod] DELETE /api/v1/nodes/6ddbd5f9-5d95-42ce-8f15-a1ed335fda90
+    -> 200
+    {"status": "ok"}
+--- beta GET origin
+    [beta] GET /api/v1/nodes/52714732-0e22-46f8-9bb5-6f5f4ca818aa
+    -> 200
+    {"node": {"id": "52714732-0e22-46f8-9bb5-6f5f4ca818aa", "name": "prod DELETE of the shell's parent", "note": null, "parent_id": "84225e57-ac07-4192-92dd-cad06921b145", "priority": 200, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["950f7680-1cb8-4954-8008-54f145fcd858"]}}, "createdAt": 1791932441, "modifiedAt": 1791932441, "completedAt": null}}
+--- beta DELETE origin
+    [beta] DELETE /api/v1/nodes/52714732-0e22-46f8-9bb5-6f5f4ca818aa
+    -> 400
+    {"code": "invalid_request", "message": "Cannot delete a node that has mirrors"}
+
+===== beta plain DELETE of the shell
+--- create origin
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","name":"beta plain DELETE of the shell","position":"bottom"}
+    -> 200
+    {"item_id": "63b825f0-33c7-4ad4-9963-1aae1d134a79"}
+--- beta mirror origin -> sb
+    [beta] POST /api/v1/nodes/63b825f0-33c7-4ad4-9963-1aae1d134a79/mirror
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","position":"bottom"}
+    -> 200
+    {"item_id": "91736787-c9ab-4241-811a-3d57a56ecfb3", "origin_id": "63b825f0-33c7-4ad4-9963-1aae1d134a79"}
+--- beta plain DELETE of the shell
+    [beta] DELETE /api/v1/nodes/91736787-c9ab-4241-811a-3d57a56ecfb3
+    -> 200
+    {"status": "ok"}
+--- beta GET origin
+    [beta] GET /api/v1/nodes/63b825f0-33c7-4ad4-9963-1aae1d134a79
+    -> 200
+    {"node": {"id": "63b825f0-33c7-4ad4-9963-1aae1d134a79", "name": "beta plain DELETE of the shell", "note": null, "parent_id": "84225e57-ac07-4192-92dd-cad06921b145", "priority": 300, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932442, "modifiedAt": 1791932442, "completedAt": null}}
+--- beta DELETE origin
+    [beta] DELETE /api/v1/nodes/63b825f0-33c7-4ad4-9963-1aae1d134a79
+    -> 200
+    {"status": "ok"}
+
+===== clearing a ghost
+--- create origin
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","name":"ghost target","position":"bottom"}
+    -> 200
+    {"item_id": "cdc6215b-8b61-4791-b222-8726dc1f1a82"}
+--- beta mirror origin -> sb
+    [beta] POST /api/v1/nodes/cdc6215b-8b61-4791-b222-8726dc1f1a82/mirror
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","position":"bottom"}
+    -> 200
+    {"item_id": "505c9b89-b691-4426-a5fa-77167976e6ff", "origin_id": "cdc6215b-8b61-4791-b222-8726dc1f1a82"}
+--- prod DELETE shell (leaves a ghost?)
+    [prod] DELETE /api/v1/nodes/505c9b89-b691-4426-a5fa-77167976e6ff
+    -> 200
+    {"status": "ok"}
+--- beta DELETE /mirror on the ghost id
+    [beta] DELETE /api/v1/nodes/505c9b89-b691-4426-a5fa-77167976e6ff/mirror
+    -> 404
+    {"code": "not_found", "message": "Item not found"}
+--- beta mirror origin -> sb again
+    [beta] POST /api/v1/nodes/cdc6215b-8b61-4791-b222-8726dc1f1a82/mirror
+    req: {"parent_id":"84225e57-ac07-4192-92dd-cad06921b145","position":"bottom"}
+    -> 200
+    {"item_id": "c31acb8c-c8fc-4006-bf62-e4c16c2f90d7", "origin_id": "cdc6215b-8b61-4791-b222-8726dc1f1a82"}
+--- beta GET origin
+    [beta] GET /api/v1/nodes/cdc6215b-8b61-4791-b222-8726dc1f1a82
+    -> 200
+    {"node": {"id": "cdc6215b-8b61-4791-b222-8726dc1f1a82", "name": "ghost target", "note": null, "parent_id": "84225e57-ac07-4192-92dd-cad06921b145", "priority": 300, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["505c9b89-b691-4426-a5fa-77167976e6ff", "c31acb8c-c8fc-4006-bf62-e4c16c2f90d7"]}}, "createdAt": 1791932443, "modifiedAt": 1791932444, "completedAt": null}}
+--- beta DELETE the new shell
+    [beta] DELETE /api/v1/nodes/c31acb8c-c8fc-4006-bf62-e4c16c2f90d7
+    -> 200
+    {"status": "ok"}
+--- beta GET origin (ghost still there?)
+    [beta] GET /api/v1/nodes/cdc6215b-8b61-4791-b222-8726dc1f1a82
+    -> 200
+    {"node": {"id": "cdc6215b-8b61-4791-b222-8726dc1f1a82", "name": "ghost target", "note": null, "parent_id": "84225e57-ac07-4192-92dd-cad06921b145", "priority": 300, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["505c9b89-b691-4426-a5fa-77167976e6ff"]}}, "createdAt": 1791932443, "modifiedAt": 1791932444, "completedAt": null}}
+--- beta DELETE origin
+    [beta] DELETE /api/v1/nodes/cdc6215b-8b61-4791-b222-8726dc1f1a82
+    -> 400
+    {"code": "invalid_request", "message": "Cannot delete a node that has mirrors"}
+--- prod DELETE origin (the only way out?)
+    [prod] DELETE /api/v1/nodes/cdc6215b-8b61-4791-b222-8726dc1f1a82
+    -> 200
+    {"status": "ok"}
+
+done; sandbox 84225e57-ac07-4192-92dd-cad06921b145

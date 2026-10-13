@@ -1,0 +1,162 @@
+
+===== A. fixtures
+sandbox 01d50d9e-56df-40d8-b1e3-46b8002397a6
+--- create O
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"01d50d9e-56df-40d8-b1e3-46b8002397a6","name":"O"}
+    -> 200
+    {"item_id": "0e07d453-114d-45c1-bd1c-68f84b109cbe"}
+--- create oc
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"0e07d453-114d-45c1-bd1c-68f84b109cbe","name":"oc"}
+    -> 200
+    {"item_id": "27b9a5c0-a7a3-4d72-a95f-c419a3471a4b"}
+--- beta mirror O -> sb
+    [beta] POST /api/v1/nodes/0e07d453-114d-45c1-bd1c-68f84b109cbe/mirror
+    req: {"parent_id":"01d50d9e-56df-40d8-b1e3-46b8002397a6","position":"bottom"}
+    -> 200
+    {"item_id": "c3b2156c-a343-4fee-a11e-5f34f0c99ce1", "origin_id": "0e07d453-114d-45c1-bd1c-68f84b109cbe"}
+--- create h
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"01d50d9e-56df-40d8-b1e3-46b8002397a6","name":"h hidden","position":"bottom"}
+    -> 200
+    {"item_id": "9e3e0c55-cf08-4c8d-9b93-e44eea75bb58"}
+--- beta move h -> M (hidden persisted child)
+    [beta] POST /api/v1/nodes/9e3e0c55-cf08-4c8d-9b93-e44eea75bb58/move
+    req: {"parent_id":"c3b2156c-a343-4fee-a11e-5f34f0c99ce1"}
+    -> 200
+    {"status": "ok"}
+--- create P
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"01d50d9e-56df-40d8-b1e3-46b8002397a6","name":"P","position":"bottom"}
+    -> 200
+    {"item_id": "a6329dbd-6c84-43de-acea-c3bbfdc27300"}
+--- prod mirror P -> sb
+    [prod] POST /api/v1/nodes/a6329dbd-6c84-43de-acea-c3bbfdc27300/mirror
+    req: {"parent_id":"01d50d9e-56df-40d8-b1e3-46b8002397a6","position":"bottom"}
+    -> 200
+    {"item_id": "94281b82-5db4-4201-9f2f-cf518c02ee86", "origin_id": "a6329dbd-6c84-43de-acea-c3bbfdc27300"}
+--- prod DELETE P (orphans MP)
+    [prod] DELETE /api/v1/nodes/a6329dbd-6c84-43de-acea-c3bbfdc27300
+    -> 200
+    {"status": "ok"}
+
+===== B. nodes-export, both hosts
+--- beta export: 200, top-level keys ['nodes'], 13133 records
+--- prod export: 200, top-level keys ['nodes'], 13133 records
+same id set on both hosts: True
+--- O
+    beta export: {"id": "0e07d453-114d-45c1-bd1c-68f84b109cbe", "name": "O", "note": null, "parent_id": "01d50d9e-56df-40d8-b1e3-46b8002397a6", "priority": 100, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["c3b2156c-a343-4fee-a11e-5f34f0c99ce1"]}}, "createdAt": 1791932382, "modifiedAt": 1791932382, "completedAt": null}
+    == beta GET: True
+    prod export: {"id": "0e07d453-114d-45c1-bd1c-68f84b109cbe", "name": "O", "note": null, "parent_id": "01d50d9e-56df-40d8-b1e3-46b8002397a6", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932382, "modifiedAt": 1791932382, "completedAt": null}
+--- oc
+    beta export: {"id": "27b9a5c0-a7a3-4d72-a95f-c419a3471a4b", "name": "oc", "note": null, "parent_id": "0e07d453-114d-45c1-bd1c-68f84b109cbe", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932382, "modifiedAt": 1791932382, "completedAt": null}
+    == beta GET: True
+    prod export: {"id": "27b9a5c0-a7a3-4d72-a95f-c419a3471a4b", "name": "oc", "note": null, "parent_id": "0e07d453-114d-45c1-bd1c-68f84b109cbe", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932382, "modifiedAt": 1791932382, "completedAt": null}
+--- M
+    beta export: {"id": "c3b2156c-a343-4fee-a11e-5f34f0c99ce1", "name": "O", "note": null, "parent_id": "01d50d9e-56df-40d8-b1e3-46b8002397a6", "priority": 200, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "0e07d453-114d-45c1-bd1c-68f84b109cbe"}}, "createdAt": 1791932382, "modifiedAt": 1791932382, "completedAt": null}
+    == beta GET: True
+    prod export: {"id": "c3b2156c-a343-4fee-a11e-5f34f0c99ce1", "name": "", "note": "", "parent_id": "01d50d9e-56df-40d8-b1e3-46b8002397a6", "priority": 200, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932382, "modifiedAt": 1791932383, "completedAt": null}
+--- h (hidden child of M)
+    beta export: {"id": "9e3e0c55-cf08-4c8d-9b93-e44eea75bb58", "name": "h hidden", "note": null, "parent_id": "c3b2156c-a343-4fee-a11e-5f34f0c99ce1", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932382, "modifiedAt": 1791932383, "completedAt": null}
+    == beta GET: True
+    prod export: {"id": "9e3e0c55-cf08-4c8d-9b93-e44eea75bb58", "name": "h hidden", "note": null, "parent_id": "c3b2156c-a343-4fee-a11e-5f34f0c99ce1", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932382, "modifiedAt": 1791932383, "completedAt": null}
+--- MP (orphan)
+    beta export: {"id": "94281b82-5db4-4201-9f2f-cf518c02ee86", "name": "", "note": "", "parent_id": "01d50d9e-56df-40d8-b1e3-46b8002397a6", "priority": 400, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": null}}, "createdAt": 1791932383, "modifiedAt": 1791932383, "completedAt": null}
+    == beta GET: True
+    prod export: {"id": "94281b82-5db4-4201-9f2f-cf518c02ee86", "name": "", "note": "", "parent_id": "01d50d9e-56df-40d8-b1e3-46b8002397a6", "priority": 400, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932383, "modifiedAt": 1791932383, "completedAt": null}
+--- Y2 (orphan)
+    beta export: {"id": "dd75912a-6dbd-426e-ab56-e702db934308", "name": "", "note": "", "parent_id": "0483737e-8021-4324-9d8a-c7095060c923", "priority": 900, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": null}}, "createdAt": 1791931856, "modifiedAt": 1791931856, "completedAt": null}
+    == beta GET: True
+    prod export: {"id": "dd75912a-6dbd-426e-ab56-e702db934308", "name": "", "note": "", "parent_id": "0483737e-8021-4324-9d8a-c7095060c923", "priority": 900, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931856, "modifiedAt": 1791931856, "completedAt": null}
+--- H6 O2
+    beta export: {"id": "b64a9cba-fca8-49de-92c4-0a25f84c980c", "name": "O2 origin", "note": null, "parent_id": "ab8f7d3e-b965-4dba-8c7f-083910c1719a", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791854788, "modifiedAt": 1791855660, "completedAt": null}
+    == beta GET: True
+    prod export: {"id": "b64a9cba-fca8-49de-92c4-0a25f84c980c", "name": "O2 origin", "note": null, "parent_id": "ab8f7d3e-b965-4dba-8c7f-083910c1719a", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791854788, "modifiedAt": 1791855660, "completedAt": null}
+--- H6 M1
+    beta export: {"id": "44ea8125-0fce-4c95-88a8-69d74b27b01c", "name": "O2 origin", "note": null, "parent_id": "e612b46a-ae4a-417b-8d65-eab2f648f253", "priority": 100, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "b64a9cba-fca8-49de-92c4-0a25f84c980c"}}, "createdAt": 1791854789, "modifiedAt": 1791855660, "completedAt": null}
+    == beta GET: True
+    prod export: {"id": "44ea8125-0fce-4c95-88a8-69d74b27b01c", "name": "", "note": "", "parent_id": "e612b46a-ae4a-417b-8d65-eab2f648f253", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791854789, "modifiedAt": 1791854789, "completedAt": null}
+oc appears once, under O: 1 True
+records with parent_id == M: ['9e3e0c55-cf08-4c8d-9b93-e44eea75bb58']
+scratchpad records that differ between hosts: 104 all shells or origins: True
+
+===== C. whole-account counts (beta export; no content)
+{"records": 13133, "shells": 83, "orphans": 7, "origins": 46, "shells missing from their origin's mirror_ids": 1, "of which in scratchpad": ["44ea8125-0fce-4c95-88a8-69d74b27b01c"], "mirror_ids entries that are not live shells": 9, "origins with unsorted mirror_ids": 0, "nodes that are both shell and origin": 0}
+
+===== D. deletes
+--- prod GET O
+    [prod] GET /api/v1/nodes/0e07d453-114d-45c1-bd1c-68f84b109cbe
+    -> 200
+    {"node": {"id": "0e07d453-114d-45c1-bd1c-68f84b109cbe", "name": "O", "note": null, "parent_id": "01d50d9e-56df-40d8-b1e3-46b8002397a6", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932382, "modifiedAt": 1791932382, "completedAt": null}}
+--- beta DELETE O (has mirror M)
+    [beta] DELETE /api/v1/nodes/0e07d453-114d-45c1-bd1c-68f84b109cbe
+    -> 400
+    {"code": "invalid_request", "message": "Cannot delete a node that has mirrors"}
+--- prod GET O
+    [prod] GET /api/v1/nodes/0e07d453-114d-45c1-bd1c-68f84b109cbe
+    -> 200
+    {"node": {"id": "0e07d453-114d-45c1-bd1c-68f84b109cbe", "name": "O", "note": null, "parent_id": "01d50d9e-56df-40d8-b1e3-46b8002397a6", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791932382, "modifiedAt": 1791932382, "completedAt": null}}
+blocked delete bumped O: False
+--- create Q
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"01d50d9e-56df-40d8-b1e3-46b8002397a6","name":"Q","position":"bottom"}
+    -> 200
+    {"item_id": "7d84a1e2-5f50-4f9e-ba63-577e4f6da7fb"}
+--- beta mirror Q -> sb
+    [beta] POST /api/v1/nodes/7d84a1e2-5f50-4f9e-ba63-577e4f6da7fb/mirror
+    req: {"parent_id":"01d50d9e-56df-40d8-b1e3-46b8002397a6","position":"bottom"}
+    -> 200
+    {"item_id": "31d08d71-9af3-4897-a39e-ed94cf712482", "origin_id": "7d84a1e2-5f50-4f9e-ba63-577e4f6da7fb"}
+--- prod DELETE Q (beta-made mirror; does prod still allow it?)
+    [prod] DELETE /api/v1/nodes/7d84a1e2-5f50-4f9e-ba63-577e4f6da7fb
+    -> 200
+    {"status": "ok"}
+--- beta GET MQ
+    [beta] GET /api/v1/nodes/31d08d71-9af3-4897-a39e-ed94cf712482
+    -> 200
+    {"node": {"id": "31d08d71-9af3-4897-a39e-ed94cf712482", "name": "", "note": "", "parent_id": "01d50d9e-56df-40d8-b1e3-46b8002397a6", "priority": 600, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": null}}, "createdAt": 1791932389, "modifiedAt": 1791932389, "completedAt": null}}
+--- create holder
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"01d50d9e-56df-40d8-b1e3-46b8002397a6","name":"holder","position":"bottom"}
+    -> 200
+    {"item_id": "76166881-99ac-4ab6-a490-f1c6bc84ba76"}
+--- beta move MP (orphan) -> holder
+    [beta] POST /api/v1/nodes/94281b82-5db4-4201-9f2f-cf518c02ee86/move
+    req: {"parent_id":"76166881-99ac-4ab6-a490-f1c6bc84ba76"}
+    -> 200
+    {"status": "ok"}
+--- beta DELETE holder (holds an orphan shell)
+    [beta] DELETE /api/v1/nodes/76166881-99ac-4ab6-a490-f1c6bc84ba76
+    -> 200
+    {"status": "ok"}
+--- beta GET MP
+    [beta] GET /api/v1/nodes/94281b82-5db4-4201-9f2f-cf518c02ee86
+    -> 404
+    {"code": "not_found", "message": "Item not found"}
+--- beta GET H6 O2 before
+    [beta] GET /api/v1/nodes/b64a9cba-fca8-49de-92c4-0a25f84c980c
+    -> 200
+    {"node": {"id": "b64a9cba-fca8-49de-92c4-0a25f84c980c", "name": "O2 origin", "note": null, "parent_id": "ab8f7d3e-b965-4dba-8c7f-083910c1719a", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791854788, "modifiedAt": 1791855660, "completedAt": null}}
+--- beta DELETE H6 O2 (live shell M1, empty registry)
+    [beta] DELETE /api/v1/nodes/b64a9cba-fca8-49de-92c4-0a25f84c980c
+    -> 200
+    {"status": "ok"}
+--- beta GET H6 O2 after
+    [beta] GET /api/v1/nodes/b64a9cba-fca8-49de-92c4-0a25f84c980c
+    -> 404
+    {"code": "not_found", "message": "Item not found"}
+--- beta GET H6 o2c after
+    [beta] GET /api/v1/nodes/fbf20163-c8ee-4e01-bfbf-abc22ef70c68
+    -> 404
+    {"code": "not_found", "message": "Item not found"}
+--- beta GET H6 M1 after
+    [beta] GET /api/v1/nodes/44ea8125-0fce-4c95-88a8-69d74b27b01c
+    -> 200
+    {"node": {"id": "44ea8125-0fce-4c95-88a8-69d74b27b01c", "name": "", "note": "", "parent_id": "e612b46a-ae4a-417b-8d65-eab2f648f253", "priority": 100, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": null}}, "createdAt": 1791854789, "modifiedAt": 1791854789, "completedAt": null}}
+--- beta list H6 M1 after
+    [beta] GET /api/v1/nodes?parent_id=44ea8125-0fce-4c95-88a8-69d74b27b01c
+    -> 200
+    {"nodes": []}
+
+done; sandbox 01d50d9e-56df-40d8-b1e3-46b8002397a6

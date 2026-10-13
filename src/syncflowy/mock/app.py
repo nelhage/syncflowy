@@ -379,6 +379,8 @@ class MockApp:
                         if body["xml_check"] not in Config.XML_CHECK_MODES:
                             raise ValueError(f"xml_check must be one of {Config.XML_CHECK_MODES}")
                         cfg.xml_check = body["xml_check"]
+                    if "beta_mirrors" in body:
+                        cfg.beta_mirrors = bool(body["beta_mirrors"])
                     return Response.json(200, cfg.to_json())
                 case ["warnings"], "GET":
                     return Response.json(200, {"warnings": ops.warnings})

@@ -80,6 +80,10 @@ SHORT_RE = re.compile(r"[0-9a-f]{12}", re.I)
 # Production returns 200 and creates a parent cycle (§4.7 step 5).
 CYCLE_MESSAGE = "Cannot move a node under its own descendant"
 
+# beta_mirrors: deleting a subtree that holds an origin with live mirrors
+# [O: experiments/beta-mirrors/01_probe].
+HAS_MIRRORS_MESSAGE = "Cannot delete a node that has mirrors"
+
 
 class _Root:
     """The top level of the outline. Its children have ``parent_id: null``."""
@@ -114,6 +118,14 @@ class Config:
     #: a warning, readable at GET /_mock/warnings -- API responses unchanged;
     #: "reject": a mock-specific 400 (production accepts anything).
     xml_check: str = "warn"
+    #: Mirror-aware semantics of the beta API (beta.workflowy.com, announced
+    #: 2026-07-22; data-model.md §10.5). Off (default): production's observed
+    #: behaviour, where a shell is an independent empty node. On: reads expose
+    #: ``data.mirror`` and show the origin's content through a shell, writes
+    #: through a shell reach the origin, and deleting an origin that still has
+    #: mirrors fails. Observed on the beta host 2026-10-13
+    #: (experiments/beta-mirrors/).
+    beta_mirrors: bool = False
 
     XML_CHECK_MODES = ("off", "warn", "reject")
 
@@ -123,6 +135,7 @@ class Config:
             "export_min_interval": self.export_min_interval,
             "week_start": self.week_start,
             "xml_check": self.xml_check,
+            "beta_mirrors": self.beta_mirrors,
         }
 
 
@@ -235,6 +248,63 @@ class Ops:
                 return None
             node = nxt
         return node
+
+    def _through_mirror(self, tx: Tx, node: Node, miss: str) -> Node:
+        """beta_mirrors: the node whose content a write through ``node`` reaches.
+
+        A shell resolves to its origin, and a non-shell to itself. An orphan
+        shell refuses the write with ``404 miss`` [O: beta-mirrors 01/02:
+        update, complete, uncomplete -> Item not found; create under it ->
+        Parent item not found]. Without beta_mirrors, always ``node``.
+        """
+        if not self.config.beta_mirrors or node.mirror_origin_id is None:
+            return node
+        origin = self._follow_mirror(tx, node)
+        if origin is None:
+            raise not_found(miss)
+        return origin
+
+    def _to_api(self, tx: Tx, node: Node, parent_id: str | None = None) -> dict[str, Any]:
+        """Serialise ``node`` for GET, list and export (§1.2; §10.5 with beta_mirrors).
+
+        ``parent_id`` overrides the reported parent (an origin's child listed
+        under a mirror root reports that root as its parent).
+
+        With beta_mirrors [O: beta-mirrors 01/02], a shell reports its own
+        ``id``, ``parent_id``, ``priority`` and ``createdAt`` and its origin's
+        ``name``, ``note``, ``layoutMode``, completion and ``modifiedAt``,
+        plus ``data.mirror.origin_id``; an orphan shell falls back to its own
+        row with ``origin_id: null``. A node with a non-empty mirror registry
+        carries ``data.mirror.mirror_ids``, **sorted by id** (not creation
+        order). ``mirror`` follows ``layoutMode`` inside ``data``.
+
+        ``mirror_ids`` is the origin's registry (``mirror_registry``), not a
+        reverse lookup of the shells: it can hold ghosts (shells deleted
+        through the production host) and miss live shells (after a UI
+        delete-promotion) [O: beta-mirrors 04-06].
+        """
+        d = node.to_api()
+        if parent_id is not None:
+            d["parent_id"] = parent_id
+        if not self.config.beta_mirrors:
+            return d
+        if node.mirror_origin_id is not None:
+            origin = self._follow_mirror(tx, node)
+            if origin is None:
+                d["data"]["mirror"] = {"origin_id": None}
+                return d
+            d.update(
+                name=origin.name,
+                note=origin.note,
+                completed=origin.completed,
+                data={"layoutMode": origin.layout_mode, "mirror": {"origin_id": origin.id}},
+                modifiedAt=origin.modified_at,
+                completedAt=origin.completed_at,
+            )
+            return d
+        if mirror_ids := tx.registered_mirrors(node.id):
+            d["data"]["mirror"] = {"mirror_ids": mirror_ids}
+        return d
 
     @staticmethod
     def _is_descendant(tx: Tx, candidate: Node, ancestor: Node) -> bool:
@@ -478,23 +548,40 @@ class Ops:
                 node = tx.get(target)
             if node is None:
                 raise not_found(ITEM_NOT_FOUND)
-            return {"node": node.to_api()}
+            return {"node": self._to_api(tx, node)}
 
     def list_children(self, parent_id: str | None) -> dict[str, Any]:
-        """GET /nodes?parent_id= -- depth 1, completed included, creation order (§4.2)."""
+        """GET /nodes?parent_id= -- depth 1, completed included, creation order (§4.2).
+
+        With beta_mirrors [O: beta-mirrors 01/02], listing a mirror root
+        returns only its origin's children, reported under the root, plus a
+        top-level ``mirror: {"origin_id": ...}``. The root's own persisted
+        children (moved in, or made through production) are not listed. An
+        orphan lists as ``{"nodes": []}``, without the ``mirror`` key.
+        """
         with self.store.transaction() as tx:
             try:
                 parent = self.resolve_parent(tx, parent_id, materialise=False)
             except _EmptyLocation:
                 return {"nodes": []}
-            return {"nodes": [n.to_api() for n in tx.children(parent.id)]}
+            if not (self.config.beta_mirrors and isinstance(parent, Node) and parent.mirror_origin_id is not None):
+                return {"nodes": [self._to_api(tx, n) for n in tx.children(parent.id)]}
+            origin = self._follow_mirror(tx, parent)
+            if origin is None:
+                return {"nodes": []}
+            shown = [self._to_api(tx, n, parent_id=parent.id) for n in tx.children(origin.id)]
+            return {"nodes": shown, "mirror": {"origin_id": origin.id}}
 
     def create(self, body: Any) -> dict[str, Any]:
         """POST /nodes (§4.3)."""
         req = models.validate(CreateItemRequest, body)
         with self.store.transaction() as tx:
             parent = self.resolve_parent(tx, req.parent_id, materialise=True)
-            # A mirror shell as parent is NOT redirected (§4.3 step 2).
+            # A mirror shell as parent is NOT redirected in production (§4.3
+            # step 2); the beta API creates under the origin, whatever form
+            # named the shell (UUID, short id, URL) (§10.5).
+            if isinstance(parent, Node):
+                parent = self._through_mirror(tx, parent, PARENT_NOT_FOUND)
             blocks = transform_create_name(req.name)
             # §6.3: the note and layoutMode reach storage raw, so a NUL or a
             # JSON lone surrogate ("\ud800") in either gives 500 and the
@@ -546,7 +633,7 @@ class Ops:
         """POST /nodes/:id (§4.4)."""
         req = models.validate(UpdateNodeRequest, body)
         with self.store.transaction() as tx:
-            node = self._lookup_exact(tx, node_id)
+            node = self._through_mirror(tx, self._lookup_exact(tx, node_id), ITEM_NOT_FOUND)
             fields: dict[str, Any] = {}
             if req.name is not None:
                 fields["name"] = strip_update_text(req.name)
@@ -570,7 +657,7 @@ class Ops:
     def complete(self, node_id: str, completed: bool) -> dict[str, Any]:
         """POST /nodes/:id/complete and /uncomplete (§4.5). No cascade."""
         with self.store.transaction() as tx:
-            node = self._lookup_exact(tx, node_id)
+            node = self._through_mirror(tx, self._lookup_exact(tx, node_id), ITEM_NOT_FOUND)
             now = self.now()
             tx.set_fields(
                 node.id,
@@ -590,8 +677,43 @@ class Ops:
         """
         with self.store.transaction() as tx:
             node = self._lookup_exact(tx, node_id)
+            if not self.config.beta_mirrors:
+                # Production leaves the shells in their origins' registries:
+                # "ghosts" that later block a beta delete of the origin [O:
+                # beta-mirrors 06].
+                tx.delete_subtree(node.id, self.now())
+                return OK
+            self._check_no_mirrored_origins(tx, node)
+            shells = self._shells_in(tx, node)
             tx.delete_subtree(node.id, self.now())
+            tx.unregister_shells([s.id for s in shells])
+            for origin_id in {s.mirror_origin_id for s in shells}:
+                # [O: beta-mirrors 01] unlike production's §8
+                if origin_id is not None and tx.get(origin_id) is not None:
+                    tx.touch(origin_id, self.now())
             return OK
+
+    def _check_no_mirrored_origins(self, tx: Tx, node: Node) -> None:
+        """beta_mirrors: refuse to delete a subtree holding an origin that still has mirrors (§10.5).
+
+        [O: beta-mirrors 01-06] The node itself, a descendant, or a persisted
+        child of a shell; a mirror lying inside the deleted subtree blocks
+        too. The check reads the **registry**: a ghost entry blocks, and a
+        live shell missing from it does not. ``DELETE /mirror`` does NOT
+        check (it can make orphans).
+        """
+        for i in tx.subtree_ids(node.id):
+            if tx.registered_mirrors(i):
+                raise invalid_request(HAS_MIRRORS_MESSAGE)
+
+    @staticmethod
+    def _shells_in(tx: Tx, node: Node) -> list[Node]:
+        out = []
+        for i in tx.subtree_ids(node.id):
+            n = tx.get(i)
+            if n is not None and n.mirror_origin_id is not None:
+                out.append(n)
+        return out
 
     def move(self, node_id: str, body: Any) -> dict[str, Any]:
         """POST /nodes/:id/move (§4.7)."""
@@ -652,6 +774,7 @@ class Ops:
                 now=now,
                 mirror_origin_id=origin.id,
             )
+            tx.register_mirror(origin.id, shell.id)  # either host [O: beta-mirrors 01 §F]
             tx.touch(origin.id, now)  # the resolved origin only
             return {"item_id": shell.id, "origin_id": origin.id}
 
@@ -661,7 +784,12 @@ class Ops:
             node = self._lookup_exact(tx, node_id)
             if node.mirror_origin_id is None:
                 raise invalid_request("Node is not a mirror")
+            # Both hosts drop the shell from its origin's registry [O:
+            # beta-mirrors 06]. UNVERIFIED (R12): whether shells nested in the
+            # removed subtree are dropped too; with beta_mirrors we drop them.
+            nested = self._shells_in(tx, node) if self.config.beta_mirrors else [node]
             tx.delete_subtree(node.id, self.now())
+            tx.unregister_shells([s.id for s in nested])
             # Orphans succeed; bump the origin only if it still exists (it may
             # even have been inside the deleted subtree).
             if tx.get(node.mirror_origin_id) is not None:
@@ -673,7 +801,8 @@ class Ops:
 
         [O] ``{"nodes": [...]}``: every node, flat, each record byte-identical
         to what GET / list return (no mirror metadata; shells look like
-        ordinary nodes), completed nodes included. Production's order is an
+        ordinary nodes; with beta_mirrors, the mirror-aware shape of
+        :meth:`_to_api`), completed nodes included. Production's order is an
         unspecified but stable storage order; we use creation order.
         Detached cycles were not present in the account, so whether they are
         exported is UNVERIFIED (we include them).
@@ -692,7 +821,7 @@ class Ops:
                     {"code": "rate_limited", "message": "Rate limit exceeded. Please try again later."},
                 )
             self._export_last[api_key] = now
-            return {"nodes": [n.to_api() for n in tx.all_nodes()]}
+            return {"nodes": [self._to_api(tx, n) for n in tx.all_nodes()]}
 
     #: [O] order and labels of the system targets. ``None`` = the node's name
     #: (or null while the node does not exist); a string = a fixed label,
@@ -734,6 +863,7 @@ class Ops:
             return {
                 "nodes": [n.to_dump() for n in tx.all_nodes()],
                 "trash": tx.trash_dump(),
+                "mirror_registry": tx.registry_dump(),
                 "shortcuts": [{"key": k, "node_id": v} for k, v in tx.shortcuts()],
                 "config": self.config.to_json(),
                 "now": self.now(),

@@ -178,12 +178,19 @@ def wf(_server: str, clock: FakeClock) -> Iterator[WF]:
     client = WF(_server, clock)
     assert client.admin("POST", "reset").status_code == 200
     assert client.admin("POST", "clock", json={"offset": 0}).status_code == 200
-    r = client.admin("POST", "config", json={"faithful_cycles": False, "export_min_interval": 0, "week_start": 6, "xml_check": "warn"})
+    r = client.admin("POST", "config", json={"faithful_cycles": False, "export_min_interval": 0, "week_start": 6, "xml_check": "warn", "beta_mirrors": False})
     assert r.status_code == 200
     try:
         yield client
     finally:
         client.close()
+
+
+@pytest.fixture
+def wf_beta(wf: WF) -> WF:
+    """The mock with the beta API's mirror-aware semantics."""
+    assert wf.admin("POST", "config", json={"beta_mirrors": True}).status_code == 200
+    return wf
 
 
 @pytest.fixture
