@@ -708,3 +708,113 @@ pub fn visible_nodes(
 pub(crate) fn is_placeholder_node(node: &crate::tree::Node) -> bool {
     node.looks_like_mirror_shell() && node.layout != "divider"
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tree::Node;
+
+    #[test]
+    fn describe_names_nodes_by_plain_text() {
+        let a = NodeId::from_api("00000000-0000-4000-8000-0000000000aa");
+        let b = NodeId::from_api("00000000-0000-4000-8000-0000000000bb");
+        let tree =
+            Tree::from_nodes([Node::new(a.clone(), None, "<b>Plan</b> &amp; do")]).expect("tree");
+        let short = a.short().expect("short");
+        let events = vec![
+            ReportEvent::Resurrected {
+                old: a.clone(),
+                new: NodeId::temp(1),
+            },
+            ReportEvent::VanishedWork {
+                node: a.clone(),
+                completed_ancestor: b.clone(),
+            },
+            ReportEvent::Appeared { node: a.clone() },
+            ReportEvent::Disappeared { node: a.clone() },
+            ReportEvent::MovedOut {
+                node: a.clone(),
+                new_parent: None,
+            },
+            ReportEvent::MovedIn {
+                node: a.clone(),
+                from_file_root: Some(b.clone()),
+            },
+            ReportEvent::DroppedMove {
+                node: a.clone(),
+                cycle: true,
+            },
+            ReportEvent::DeleteLost { node: a.clone() },
+            ReportEvent::ForeignTag {
+                short: short.clone(),
+                line: 3,
+            },
+            ReportEvent::DuplicateTag {
+                short,
+                lines: vec![3, 9],
+                kept_line: 9,
+            },
+            ReportEvent::Rematched {
+                node: a.clone(),
+                line: 4,
+            },
+            ReportEvent::Adopted {
+                node: a.clone(),
+                line: 4,
+            },
+            ReportEvent::ReadOnlyEditRefused {
+                node: a.clone(),
+                line: 4,
+            },
+            ReportEvent::PlaceholderDeleteRefused { node: a.clone() },
+            ReportEvent::StaleEcho {
+                node: a.clone(),
+                field: ConflictField::Name,
+            },
+            ReportEvent::ResurrectionDropped {
+                node: a.clone(),
+                line: 4,
+            },
+            ReportEvent::Conflict {
+                node: a.clone(),
+                field: ConflictField::Note,
+            },
+            ReportEvent::ConflictLost {
+                node: a.clone(),
+                field: ConflictField::Note,
+            },
+            ReportEvent::LossyWrite {
+                node: a.clone(),
+                field: ConflictField::Name,
+            },
+            ReportEvent::AlreadyCompleted { node: a.clone() },
+            ReportEvent::PendingDeleteCancelled { node: a.clone() },
+            ReportEvent::SafeMode { suppressed: 2 },
+        ];
+        for e in &events {
+            let s = e.describe(&tree);
+            assert!(!s.is_empty() && !s.contains('\n'), "{s}");
+        }
+        assert_eq!(
+            events[3].describe(&tree),
+            "\"Plan & do\" (0000000000aa) was completed in Workflowy and left the file"
+        );
+        // Unknown nodes are named by their short id.
+        assert!(events[1].describe(&tree).contains("0000000000bb"));
+    }
+
+    #[test]
+    fn field_push_counts() {
+        let mut p = FieldPush::default();
+        assert!(p.is_empty());
+        p.layout = Some(Change {
+            expected: "bullets".into(),
+            new: "todo".into(),
+        });
+        p.name = Some(Change {
+            expected: "a".into(),
+            new: "b".into(),
+        });
+        assert_eq!(p.count(), 2);
+    }
+}
