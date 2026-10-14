@@ -63,7 +63,7 @@ Writes outside the scratchpad remain out of scope, so materialisation is still u
 | D2 | Why mirror creation and child creation do not bump the destination parent's `modifiedAt` while move-in does. | Copy the observed table. |
 | D3 | Short-id collisions (two nodes with the same last 12 hex digits). | Cannot be constructed. Mock: first match by `create_seq`. |
 | D4 | Narrow races (more than 4 concurrent writes) producing duplicate priorities, and the renumber's tie order. | Mock serialises writes. Tie-break `(priority, create_seq)`. |
-| D5 | Whether the API's mirror divergence is intended or a bug that may change. | **Partly answered (2026-10-13):** it is being fixed. The beta API (`beta.workflowy.com`) has mirror-aware semantics, observed in data-model §10.5 (questions R1–R11). Production still diverges. Mock: production by default, beta behind `beta_mirrors`. The sync engine should avoid writing through shells until it targets the beta semantics. |
+| D5 | Whether the API's mirror divergence is intended or a bug that may change. | **Partly answered (2026-10-13):** it is being fixed. The beta API (`beta.workflowy.com`) has mirror-aware semantics, observed in data-model §10.5 (questions R1–R11). Production still diverges. Mock: production by default, beta behind `beta_mirrors`. The sync engine follows mirrors when the export carries mirror metadata (sync-design §15.1) and keeps production's read-only placeholders otherwise. |
 
 ## 5. Beta API mirrors
 

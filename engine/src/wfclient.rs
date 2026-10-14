@@ -27,7 +27,10 @@
 //! * `POST /api/v1/nodes/<uuid>` `{"name"?, "note"?, "layoutMode"?}` (only the fields
 //!   being changed; never send `null`) -> `{"status": "ok"}`; always bumps `modifiedAt`.
 //! * `POST /api/v1/nodes/<uuid>/move` `{"parent_id": "<uuid>", "position"}`;
-//!   `POST …/complete`, `POST …/uncomplete` (no body), `DELETE /api/v1/nodes/<uuid>`.
+//!   `POST …/complete`, `POST …/uncomplete` (no body), `DELETE /api/v1/nodes/<uuid>`,
+//!   `DELETE /api/v1/nodes/<uuid>/mirror` (a mirror root only, DM§10.3).
+//! * On the beta host (DM§10.5) node records carry `data.mirror`; the client decodes it
+//!   into `tree::Mirror` and otherwise treats both hosts alike.
 //!
 //! # Rules
 //!
@@ -241,6 +244,12 @@ pub trait Api {
     fn uncomplete(&self, id: &NodeId) -> Result<(), ApiError>;
     /// `DELETE /nodes/<uuid>`.
     fn delete(&self, id: &NodeId) -> Result<(), ApiError>;
+    /// `DELETE /nodes/<uuid>/mirror`: remove a mirror root and leave its origin intact
+    /// (DM§10.3, §10.5). The default forwards to [`Api::delete`], which has the same
+    /// effect on the beta API for a shell.
+    fn delete_mirror(&self, id: &NodeId) -> Result<(), ApiError> {
+        self.delete(id)
+    }
     /// Number of HTTP requests sent so far (attempts, including retries).
     fn request_count(&self) -> u64;
 }
@@ -888,6 +897,20 @@ impl Api for Client {
         self.execute(&Request {
             method: "DELETE",
             path: format!("/api/v1/nodes/{}", id.as_str()),
+            query: Vec::new(),
+            body: None,
+            retry: Retry::Delete,
+        })?;
+        Ok(())
+    }
+
+    fn delete_mirror(&self, id: &NodeId) -> Result<(), ApiError> {
+        require_uuid(id)?;
+        // Like `delete`: idempotent, and a 404 on a retry means an earlier attempt
+        // removed the shell (DM§10.3: an already removed shell is `Item not found`).
+        self.execute(&Request {
+            method: "DELETE",
+            path: format!("/api/v1/nodes/{}/mirror", id.as_str()),
             query: Vec::new(),
             body: None,
             retry: Retry::Delete,

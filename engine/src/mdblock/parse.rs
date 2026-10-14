@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 use super::frontmatter;
 use super::{
     CONFLICT_PREFIX, Checkbox, ItemKind, LocalDoc, LocalItem, PLACEHOLDER_TEXT, ParseError,
-    ParseWarning, READ_ONLY_PREFIX, WarningKind,
+    ParseWarning, READ_ONLY_PREFIX, STUB_PREFIX, WarningKind,
 };
 use crate::mdinline::{ConflictField, IdTag, LineTag, TagFlag, find_tags, trim_line};
 
@@ -742,6 +742,17 @@ impl<'a> Parser<'a> {
                 kind: ItemKind::Placeholder,
                 checkbox,
                 name_md: String::new(),
+                fence: None,
+            };
+        }
+        if ro && t.starts_with(STUB_PREFIX) {
+            // §15.1: a mirror stub; its text is derived and kept verbatim.
+            return Head {
+                tag,
+                extra_tags,
+                kind: ItemKind::MirrorStub,
+                checkbox,
+                name_md: t.to_owned(),
                 fence: None,
             };
         }

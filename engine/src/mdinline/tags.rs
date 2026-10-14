@@ -52,6 +52,11 @@ pub(crate) fn find_tags(line: &str) -> Vec<TagMatch> {
                         if next.is_some_and(|c| c.is_alphanumeric() || c == '-' || c == '_') {
                             continue;
                         }
+                        // `#^wf-…` is a block *link* (`[[#^wf-…]]`, the form of a mirror
+                        // stub, §15.1), a reference to a tag, not a tag.
+                        if line[..m.start()].ends_with('#') {
+                            continue;
+                        }
                     }
                     let Ok(short) = ShortId::parse(&caps[1]) else {
                         continue;

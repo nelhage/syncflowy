@@ -93,11 +93,13 @@
 //!   removed from the text together with one adjacent space. Rendering puts the tag at
 //!   the end of the first line, in the form chosen by [`TagStyle`] (`Auto`: `^wf-…` on
 //!   list items, `%%wf:…%%` on headings, where block ids are not allowed).
-//! * **Read-only forms** (§5.3, §10): an item whose id tag has the `ro` flag is rendered
-//!   from a value of tier `ReadOnly` (text prefixed with `🔒 `) or is a mirror
-//!   placeholder (text exactly [`PLACEHOLDER_TEXT`], children never rendered). The parser
-//!   strips the `🔒 ` prefix only when the `ro` flag is present, and recognises a
-//!   placeholder only by `ro` + the exact text.
+//! * **Read-only forms** (§5.3, §10, §15.1): an item whose id tag has the `ro` flag is
+//!   rendered from a value of tier `ReadOnly` (text prefixed with `🔒 `), is a mirror
+//!   placeholder (text exactly [`PLACEHOLDER_TEXT`], children never rendered), or is a
+//!   **mirror stub** (text `⧉ [[#^wf-<full>|<name>]]`, see [`stub_text`]: a link to the
+//!   placement that renders the same content in full; no children). The parser strips
+//!   the `🔒 ` prefix only when the `ro` flag is present, recognises a placeholder only
+//!   by `ro` + the exact text, and a stub only by `ro` + the [`STUB_PREFIX`].
 //! * **Conflict markers** (§6.1, §12.5): the local version of a conflicted field is kept
 //!   in the file only, as an item placed **before the real children** of the conflicted
 //!   node (at the top of the body for the root): `- ⚠ <local name md>
@@ -190,6 +192,29 @@ use emit::RItem;
 
 /// The text of a mirror placeholder item (§10).
 pub const PLACEHOLDER_TEXT: &str = "⧉ (empty or mirror)";
+/// The start of a mirror stub's text (§15.1): `⧉ [[#^wf-<short of the full placement>`.
+pub const STUB_PREFIX: &str = "⧉ [[#^wf-";
+
+/// The text of a mirror stub (§15.1): `⧉ [[#^wf-<full>|<label>]]`, a block link to the
+/// placement `full` that renders the content in full, labelled with the content's plain
+/// text name (`label`; characters that would end the link are dropped). The link works in
+/// Obsidian when that placement is a list item (headings carry no block id).
+pub fn stub_text(full: &ShortId, label: &str) -> String {
+    let label: String = label
+        .chars()
+        .map(|c| if c.is_whitespace() { ' ' } else { c })
+        .filter(|c| !matches!(c, '[' | ']' | '|' | '#' | '^'))
+        .collect::<String>()
+        .split(' ')
+        .filter(|w| !w.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if label.is_empty() {
+        format!("{STUB_PREFIX}{full}]]")
+    } else {
+        format!("{STUB_PREFIX}{full}|{label}]]")
+    }
+}
 /// Prefix of a read-only best-effort rendering (§5.3).
 pub const READ_ONLY_PREFIX: &str = "🔒 ";
 /// Prefix of a conflict marker item (§6.1).
@@ -339,6 +364,9 @@ pub enum ItemKind {
     Divider,
     /// A read-only mirror placeholder (§10): `ro` tag and [`PLACEHOLDER_TEXT`].
     Placeholder,
+    /// A read-only mirror stub (§15.1): `ro` tag and a text starting with
+    /// [`STUB_PREFIX`] (see [`stub_text`]); never has children.
+    MirrorStub,
     /// A conflict marker (§6.1); not a node.
     ConflictMarker(ConflictField),
 }
@@ -568,7 +596,7 @@ fn canonical_note(lines: &[String], cfg: &InlineConfig) -> Vec<String> {
 /// The writer's form of a parsed item (see [`normalize`]): texts of editable items are
 /// canonicalised; read-only items and conflict markers keep their text as written.
 fn local_ritem(it: &LocalItem, cfg: &InlineConfig) -> RItem {
-    let ro = has_ro(it) || it.kind == ItemKind::Placeholder;
+    let ro = has_ro(it) || matches!(it.kind, ItemKind::Placeholder | ItemKind::MirrorStub);
     let verbatim = ro || it.is_marker();
     let name = if it.kind == ItemKind::ConflictMarker(ConflictField::Name) {
         emit::marker_name(&it.name_md)
@@ -590,7 +618,7 @@ fn local_ritem(it: &LocalItem, cfg: &InlineConfig) -> RItem {
         heading: it.heading,
         checkbox: it.checkbox,
         ordered: it.ordered,
-        read_only: ro && it.kind != ItemKind::Placeholder,
+        read_only: ro && !matches!(it.kind, ItemKind::Placeholder | ItemKind::MirrorStub),
         name,
         note,
         children: it.children.iter().map(|c| local_ritem(c, cfg)).collect(),
@@ -683,8 +711,9 @@ pub struct Sticky {
     /// nodes are gone). For a list item whose layout is not `todo`, a recorded value wins
     /// over [`CheckboxPolicy`]; `todo` always renders `Open`.
     pub checkbox: BTreeMap<NodeId, Checkbox>,
-    /// Reserved for §15.1 (mirrors as origins): content node -> placement that gets the
-    /// full rendering. Always empty for now.
+    /// §15.1 (mirrors as origins): content node -> placement that got the full rendering
+    /// in the previous render. Informational here: `sync` feeds it to
+    /// `crate::mirrors::view_tree`, which decides the placements before the view is built.
     pub full_placement: BTreeMap<NodeId, NodeId>,
 }
 
@@ -712,7 +741,7 @@ pub struct ViewItem {
     pub heading: Option<u8>,
     /// `Open` or `None` (visible nodes are incomplete, so never `Ticked`), from the
     /// layout, [`Sticky`] and [`CheckboxPolicy`]; always `None` on headings, code,
-    /// dividers and placeholders.
+    /// dividers, placeholders and stubs.
     pub checkbox: Checkbox,
     /// True if the parent's layout is `numbered` (rendered `1.`, `2.`, …).
     pub ordered: bool,
@@ -720,11 +749,12 @@ pub struct ViewItem {
     pub name: MdText,
     /// The note, if the node has a non-empty one.
     pub note: Option<MdText>,
-    /// Rendered read-only (`ro` flag): a `ReadOnly` name or note tier, or a placeholder.
+    /// Rendered read-only (`ro` flag): a `ReadOnly` name or note tier, a placeholder or a
+    /// mirror stub.
     pub read_only: bool,
     /// Conflict markers for this node, rendered before the children.
     pub conflicts: Vec<ConflictMarker>,
-    /// Visible children (none for placeholders).
+    /// Visible children (none for placeholders and stubs).
     pub children: Vec<ViewItem>,
 }
 
@@ -739,7 +769,9 @@ pub enum ViewError {
 /// The visible projection of a tree from a sync root (§4.5): exactly what the file
 /// shows. Hiding rules, in order: completed nodes and everything under them (the root
 /// itself is always shown, `root_completed` records it); [`ViewExtras::hidden`]; nodes
-/// deeper than `max_depth`; children of placeholders (§10).
+/// deeper than `max_depth`; children of placeholders (§10) and of mirror stubs (§15.1;
+/// a view tree from `crate::mirrors::view_tree` has already hung the content's children
+/// under the full placement).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct View {
     /// The sync root.
@@ -868,7 +900,7 @@ fn view_ritem(v: &ViewItem, cfg: &InlineConfig) -> RItem {
         heading: v.heading,
         checkbox: v.checkbox,
         ordered: v.ordered && v.heading.is_none(),
-        read_only: v.read_only && v.kind != ItemKind::Placeholder,
+        read_only: v.read_only && !matches!(v.kind, ItemKind::Placeholder | ItemKind::MirrorStub),
         name: v.name.text.clone(),
         note: v
             .note

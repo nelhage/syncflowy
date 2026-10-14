@@ -325,6 +325,7 @@ fn every_op_kind_matches_the_simulation(mock: &MockServer) {
         Op::Delete {
             node: e.clone(),
             hidden_descendants: 0,
+            mirror: false,
         },
     ];
     let plan = plan_of(&root, ops);
@@ -494,6 +495,7 @@ fn pre_write_checks_skip_concurrent_edits(mock: &MockServer) {
         Op::Delete {
             node: z.clone(),
             hidden_descendants: 0,
+            mirror: false,
         },
         Op::UpdateLayout {
             node: gone.clone(),

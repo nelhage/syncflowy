@@ -571,6 +571,7 @@ fn render_ops(plan: &Plan, keys: &Keys) -> String {
             Op::Delete {
                 node,
                 hidden_descendants,
+                ..
             } => format!("delete {} (hidden {hidden_descendants})", k(node)),
         };
         out.push_str(&line);

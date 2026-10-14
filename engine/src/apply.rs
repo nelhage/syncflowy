@@ -25,8 +25,13 @@
 //!    inside one; a create's parent must lie inside one; updates, completions and
 //!    deletes must target nodes inside one (updates and completions may also target the
 //!    plan's [`Plan::outside`] nodes, moved out remotely, §6.2), and a root is never
-//!    deleted. A failure skips
+//!    deleted. "Inside" follows mirrors (`mirrors::MirrorIndex::in_scope`, §15.1). A
+//!    plain delete of a node that is, or holds, an origin with mirrors is refused
+//!    ([`GuardReason::HasMirrors`]; the beta API would answer 400, which is skipped the
+//!    same way if it arrives). A failure skips
 //!    the op ([`SkipReason::Guard`]); a refused op is never sent.
+//!    An `Op::Delete { mirror: true }` (a mirror root, §15.1) is sent to
+//!    `DELETE /nodes/:id/mirror`, which leaves the origin's content intact.
 //! 2. With [`ApplyOptions::pre_write_check`] (default on), `GET` the node first and skip
 //!    the op if it no longer matches: `Update*` when the current value differs from
 //!    `expected` ([`SkipReason::ChangedRemotely`]); `Move` when the live parent differs
@@ -114,6 +119,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::mirrors::MirrorIndex;
 use crate::plan::{self, CreateName, GuardReason, Op, Plan};
 use crate::state::{atomic_write, now_unix};
 use crate::tree::{
@@ -537,7 +543,13 @@ fn describe_op(op: &Op, created: &BTreeMap<NodeId, NodeId>) -> String {
         Op::Delete {
             node,
             hidden_descendants,
+            mirror: false,
         } => format!("delete {} (+{hidden_descendants} hidden)", id(node)),
+        Op::Delete {
+            node,
+            hidden_descendants,
+            mirror: true,
+        } => format!("remove mirror {} (+{hidden_descendants} hidden)", id(node)),
     }
 }
 
@@ -651,16 +663,19 @@ fn map_op(op: &Op, created: &BTreeMap<NodeId, NodeId>) -> Result<Op, NodeId> {
         Op::Delete {
             node,
             hidden_descendants,
+            mirror,
         } => Op::Delete {
             node: map_id(node, created)?,
             hidden_descendants: *hidden_descendants,
+            mirror: *mirror,
         },
     })
 }
 
-/// True if `id` is one of `roots` or lies below one of them in `tree`.
-fn within_roots(tree: &Tree, id: &NodeId, roots: &BTreeSet<NodeId>) -> bool {
-    roots.contains(id) || tree.ancestors(id).iter().any(|a| roots.contains(a))
+/// The beta API's refusal to delete a subtree holding an origin that still has mirrors
+/// (DM§10.5).
+fn is_has_mirrors(e: &ApiError) -> bool {
+    matches!(e, ApiError::InvalidRequest(m) if m.contains("has mirrors"))
 }
 
 /// Nodes of `tree` named `nonce`, oldest first.
@@ -722,6 +737,9 @@ enum Step {
 /// The mutable state of one apply.
 struct Run<'j> {
     latest: Tree,
+    /// Origin -> live shells of the remote tree the plan was made against (§15.1: the
+    /// boundary guards follow mirrors).
+    index: MirrorIndex,
     created: BTreeMap<NodeId, NodeId>,
     results: Vec<OpOutcome>,
     journal: &'j mut Journal,
@@ -755,6 +773,7 @@ impl<'a> Applier<'a> {
         roots.insert(plan.root.clone());
         let mut run = Run {
             latest: remote.clone(),
+            index: MirrorIndex::new(remote),
             created: BTreeMap::new(),
             results: vec![OpOutcome::NotRun; plan.ops.len()],
             journal,
@@ -841,11 +860,11 @@ impl<'a> Applier<'a> {
         run: &mut Run<'_>,
     ) -> Result<Step, ApplyError> {
         // 1. §8.2 guards against the latest known tree.
-        if let Some(reason) = guard(op, &run.latest, roots, outside) {
+        if let Some(reason) = guard(op, &run.latest, roots, outside, &run.index) {
             return Ok(Step::Skip(SkipReason::Guard(reason)));
         }
         // 2.–3. Pre-write GET and the live cycle check.
-        match self.precheck(op, &run.latest, roots) {
+        match self.precheck(op, &run.latest, roots, &run.index) {
             Ok(Some(reason)) => return Ok(Step::Skip(reason)),
             Ok(None) => {}
             Err(e) if is_not_found(&e) => return Ok(Step::Skip(SkipReason::Gone)),
@@ -889,6 +908,11 @@ impl<'a> Applier<'a> {
                 ..
             } => self.api.move_node(node, parent, *position),
             Op::Complete { node } => self.api.complete(node),
+            // §15.1: a mirror root goes through the mirror endpoint, which leaves the
+            // origin's content intact and never answers "has mirrors" (DM§10.3, §10.5).
+            Op::Delete {
+                node, mirror: true, ..
+            } => self.api.delete_mirror(node),
             Op::Delete { node, .. } => self.api.delete(node),
             Op::Create { .. } => unreachable!("handled above"),
         };
@@ -898,6 +922,11 @@ impl<'a> Applier<'a> {
                 Ok(Step::Done)
             }
             Err(e) if is_not_found(&e) => Ok(Step::Skip(SkipReason::Gone)),
+            // A race: a mirror was made since the plan (the merge declines such deletes
+            // from the export, §15.1). Nothing was deleted; the next merge sees it.
+            Err(e) if is_has_mirrors(&e) => {
+                Ok(Step::Skip(SkipReason::Guard(GuardReason::HasMirrors)))
+            }
             Err(e) => Ok(Step::Fail(e)),
         }
     }
@@ -1016,6 +1045,7 @@ impl<'a> Applier<'a> {
         op: &Op,
         latest: &Tree,
         roots: &BTreeSet<NodeId>,
+        index: &MirrorIndex,
     ) -> Result<Option<SkipReason>, ApiError> {
         let check = self.opts.pre_write_check;
         match op {
@@ -1080,17 +1110,22 @@ impl<'a> Applier<'a> {
                     // destination cannot be its descendant.
                     return Ok(None);
                 }
-                self.live_cycle_check(node, parent, roots)
+                self.live_cycle_check(node, parent, roots, latest, index)
             }
         }
     }
 
-    /// §8.2 against live data: walk from `dest` up to a sync root with GETs.
+    /// §8.2 against live data: walk from `dest` up to a sync root with GETs. A walk
+    /// that reaches the top level without meeting a root has still checked every real
+    /// ancestor for `node`; the destination is then in scope only through a mirror,
+    /// which the latest known tree decides (§15.1).
     fn live_cycle_check(
         &self,
         node: &NodeId,
         dest: &NodeId,
         roots: &BTreeSet<NodeId>,
+        latest: &Tree,
+        index: &MirrorIndex,
     ) -> Result<Option<SkipReason>, ApiError> {
         let mut cur = dest.clone();
         let mut seen = BTreeSet::new();
@@ -1113,6 +1148,7 @@ impl<'a> Applier<'a> {
             };
             match live.parent_id {
                 Some(p) => cur = p,
+                None if index.in_scope(latest, dest, roots) => return Ok(None),
                 None => return Ok(Some(SkipReason::Guard(GuardReason::OutsideSyncRoots))),
             }
         }
@@ -1122,13 +1158,18 @@ impl<'a> Applier<'a> {
 
 /// §8.2 guards of one (mapped) op against the latest known tree. `outside`
 /// ([`Plan::outside`]) are the nodes moved out of the root remotely that updates and
-/// completions may still target (§6.2).
+/// completions may still target (§6.2). `index` lets "inside a root" follow mirrors
+/// (§15.1).
 fn guard(
     op: &Op,
     latest: &Tree,
     roots: &BTreeSet<NodeId>,
     outside: &BTreeSet<NodeId>,
+    index: &MirrorIndex,
 ) -> Option<GuardReason> {
+    let within_roots = |tree: &Tree, id: &NodeId, roots: &BTreeSet<NodeId>| -> bool {
+        index.in_scope(tree, id, roots)
+    };
     match op {
         Op::Create { parent, .. } => {
             if !latest.contains(parent) {
@@ -1165,11 +1206,23 @@ fn guard(
                 None
             }
         }
-        Op::Delete { node, .. } => {
+        Op::Delete { node, mirror, .. } => {
             if !latest.contains(node) {
                 Some(GuardReason::UnknownNode)
             } else if roots.contains(node) || !within_roots(latest, node, roots) {
                 Some(GuardReason::OutsideRoot)
+            } else if !mirror
+                && latest.preorder(node).iter().any(|x| {
+                    latest.get(x).is_some_and(|n| {
+                        !n.is_shell()
+                            && (n.has_registered_mirrors()
+                                || !index.shells_of(latest, x).is_empty())
+                    })
+                })
+            {
+                // §15.1, DM§10.5: the API would refuse, and the merge declines such
+                // deletes; a plan still carrying one is a race or a bug.
+                Some(GuardReason::HasMirrors)
             } else {
                 None
             }
@@ -1560,6 +1613,7 @@ mod tests {
         ]);
         let roots = BTreeSet::from([id(1)]);
         let none = BTreeSet::new();
+        let idx = MirrorIndex::default();
         let mv = |n, p| Op::Move {
             node: id(n),
             parent: id(p),
@@ -1567,44 +1621,45 @@ mod tests {
             expected_parent: None,
         };
         assert_eq!(
-            guard(&mv(3, 4), &t, &roots, &none),
+            guard(&mv(3, 4), &t, &roots, &none, &idx),
             Some(GuardReason::Cycle)
         );
         assert_eq!(
-            guard(&mv(3, 3), &t, &roots, &none),
+            guard(&mv(3, 3), &t, &roots, &none, &idx),
             Some(GuardReason::Cycle)
         );
         assert_eq!(
-            guard(&mv(2, 8), &t, &roots, &none),
+            guard(&mv(2, 8), &t, &roots, &none, &idx),
             Some(GuardReason::OutsideSyncRoots)
         );
         assert_eq!(
-            guard(&mv(1, 2), &t, &roots, &none),
+            guard(&mv(1, 2), &t, &roots, &none, &idx),
             Some(GuardReason::Cycle)
         );
         assert_eq!(
-            guard(&mv(8, 2), &t, &roots, &none),
+            guard(&mv(8, 2), &t, &roots, &none, &idx),
             Some(GuardReason::OutsideSyncRoots)
         );
-        assert_eq!(guard(&mv(4, 2), &t, &roots, &none), None);
-        assert_eq!(guard(&mv(4, 1), &t, &roots, &none), None);
+        assert_eq!(guard(&mv(4, 2), &t, &roots, &none, &idx), None);
+        assert_eq!(guard(&mv(4, 1), &t, &roots, &none, &idx), None);
         assert_eq!(
-            guard(&mv(4, 99), &t, &roots, &none),
+            guard(&mv(4, 99), &t, &roots, &none, &idx),
             Some(GuardReason::UnknownNode)
         );
         let del = |n| Op::Delete {
             node: id(n),
             hidden_descendants: 0,
+            mirror: false,
         };
         assert_eq!(
-            guard(&del(1), &t, &roots, &none),
+            guard(&del(1), &t, &roots, &none, &idx),
             Some(GuardReason::OutsideRoot)
         );
         assert_eq!(
-            guard(&del(8), &t, &roots, &none),
+            guard(&del(8), &t, &roots, &none, &idx),
             Some(GuardReason::OutsideRoot)
         );
-        assert_eq!(guard(&del(4), &t, &roots, &none), None);
+        assert_eq!(guard(&del(4), &t, &roots, &none, &idx), None);
         let create = |p| Op::Create {
             temp: NodeId::temp(1),
             parent: id(p),
@@ -1612,32 +1667,32 @@ mod tests {
             note: None,
             layout: String::new(),
         };
-        assert_eq!(guard(&create(1), &t, &roots, &none), None);
+        assert_eq!(guard(&create(1), &t, &roots, &none, &idx), None);
         assert_eq!(
-            guard(&create(8), &t, &roots, &none),
+            guard(&create(8), &t, &roots, &none, &idx),
             Some(GuardReason::OutsideSyncRoots)
         );
         // Updates and completions outside the roots: only for the plan's `outside`
         // nodes (moved out remotely, §6.2); never moves or deletes.
         let complete = Op::Complete { node: id(8) };
         assert_eq!(
-            guard(&complete, &t, &roots, &none),
+            guard(&complete, &t, &roots, &none, &idx),
             Some(GuardReason::OutsideRoot)
         );
         let outside = BTreeSet::from([id(8)]);
-        assert_eq!(guard(&complete, &t, &roots, &outside), None);
+        assert_eq!(guard(&complete, &t, &roots, &outside, &idx), None);
         let rename = Op::UpdateName {
             node: id(8),
             expected: String::new(),
             name: "x".into(),
         };
-        assert_eq!(guard(&rename, &t, &roots, &outside), None);
+        assert_eq!(guard(&rename, &t, &roots, &outside, &idx), None);
         assert_eq!(
-            guard(&del(8), &t, &roots, &outside),
+            guard(&del(8), &t, &roots, &outside, &idx),
             Some(GuardReason::OutsideRoot)
         );
         assert_eq!(
-            guard(&mv(8, 2), &t, &roots, &outside),
+            guard(&mv(8, 2), &t, &roots, &outside, &idx),
             Some(GuardReason::OutsideSyncRoots)
         );
     }

@@ -45,7 +45,8 @@ pub(super) struct RItem {
     /// Prefix the text with `🔒 ` (read-only rendering, §5.3).
     pub read_only: bool,
     /// The name Markdown; for code (and multi-line name markers) the code lines joined
-    /// with `\n`. Ignored for placeholders and dividers.
+    /// with `\n`; for a mirror stub the whole stub text. Ignored for placeholders and
+    /// dividers.
     pub name: String,
     /// Note lines (empty: no note).
     pub note: Vec<String>,
@@ -125,7 +126,7 @@ fn first_line(it: &RItem, style: TagStyle) -> (String, Option<(String, String)>)
             parts.push(format_conflict_tag(field));
         }
         kind => {
-            if it.read_only && kind != ItemKind::Placeholder {
+            if it.read_only && !matches!(kind, ItemKind::Placeholder | ItemKind::MirrorStub) {
                 parts.push(READ_ONLY_PREFIX.trim_end().to_owned());
             }
             match kind {
@@ -134,6 +135,8 @@ fn first_line(it: &RItem, style: TagStyle) -> (String, Option<(String, String)>)
                 ItemKind::Quote => parts.push(format!("> {}", it.name)),
                 ItemKind::Divider => parts.push("---".to_owned()),
                 ItemKind::Placeholder => parts.push(PLACEHOLDER_TEXT.to_owned()),
+                // The stub text as built by the view (or as read, verbatim).
+                ItemKind::MirrorStub => parts.push(it.name.clone()),
                 ItemKind::Code => {
                     let f = fence_for(&it.name);
                     parts.push(f.clone());

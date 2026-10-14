@@ -139,6 +139,8 @@ A note on "Planning": the lines right under the heading.
 	x = 1
 	```
 - ⧉ (empty or mirror) ^wf-b2863eed4436-ro
+- Weekly review ^wf-3c4d5e6f7a8b
+	- ⧉ [[#^wf-472caa53fd65|Draft the spec]] ^wf-11aa22bb33cc-ro
 ```
 
 * **Frontmatter**: `workflowy:` names the sync root. `syncflowy:` holds options (`headings`, `ids`, `checkboxes`,
@@ -159,6 +161,9 @@ A note on "Planning": the lines right under the heading.
 * **Completed nodes are not in the file.** `- [x]` is a command: see ticking below.
 * A node whose text cannot be represented exactly is shown with `🔒` and the `-ro` tag flag, and edits to it are
   refused.
+* **Mirrors** (beta API only, see Safety): a mirror shows its origin's content in place, with the mirror's own
+  tag. When the same content appears twice in a file, the second placement is a **stub**: `⧉ [[#^wf-<full>|name]]`,
+  a read-only link to the line that renders it in full.
 
 ## Safety behaviours
 
@@ -183,10 +188,24 @@ A note on "Planning": the lines right under the heading.
   node's real children. It is never synced. Edit the real line if you want your version, then delete the
   marker. Deleting the marker marks the conflict resolved. When a node was moved out of the file in Workflowy
   and both sides edited the same field, Workflowy wins and your text is only logged.
-* **Shells and placeholders** (§10). Mirrors appear in the API as empty "shell" nodes. They render as
-  `⧉ (empty or mirror)` with the `-ro` flag, their children are not shown, and edits or deletes of them are
-  refused without `--force`. The test is: empty name, no note, layout `bullets`. A genuinely empty bullet looks
-  the same.
+* **Mirrors as their origins** (§15.1), on the **beta API** (`--api-url https://beta.workflowy.com`, DM§10.5).
+  The engine detects the beta semantics from the export (any node with `data.mirror`) and then treats a mirror
+  as the node it mirrors, as the web UI does: a mirror inside the synced subtree shows its origin's text and
+  children under the mirror's own tag, even when the origin lies outside the subtree; edits, ticks, new items
+  and moves under it reach the origin; deleting its line removes just that mirror (`DELETE /nodes/:id/mirror`),
+  never the content. Each content node is rendered once per file: a second placement (a mirror of a node that
+  is already in the file, or the origin of a mirror shown first) is a read-only **stub** line
+  `⧉ [[#^wf-<full>|name]] ^wf-<mirror>-ro`; edits and ticks of a stub are refused and rewritten, items typed
+  under it are lifted to its parent and reported, and the choice of which placement is full sticks across
+  renders. A delete whose subtree holds an origin that still has mirrors is refused and reported (`--force`
+  does not override it: the API refuses too, and removing a mirror is a visible change for Workflowy users);
+  remove the mirrors in Workflowy first. A mirror whose origin was deleted (an orphan) renders as the
+  placeholder below. Creating a mirror from Markdown and the UI's promotion of a mirror when its origin is
+  deleted are not supported.
+* **Shells and placeholders** (§10), on **production**, whose API has no mirror metadata. Mirrors appear as
+  empty "shell" nodes. They render as `⧉ (empty or mirror)` with the `-ro` flag, their children are not shown,
+  and edits or deletes of them are refused without `--force`. The test is: empty name, no note, layout `bullets`.
+  A genuinely empty bullet looks the same. On an export with mirror metadata the heuristic is off.
 * **Safe mode** (§9.1 guard 1). If the file's `gen` is missing or no longer in the render history (for example a
   hand-written or stale file), the engine cannot know what you changed. It then pushes text edits and creates,
   but applies no deletes, moves or reorders, and says so in the report.
@@ -219,7 +238,10 @@ the server that talks to Workflowy: there must be only one engine per account.
 ## Known limitations
 
 * One engine, one writer. Several engines on one root are not supported.
-* Mirrors are not created or followed (design §15.1 is future work); shells are placeholders.
+* Mirrors are followed only on the beta API (§15.1; on production shells are placeholders). Mirrors are never
+  created from Markdown, a stub is read-only, and an origin that still has mirrors cannot be deleted from
+  Markdown. A mirror's hidden persisted children (DM§10.5) are never shown and go with the mirror when it is
+  removed. Observed on the beta host on 2026-10-13 only through the mock.
 * Dates render compactly only for the observed forms; ranges, times, and locale or 24-hour variants stay literal HTML.
 * Markdown link titles are not supported (`[a](b "t")` is literal text). Images are literal text.
 * A node that cannot round-trip is shown read-only (`🔒`); edit it in Workflowy.
@@ -241,6 +263,7 @@ location.
 | `mdinline.rs`, `mdinline/*` | how the UI stores code-block names (§13 Q2); a line break typed into a name becomes a space; tag keyword case and spacing; Obsidian's whitespace set, block-id syntax, autolink and inline-math rules (`$10-$20` keeps its `$` escaped); date locale not modelled; character references kept literally |
 | `mdblock.rs`, `mdblock/*` | whether Obsidian keeps whitespace-only note lines; code at heading depth; no checkbox on quotes; an explicit null `depth` means unlimited |
 | `tree.rs` | a shell whose layout was changed later; ties of equal priorities (server breaks them by creation sequence) |
+| `mirrors.rs` | the sticky choice of the full placement; a content whose placements are all hidden keeps the previous choice; a refused mirror delete keeps the whole subtree |
 | `merge.rs`, `merge/*` | foreign tags of other roots; remote wins silently for a conflict that has no marker form; moved-out edit conflicts only reported; "nearby" for identity repair; divider and `---` exceptions; a layout changed on both sides keeps the remote's; diff3 treats adjacent-line edits as mergeable; cross-file bases |
 | `plan.rs` | brake thresholds; the nonce in create names; the create-pipeline check against the mock's model; an emptied file that deletes nothing is not braked |
 | `apply.rs` | two minutes of clock skew; the extra pre-write GET checks |
@@ -258,6 +281,7 @@ location.
 | `mdinline` | WF-HTML inline <-> Markdown inline, representability tiers, id-tag syntax |
 | `mdblock` | the file format: frontmatter, parser, renderer, the view of a tree |
 | `merge` | three-way merge of fields, structure, completion and order; identity repair; conflicts; cross-file moves |
+| `mirrors` | mirrors as their origins (§15.1): the per-root view tree, the real tree, and the translation of a merge result between them |
 | `plan` | turns the merge result into ordered API operations; guards and mass-change brakes |
 | `apply` | executes a plan: journal, pre-write checks, two-step creates, crash recovery, verification |
 | `state` | checkpoints, render history, pending deletes, atomic writes, per-root lock |
@@ -267,5 +291,5 @@ location.
 | `testsupport` | runs the Python mock server for tests |
 | `error` | the engine-level error type |
 
-The pure core (`tree`, `wfhtml`, `mdinline`, `mdblock`, `merge`, `plan`) does no I/O; the contract between modules
+The pure core (`tree`, `wfhtml`, `mdinline`, `mdblock`, `merge`, `mirrors`, `plan`) does no I/O; the contract between modules
 is the doc comment of `src/lib.rs`.

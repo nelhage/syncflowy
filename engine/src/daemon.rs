@@ -591,6 +591,7 @@ fn event_kind(e: &ReportEvent) -> Option<EventKind> {
         | ReportEvent::DuplicateTag { .. }
         | ReportEvent::ReadOnlyEditRefused { .. }
         | ReportEvent::PlaceholderDeleteRefused { .. }
+        | ReportEvent::MirrorDeleteRefused { .. }
         | ReportEvent::Conflict { .. }
         | ReportEvent::MovedOutConflict { .. }
         | ReportEvent::ConflictLost { .. }

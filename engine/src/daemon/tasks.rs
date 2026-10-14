@@ -65,7 +65,10 @@ pub fn strip_tasks_fields(local: &LocalDoc, base: &LocalDoc) -> Option<(LocalDoc
         for it in items {
             if it.checkbox == Checkbox::Ticked
                 && !it.is_marker()
-                && !matches!(it.kind, ItemKind::Code | ItemKind::Placeholder)
+                && !matches!(
+                    it.kind,
+                    ItemKind::Code | ItemKind::Placeholder | ItemKind::MirrorStub
+                )
             {
                 let before = it.tag.as_ref().and_then(|t| base.get(&t.short).copied());
                 if let Some(name) = strip_done_fields(&it.name_md, before) {

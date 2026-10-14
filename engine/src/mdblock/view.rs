@@ -1,5 +1,6 @@
 //! [`View::build`]: the visible projection of a tree (§4.5) with kinds (§4.3), checkboxes
-//! (§4.3, §12.4), tiers (§5.3), placeholders (§10) and conflict markers (§6.1).
+//! (§4.3, §12.4), tiers (§5.3), placeholders (§10), mirror stubs (§15.1) and conflict
+//! markers (§6.1).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -8,7 +9,8 @@ use super::{
     ViewItem,
 };
 use crate::mdinline::{ConflictField, FieldKind, InlineConfig, MdText, Tier, md_to_wf, wf_to_md};
-use crate::tree::{Node, NodeId, Tree};
+use crate::tree::{Node, NodeId, ShortId, Tree};
+use crate::wfhtml::to_plain_text;
 
 /// Layout values with a meaning for the file (§4.3, UI:G2).
 const LAYOUT_TODO: &str = "todo";
@@ -41,17 +43,31 @@ struct Builder<'a> {
     extras: &'a ViewExtras,
     conflicts: BTreeMap<NodeId, Vec<ConflictMarker>>,
     seen: BTreeSet<NodeId>,
+    /// The tree carries the beta API's mirror metadata (DM§10.5), so the §10 heuristic
+    /// does not apply: shells are known, not guessed.
+    mirror_aware: bool,
+    /// §15.1: content node -> the placement rendered in full (the link target of stubs).
+    full: BTreeMap<NodeId, NodeId>,
 }
 
-fn kind_of(node: &Node) -> ItemKind {
+/// The kind of a node: a divider, a §10 placeholder (a shell by the heuristic when
+/// the tree has no mirror metadata, or an orphan shell), a §15.1 stub, or by layout.
+pub(crate) fn kind_of(node: &Node, mirror_aware: bool) -> ItemKind {
     // A divider has an empty name by design (UI:G2 sets its note to "").
     if node.layout == LAYOUT_DIVIDER && node.name.is_empty() {
         return ItemKind::Divider;
     }
+    if node.stub {
+        return ItemKind::MirrorStub;
+    }
+    // An orphan shell has no content to show (DM§10.4): a placeholder, as in §10.
+    if node.is_orphan_shell() {
+        return ItemKind::Placeholder;
+    }
     // The heuristic only matches layout `bullets` (UI:H2: a mirror does not copy its
     // origin's layout), so an empty todo, numbered, code or quote node is an ordinary
     // item with its children shown.
-    if node.looks_like_mirror_shell() {
+    if !mirror_aware && node.looks_like_mirror_shell() {
         // §10: rendered as a read-only placeholder, children never rendered.
         return ItemKind::Placeholder;
     }
@@ -84,25 +100,49 @@ impl Builder<'_> {
         out
     }
 
+    /// §15.1: the text of a stub placement: a link to the full placement of the same
+    /// content, labelled with the content's plain-text name. Without a full placement in
+    /// the tree (a stub outside any view, which should not be rendered) the link names
+    /// the content itself.
+    fn stub_text(&self, node: &Node) -> String {
+        let content = node.content_id();
+        let target = self.full.get(content).unwrap_or(content);
+        let short = target
+            .short()
+            .unwrap_or_else(|| ShortId::parse("000000000000").expect("hex"));
+        super::stub_text(&short, &to_plain_text(&node.name))
+    }
+
     fn item(&mut self, node: &Node, depth: u32, parent_numbered: bool) -> ViewItem {
         let inline = &self.cfg.inline;
-        let kind = kind_of(node);
+        let kind = kind_of(node, self.mirror_aware);
         let name_kind = if kind == ItemKind::Code {
             FieldKind::Code
         } else {
             FieldKind::Name
         };
-        let name = md_text(&node.name, name_kind, inline, true);
-        let note = node
-            .note
-            .as_deref()
-            .filter(|n| !n.is_empty())
-            .map(|n| md_text(n, FieldKind::Note, inline, true));
-        let read_only = kind == ItemKind::Placeholder
+        let (name, note) = if kind == ItemKind::MirrorStub {
+            (
+                MdText {
+                    text: self.stub_text(node),
+                    tier: Tier::Exact,
+                },
+                None,
+            )
+        } else {
+            (
+                md_text(&node.name, name_kind, inline, true),
+                node.note
+                    .as_deref()
+                    .filter(|n| !n.is_empty())
+                    .map(|n| md_text(n, FieldKind::Note, inline, true)),
+            )
+        };
+        let read_only = matches!(kind, ItemKind::Placeholder | ItemKind::MirrorStub)
             || name.tier == Tier::ReadOnly
             || note.as_ref().is_some_and(|n| n.tier == Tier::ReadOnly);
         let heading = (depth <= u32::from(self.cfg.headings)).then_some(depth as u8);
-        let children = if kind == ItemKind::Placeholder {
+        let children = if matches!(kind, ItemKind::Placeholder | ItemKind::MirrorStub) {
             Vec::new()
         } else {
             self.children(node, depth + 1)
@@ -174,12 +214,23 @@ pub(super) fn build(
     }
     let mut root_conflicts = conflicts.remove(root).unwrap_or_default();
     sort_markers(&mut root_conflicts);
+    let mirror_aware = tree.has_mirror_metadata();
+    let full = if mirror_aware {
+        tree.iter()
+            .filter(|n| !n.stub && !n.is_orphan_shell())
+            .map(|n| (n.content_id().clone(), n.id.clone()))
+            .collect()
+    } else {
+        BTreeMap::new()
+    };
     let mut b = Builder {
         tree,
         cfg,
         extras,
         conflicts,
         seen: BTreeSet::from([root.clone()]),
+        mirror_aware,
+        full,
     };
     let items = b.children(root_node, 1);
     // Markers of nodes that are not in the view are dropped from the file (merge reports
