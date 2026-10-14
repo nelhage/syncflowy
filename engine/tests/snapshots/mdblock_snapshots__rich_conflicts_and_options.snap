@@ -1,0 +1,96 @@
+---
+source: tests/mdblock_snapshots.rs
+expression: md
+---
+---
+workflowy: 000000000001
+syncflowy: {headings: 1, ids: dataview, checkboxes: all, depth: 3, gen: 7}
+tags: [workflowy, sync]
+---
+Free text here is the sync root's note.
+It has **two** lines & an ampersand.
+
+- ⚠ local note %%wf-conflict:note%%
+	My local preamble
+
+	with a gap
+
+# Planning [wid:: 000000000002]
+Note on "Planning": lines right under the heading.
+
+- [ ] Draft the *spec* [wid:: 000000000003]
+	A note line.
+
+	After an empty line.
+	\- not a child, a note line
+	- ⚠ Draft the *spec* (my words) %%wf-conflict:name%%
+	- ⚠ local note %%wf-conflict:note%%
+		my note
+	- [ ] Write the mock [wid:: 000000000004]
+	- [ ] Deep [wid:: 000000000007]
+- [ ] Numbered steps [wid:: 00000000000c]
+	1. [ ] first [wid:: 00000000000d]
+	2. third [wid:: 00000000000f]
+		with a note
+- [ ] Board layout is kept as a plain item [wid:: 000000000010]
+- [ ] An h1 inside the outline [wid:: 000000000012]
+
+# ``` [wid:: 000000000013]
+fn main() {
+    println!("hi & bye");
+}
+```
+runs on save
+
+- ⚠ ``` %%wf-conflict:name%%
+	fn main() {
+	    todo!()
+	}
+	```
+
+# > To be or not to be [wid:: 000000000014]
+
+# --- [wid:: 000000000015]
+
+# ⧉ (empty or mirror) [wid:: 000000000016-ro]
+
+# ⧉ (empty or mirror) [wid:: 000000000018-ro]
+
+# 🔒 broken bold [wid:: 000000000019-ro]
+a malformed name (UI:F1)
+
+# 🔒 line one ⏎ line two [wid:: 00000000001a-ro]
+
+# 🔒 ```` [wid:: 00000000001b-ro]
+x
+```
+y
+````
+
+# **bold** and unknown markup [wid:: 00000000001c]
+
+# See https://example.com/a?b=1&c=2 on 📅 2026-01-15 and at 📅 2026-01-15 14:30 [wid:: 00000000001d]
+
+# <u>underlined</u>, <span class="colored c-red">red</span>, [a link](https://example.com) and #tag @who [wid:: 00000000001e]
+
+# 1\. not a list [wid:: 00000000001f]
+
+# \- not a child [wid:: 000000000020]
+
+# \# not a heading [wid:: 000000000021]
+
+# \[ ] not a box [wid:: 000000000022]
+
+# a \^wf-8e1f00aa2b3c in the text and %\% percents [wid:: 000000000023]
+
+# A todo with children [wid:: 000000000027]
+
+- [ ] leaf one [wid:: 000000000028]
+- [ ] leaf two [wid:: 000000000029]
+	&#32;&#32;indented note line
+
+# Trailing empty note lines [wid:: 00000000002a]
+first
+
+# Leading empty note line [wid:: 00000000002b]
+second
