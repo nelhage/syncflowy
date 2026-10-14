@@ -35,7 +35,7 @@ impl Env {
         let client = Client::new(mock.client_config());
         let dir = tempfile::tempdir().expect("tempdir");
         let mut cfg = SyncConfig::new(dir.path().join("state"));
-        cfg.clock = fixed_clock;
+        cfg.clock = sync::Clock::new(fixed_clock);
         Env {
             mock,
             client,

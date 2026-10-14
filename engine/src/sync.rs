@@ -96,6 +96,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -145,8 +146,8 @@ pub struct SyncConfig {
     pub todo_from_checkbox: bool,
     /// Compare-and-swap retries (§9). Default 3.
     pub cas_retries: u32,
-    /// The clock (unix seconds); tests inject a fixed one.
-    pub clock: fn() -> i64,
+    /// The clock (unix seconds); tests and the daemon inject their own.
+    pub clock: Clock,
 }
 
 /// The system clock in unix seconds.
@@ -155,6 +156,39 @@ pub fn unix_now() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0)
+}
+
+/// A source of unix seconds ([`SyncConfig::clock`]). The real clock is used only by
+/// `main`; tests and the daemon's fake time inject their own.
+#[derive(Clone)]
+pub struct Clock(Arc<dyn Fn() -> i64 + Send + Sync>);
+
+impl Clock {
+    /// The system clock ([`unix_now`]).
+    pub fn system() -> Clock {
+        Clock(Arc::new(unix_now))
+    }
+
+    /// A clock reading `f`.
+    pub fn new(f: impl Fn() -> i64 + Send + Sync + 'static) -> Clock {
+        Clock(Arc::new(f))
+    }
+
+    /// A clock that always reads `t`.
+    pub fn fixed(t: i64) -> Clock {
+        Clock::new(move || t)
+    }
+
+    /// The current time in unix seconds.
+    pub fn now(&self) -> i64 {
+        (self.0)()
+    }
+}
+
+impl std::fmt::Debug for Clock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Clock(now = {})", self.now())
+    }
 }
 
 impl SyncConfig {
@@ -171,7 +205,7 @@ impl SyncConfig {
             fast_path_creates: true,
             todo_from_checkbox: false,
             cas_retries: 3,
-            clock: unix_now,
+            clock: Clock::system(),
         }
     }
 }
@@ -421,7 +455,7 @@ pub fn render_once(
         remote = export_tree(api)?;
     }
 
-    let now = (cfg.clock)();
+    let now = cfg.clock.now();
     let generation = next_generation(&store, &root_id, existing.as_ref().map(|c| c.generation))?;
     let view = View::build(&remote, &root_id, doc, &ViewExtras::default())?;
     if view.root_completed {
@@ -565,7 +599,7 @@ fn prepare(
     cross: &CrossFile,
     roots: &BTreeSet<NodeId>,
 ) -> Result<Prepared, Error> {
-    let now = (cfg.clock)();
+    let now = cfg.clock.now();
     let root = a.root.clone();
     let force = cfg.force || a.doc.frontmatter.force;
     let checkpoint = store.load_checkpoint(&root)?;
@@ -824,7 +858,7 @@ fn finish(
     p: &Planned,
     remote: &Tree,
 ) -> Result<Finished, Error> {
-    let now = (cfg.clock)();
+    let now = cfg.clock.now();
     let root = a.root.clone();
     let mut fm = a.doc.frontmatter.clone();
     fm.force = false;
