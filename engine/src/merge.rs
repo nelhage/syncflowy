@@ -71,11 +71,15 @@
 //! `mdinline::write_value(base_value, local_md, …)` (§5.2) and are canonical WF-HTML;
 //! `lost: true` produces [`ReportEvent::LossyWrite`]. Layout changes only when the
 //! Markdown explicitly changed kind (§4.3): fence added/removed (`code-block` /
-//! `bullets`), quote added/removed (`quote-block` / `bullets`), all visible children of
-//! a parent switched to/from ordered markers (`numbered` / `bullets`). Checkbox forms
-//! never change layouts; new items typed with `[ ]` get `todo` only if
-//! [`MergeConfig::todo_from_checkbox`]. A layout conflict has no marker form: remote
-//! wins silently (UNVERIFIED design choice).
+//! `bullets`), quote added/removed (`quote-block` / `bullets`), `- ---` typed over an
+//! item or replaced by text (`divider` / `bullets`), all visible children of a plain
+//! item whose layout is `bullets` switched to ordered markers (`numbered`), or of a
+//! `numbered` one switched back (`bullets`). Every other layout (`todo`, `h1`, `board`,
+//! `p`, …) is kept as is (§4.3 table), and code, quote and divider items never take a
+//! layout from their children. Checkbox forms never change layouts; new items typed
+//! with `[ ]` get `todo` only if [`MergeConfig::todo_from_checkbox`]. A layout conflict
+//! has no marker form: remote wins silently (UNVERIFIED design choice); if that leaves
+//! a `- ---` line on a node that is not a divider, its empty name is not pushed either.
 //! Read-only items (base item had the `ro` flag or the base value classifies as
 //! `Tier::ReadOnly`) and placeholders (§10) are never pushed unless `force`
 //! ([`ReportEvent::ReadOnlyEditRefused`]); the remote value is kept and the file is

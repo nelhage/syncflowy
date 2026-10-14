@@ -23,7 +23,7 @@ use super::{
 };
 use crate::mdblock::{Checkbox, ConflictMarker, ItemKind, LocalDoc, LocalItem};
 use crate::mdinline::{ConflictField, FieldKind, IdTag, InlineConfig, TagFlag, Tier};
-use crate::tree::{Node, NodeId, Position, ShortId, Tree};
+use crate::tree::{DEFAULT_LAYOUT, Node, NodeId, Position, ShortId, Tree};
 
 /// How a local item was identified (§4.4).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -254,42 +254,62 @@ fn non_markers(items: &[LocalItem]) -> Vec<&LocalItem> {
     items.iter().filter(|i| !i.is_marker()).collect()
 }
 
-/// §4.3: a parent's children all switched to (or from) ordered markers.
-fn numbered_target(base_children: &[LocalItem], local_children: &[LocalItem]) -> Option<String> {
+/// §4.3: a parent's children all switched to (or from) ordered markers. Only a parent
+/// whose layout is `bullets` (to `numbered`) or `numbered` (back to `bullets`) can
+/// change this way: every other layout (`todo`, `h1`, `board`, `p`, …) is "kept as is"
+/// (§4.3 table), so ordered children typed under it do not touch it.
+fn numbered_target(
+    base_layout: &str,
+    base_children: &[LocalItem],
+    local_children: &[LocalItem],
+) -> Option<String> {
     let b = non_markers(base_children);
     let l = non_markers(local_children);
     let b_all = !b.is_empty() && b.iter().all(|x| x.ordered);
     let l_all = !l.is_empty() && l.iter().all(|x| x.ordered);
     let l_any = l.iter().any(|x| x.ordered);
-    if l_all && !b_all {
+    if l_all && !b_all && base_layout == DEFAULT_LAYOUT {
         Some("numbered".to_owned())
-    } else if b_all && !l.is_empty() && !l_any {
-        Some("bullets".to_owned())
+    } else if b_all && !l.is_empty() && !l_any && base_layout == "numbered" {
+        Some(DEFAULT_LAYOUT.to_owned())
     } else {
         None
     }
 }
 
-/// §4.3: the layout the Markdown explicitly asks for, if its kind changed.
-fn layout_target(base: &LocalItem, local: &LocalItem) -> Option<String> {
-    use ItemKind::{Code, ConflictMarker, Placeholder, Quote};
-    let target = match (base.kind, local.kind) {
+/// The layout an item kind written in Markdown stands for, for the kinds that name
+/// one explicitly (§4.3): a fence, a quote, a `---` divider.
+fn kind_layout(kind: ItemKind) -> Option<&'static str> {
+    match kind {
+        ItemKind::Code => Some("code-block"),
+        ItemKind::Quote => Some("quote-block"),
+        ItemKind::Divider => Some("divider"),
+        _ => None,
+    }
+}
+
+/// §4.3: the layout the Markdown explicitly asks for, if its kind changed. `base_layout`
+/// is the node's layout in the base.
+///
+/// * The item's own kind changed to a fence, a quote or `---`: that kind's layout; from
+///   one of them back to a plain item: `bullets`.
+/// * Otherwise only a plain item can change, and only through the ordered markers of its
+///   children ([`numbered_target`]). Code, quote and divider items, and every layout
+///   §4.3 keeps as is, never derive a layout change from their children.
+fn layout_target(base: &LocalItem, local: &LocalItem, base_layout: &str) -> Option<String> {
+    use ItemKind::{Bullet, ConflictMarker, Placeholder};
+    match (base.kind, local.kind) {
         (Placeholder, _) | (_, Placeholder) | (ConflictMarker(_), _) | (_, ConflictMarker(_)) => {
-            return None;
+            None
         }
-        (b, Code) if b != Code => "code-block",
-        (Code, l) if l != Code => {
-            if l == Quote {
-                "quote-block"
-            } else {
-                "bullets"
-            }
-        }
-        (b, Quote) if b != Quote => "quote-block",
-        (Quote, l) if l != Quote => "bullets",
-        _ => return numbered_target(&base.children, &local.children),
-    };
-    Some(target.to_owned())
+        (b, l) if b != l => match kind_layout(l) {
+            Some(t) => Some(t.to_owned()),
+            // Back to a plain item from a fence, quote or divider.
+            None => Some(DEFAULT_LAYOUT.to_owned()),
+        },
+        (Bullet, Bullet) => numbered_target(base_layout, &base.children, &local.children),
+        _ => None,
+    }
 }
 
 fn walk_doc<'a>(items: &'a [LocalItem], out: &mut Vec<&'a LocalItem>) {
@@ -877,7 +897,7 @@ impl<'a, 'c> Engine<'a, 'c> {
             }
         }
 
-        if let Some(t) = layout_target(bi, li)
+        if let Some(t) = layout_target(bi, li, &base_node.layout)
             && t != base_node.layout
         {
             if ro_item {
@@ -1236,7 +1256,7 @@ impl<'a, 'c> Engine<'a, 'c> {
                 );
             }
         }
-        if let Some(t) = numbered_target(&base_doc.items, &local_doc.items)
+        if let Some(t) = numbered_target(&base_root.layout, &base_doc.items, &local_doc.items)
             && t != base_root.layout
         {
             self.merge_layout(&root, &base_root.layout, &remote_root.layout, &t, &mut push);
@@ -1255,7 +1275,18 @@ impl<'a, 'c> Engine<'a, 'c> {
         let b = self.inp.base.get(nd).expect("base item in base").clone();
         let r = self.inp.remote.get(nd).expect("existing").clone();
         let mut push = FieldPush::default();
-        if let Some(md) = &d.name {
+        if let Some(t) = &d.layout {
+            self.merge_layout(nd, &b.layout, &r.layout, t, &mut push);
+        }
+        // A `- ---` line has no name of its own: its empty name only stands for the
+        // divider. If the node does not end up a divider (the remote changed the layout
+        // too and won), pushing the empty name would blank the node and turn it into a
+        // suspected mirror shell (§10), so the name is left alone.
+        let divider_lost = self.items[i].item.kind == ItemKind::Divider
+            && self.m.get(nd).is_some_and(|x| x.layout != "divider");
+        if let Some(md) = &d.name
+            && !divider_lost
+        {
             self.merge_name(nd, d.name_kind, &b.name, &r.name, md, ticked, &mut push);
         }
         if let Some(md) = &d.note {
@@ -1267,9 +1298,6 @@ impl<'a, 'c> Engine<'a, 'c> {
                 ticked,
                 &mut push,
             );
-        }
-        if let Some(t) = &d.layout {
-            self.merge_layout(nd, &b.layout, &r.layout, t, &mut push);
         }
         self.commit_push(nd, push);
     }
@@ -1370,7 +1398,7 @@ impl<'a, 'c> Engine<'a, 'c> {
                 } else if li.checkbox == Checkbox::Open && self.inp.cfg.todo_from_checkbox {
                     "todo"
                 } else {
-                    crate::tree::DEFAULT_LAYOUT
+                    DEFAULT_LAYOUT
                 }
             }
         };
