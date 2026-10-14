@@ -1319,6 +1319,19 @@ fn empty_file_brake_holds_when_the_merge_keeps_a_deleted_node() {
 }
 
 #[test]
+fn empty_file_that_deletes_nothing_is_not_braked() {
+    // Every item of the file was cut into another file of the run (§6.4): the other
+    // file moves the nodes, this merge deletes nothing, so nothing is lost (§8.3).
+    let mut sc = wide_scenario(3, 0, 0, 0, &[]);
+    sc.merge.stats.local_items = 0;
+    assert_eq!(brake(&sc), None);
+    // One delete is enough to make the empty file a brake again.
+    let mut sc = wide_scenario(3, 0, 1, 0, &[]);
+    sc.merge.stats.local_items = 0;
+    assert_eq!(brake(&sc), Some(Brake::EmptyFile { base_visible: 3 }));
+}
+
+#[test]
 fn completion_brake_has_its_own_higher_thresholds() {
     // Ticks are not deletes: 10 of 20 (50%) pass, where 10 deletes would brake.
     assert_eq!(brake(&wide_scenario(20, 0, 0, 10, &[])), None);

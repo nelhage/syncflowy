@@ -243,6 +243,63 @@ fn pasted_edit_raced_by_a_remote_rename_becomes_a_conflict() {
     settled(&t);
 }
 
+/// §8.3: a file emptied by cutting every item into another file of the run deletes
+/// nothing (the destination moves the nodes), so it is not an emptied file to brake:
+/// both files commit, and later cycles render remote changes into the source file
+/// instead of braking on its stale base forever.
+#[test]
+fn file_emptied_into_another_file_is_not_braked() {
+    let t = two_files();
+    let a_text = read(&t.a);
+    let fm_end = a_text.find("\n---\n").unwrap() + 5;
+    let (frontmatter, body) = a_text.split_at(fm_end);
+    std::fs::write(&t.a, frontmatter).unwrap();
+    let b_text = read(&t.b);
+    let dest = line_of(&b_text, &t.target).to_owned();
+    let pasted: String = body.lines().map(|l| format!("\t{l}\n")).collect();
+    edit(&t.b, &format!("{dest}\n"), &format!("{dest}\n{pasted}"));
+
+    let api = TestApi::new(&t.env.client);
+    let rs = reports(&t.env, &api, &[t.a.clone(), t.b.clone()]);
+    for r in &rs {
+        assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    }
+    assert!(
+        api.calls().iter().all(|c| !c.starts_with("delete")),
+        "{:?}",
+        api.calls()
+    );
+    let tree = t.env.export();
+    assert!(tree.children(&t.ra).is_empty());
+    assert_eq!(
+        child_names(&tree, &t.target),
+        ["Stays in alpha", "Wanders off"]
+    );
+    assert_eq!(tree.parent(&t.x_child), Some(&t.x));
+    let b_text = read(&t.b);
+    assert!(line_of(&b_text, &t.keep).starts_with("\t- "), "{b_text}");
+    assert!(
+        line_of(&b_text, &t.x_child).starts_with("\t\t- "),
+        "{b_text}"
+    );
+    settled(&t);
+
+    // A collaborator adds an item to the emptied root: it reaches the file.
+    let added = t.env.ui_create(Some(&t.ra), "New remote item in alpha");
+    let rs = reports(&t.env, &t.env.client, &[t.a.clone(), t.b.clone()]);
+    assert!(
+        matches!(rs[0].outcome, SyncOutcome::Synced { .. }),
+        "{rs:#?}"
+    );
+    assert_eq!(rs[1].outcome, SyncOutcome::Unchanged, "{rs:#?}");
+    let a_text = read(&t.a);
+    assert!(
+        line_of(&a_text, &added).contains("New remote item in alpha"),
+        "{a_text}"
+    );
+    settled(&t);
+}
+
 #[test]
 fn edits_in_both_files_in_one_run() {
     let t = two_files();
