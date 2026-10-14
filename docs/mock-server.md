@@ -220,6 +220,11 @@ These routes are under `/_mock/`, need **no auth**, and always answer with JSON.
    corrected from an earlier "GET → page, other methods → empty"). It fits all 27 HTML 404s in the request log and
    golden `http_unknown_routes`; it is listed here only because the rule is fitted [I], not derived.
 4. **Admin routes** under `/_mock/` do not exist in production. In production that path would be an unknown route.
+5. **Generated ids always have a letter in their short id.** Production UUIDv4s are unfiltered, so about 0.36% of them
+   end in 12 decimal digits. Such a short id is its own upper case, which makes the conformance scenarios that send
+   `short(p).upper()` impossible to normalise consistently (`<P:short>` on one run, `<P:short:UPPER>` on another) and
+   failed `ids_list_parent_forms_ok` at random. `ops.new_node_id` redraws those ids, with and without `--id-seed`. The
+   recorder (`syncflowy-conformance record`) re-runs a scenario whose production ids came out that way.
 5. Optional headers. The mock sends the static security headers, `server: nginx` and `vary`. It omits
    `content-security-policy`, `set-cookie`, gzip and chunked encoding, and always sends `content-length`.
 
@@ -371,7 +376,7 @@ Review notes (2026-10-12) on the properties a sync-engine test suite relies on:
   `int(clock() + offset)`. `POST /_mock/clock` moves the offset for black-box clients. Calendar keys use the same clock.
 - **Deterministic ids.** `running_mock(id_seed=N)` / `--id-seed N` draws UUIDv4s from `random.Random(N)`; the sequence
   restarts on every reset, so a test sees the same ids on every run. Without it ids are random `uuid4()`, as in
-  production.
+  production, except that an id whose short id is all digits is redrawn either way (deviation 5 above).
 - **Keep-alive.** `running_mock` and the CLI set uvicorn's `timeout_keep_alive` to 3600 s. With uvicorn's 5 s default, a
   long-lived client that reuses a pooled connection just as the server closes it gets a spurious
   `RemoteProtocolError: Server disconnected`. This is the most likely cause of the one unexplained test failure seen in an
