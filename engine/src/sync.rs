@@ -85,11 +85,16 @@
 //!
 //! # Several files (§6.4)
 //!
-//! `sync_all` parses every file first, takes one export for the run, merges, plans and
-//! applies each file in order, re-exports once, and then renders, writes and commits
-//! each file. A file whose apply failed is not rendered; the other files continue.
+//! `sync_all` parses every file first. Two files naming the same root: both are
+//! [`SyncOutcome::Paused`] with [`PauseReason::DuplicateRoot`] (guard 5). A root inside
+//! another root of the run: the inner file fails with `Error::NestedRoots` (the outer
+//! one is synced). Then one export; then every merge (with `CrossFile.other_roots` = the
+//! other roots and `claimed_elsewhere` = nodes tagged in the other files, resolved with
+//! one global id map); then every plan and apply in file order (cross-file moves are
+//! planned by the destination file); then one re-export; then each file's render, write
+//! and commit. A file whose apply failed is not rendered; the other files continue.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -357,6 +362,15 @@ fn sticky_from(doc: &LocalDoc, ids: &IdMap) -> Sticky {
         }
     }
     sticky
+}
+
+/// Nodes tagged in `doc` (winning tags of non-marker items), resolved through `ids`.
+fn tagged_nodes(doc: &LocalDoc, ids: &IdMap) -> BTreeSet<NodeId> {
+    doc.walk()
+        .into_iter()
+        .filter(|(_, it)| !it.is_marker())
+        .filter_map(|(_, it)| it.tag.as_ref().and_then(|t| ids.get(&t.short)).cloned())
+        .collect()
 }
 
 // ---------------------------------------------------------------------------------------
@@ -1142,6 +1156,37 @@ pub fn sync_all(
                 }
             }
         }
+        // Guard 5: one file per root.
+        let mut by_root: BTreeMap<NodeId, Vec<usize>> = BTreeMap::new();
+        for (i, _, _, r) in &resolved {
+            by_root.entry(r.clone()).or_default().push(*i);
+        }
+        for (r, idx) in &by_root {
+            if idx.len() > 1 {
+                let paths: Vec<PathBuf> = idx.iter().map(|i| files[*i].clone()).collect();
+                log::warn!("root {r} is claimed by several files: {paths:?}; not synced");
+                for i in idx {
+                    results[*i] = Some(Ok(SyncReport::new(
+                        &files[*i],
+                        Some(r.clone()),
+                        SyncOutcome::Paused(PauseReason::DuplicateRoot(paths.clone())),
+                    )));
+                }
+            }
+        }
+        resolved.retain(|(i, ..)| results[*i].is_none());
+        // §6.4: sync roots must not nest.
+        let all_roots: Vec<NodeId> = resolved.iter().map(|(.., r)| r.clone()).collect();
+        for (i, _, _, r) in &resolved {
+            if let Some(outer) = all_roots.iter().find(|o| remote.is_descendant(r, o)) {
+                results[*i] = Some(Err(Error::NestedRoots {
+                    outer: outer.clone(),
+                    inner: r.clone(),
+                }));
+            }
+        }
+        resolved.retain(|(i, ..)| results[*i].is_none());
+
         // Locks and recovery (step 3).
         let mut recovered_any = false;
         for (i, text, doc, root) in resolved {
@@ -1212,8 +1257,23 @@ pub fn sync_all(
 
         // Steps 4–9: every merge and plan against the one export.
         let roots: BTreeSet<NodeId> = active.iter().map(|a| a.root.clone()).collect();
-        // Cross-file moves (§6.4) are not handled yet: every file merges on its own.
-        let crosses: Vec<CrossFile> = active.iter().map(|_| CrossFile::default()).collect();
+        let tagged: Vec<BTreeSet<NodeId>> =
+            active.iter().map(|a| tagged_nodes(&a.doc, &ids)).collect();
+        let crosses: Vec<CrossFile> = (0..active.len())
+            .map(|k| CrossFile {
+                other_roots: roots
+                    .iter()
+                    .filter(|r| **r != active[k].root)
+                    .cloned()
+                    .collect(),
+                claimed_elsewhere: tagged
+                    .iter()
+                    .enumerate()
+                    .filter(|(j, _)| *j != k)
+                    .flat_map(|(_, s)| s.iter().cloned())
+                    .collect(),
+            })
+            .collect();
         let mut planned: Vec<Option<Box<Planned>>> = Vec::new();
         for (k, a) in active.iter_mut().enumerate() {
             match prepare(&store, cfg, a, &remote, &ids, &crosses[k], &roots) {
