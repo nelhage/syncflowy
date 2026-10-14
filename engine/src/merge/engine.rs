@@ -5,7 +5,8 @@
 //! 1. identity (§4.4): tags, duplicates, adoptions, deleted-tag fallback;
 //! 2. pending-delete cancellations and remote visibility (§4.5, §9.1 guards 2–3);
 //! 3. local field changes per base item (§5.1, §6.1, §9.1 guard 3, §10);
-//! 4. fates: existing, create (new or resurrected, §6.2), gone, dropped;
+//! 4. fates: existing, create (new or resurrected, §6.2, unless adopted, §7.3), gone,
+//!    dropped;
 //! 5. building `M`: cross-file subtrees, field merges, creates, moves, ticks, deletes;
 //! 6. visibility of `M`, sibling orders (§6.3), reports, conflict markers, stats.
 
@@ -101,7 +102,8 @@ struct LItem<'a> {
     children: Vec<usize>,
     ident: Ident,
     fate: Fate,
-    /// For a resurrection: the remotely deleted node it replaces.
+    /// For a resurrection: the remotely deleted node it replaces (kept when the
+    /// resurrection is adopted, so the adopted node gets the resurrected values).
     resurrects: Option<NodeId>,
     /// For a cross-file move: the destination parent in `M`.
     cross_dest: Option<NodeId>,
@@ -134,6 +136,15 @@ impl Detected {
     fn any(&self) -> bool {
         self.name.is_some() || self.note.is_some() || self.layout.is_some()
     }
+}
+
+/// What a create writes (§7.2): canonical WF-HTML name and note, and the layout; `lost`
+/// names the fields whose §5.2 write dropped what Markdown could not show.
+struct CreateValues {
+    name: String,
+    note: Option<String>,
+    layout: String,
+    lost: Vec<ConflictField>,
 }
 
 /// A candidate identity from a tag.
@@ -170,6 +181,8 @@ struct Engine<'a, 'c> {
 
     items: Vec<LItem<'a>>,
     markers: Vec<(Option<usize>, &'a LocalItem)>,
+    /// `adoptions` already matched to an item.
+    adopted: Vec<bool>,
     detected: Vec<Option<Detected>>,
 
     m: Tree,
@@ -366,6 +379,7 @@ impl<'a, 'c> Engine<'a, 'c> {
             priors,
             items: Vec::new(),
             markers: Vec::new(),
+            adopted: vec![false; inp.adoptions.len()],
             detected: Vec::new(),
             m: Tree::new(),
             pushes: BTreeMap::new(),
@@ -722,7 +736,6 @@ impl<'a, 'c> Engine<'a, 'c> {
             return;
         }
         let mut claimed = self.claimed();
-        let mut used = vec![false; adoptions.len()];
         for i in 0..self.items.len() {
             let it = self.items[i].item;
             if self.items[i].ident != Ident::New || !is_untagged(it) {
@@ -733,14 +746,14 @@ impl<'a, 'c> Engine<'a, 'c> {
             };
             let wf = self.md_to_wf(&it.name_md, field_kind(it));
             let found = adoptions.iter().enumerate().find(|(k, a)| {
-                !used[*k]
+                !self.adopted[*k]
                     && a.parent == pn
                     && a.name == wf
                     && !claimed.contains(&a.node)
                     && self.remote_sub.contains(&a.node)
             });
             if let Some((k, a)) = found {
-                used[k] = true;
+                self.adopted[k] = true;
                 claimed.insert(a.node.clone());
                 self.items[i].ident = Ident::Adopted(a.node.clone(), k);
                 self.report.push(ReportEvent::Adopted {
@@ -1018,18 +1031,25 @@ impl<'a, 'c> Engine<'a, 'c> {
             next += 1;
             t
         };
+        let mut claimed = self.claimed();
         for (i, &resurrect) in res.iter().enumerate() {
             if self.items[i].fate == Fate::Dropped {
                 continue;
             }
             let fate = match self.items[i].ident.clone() {
-                Ident::New | Ident::Duplicate => Fate::Create(temp()),
+                Ident::New | Ident::Duplicate => match self.adopt_create(i, &mut claimed) {
+                    Some(nd) => Fate::Existing(nd),
+                    None => Fate::Create(temp()),
+                },
                 Ident::Base(nd) | Ident::Rematched(nd) => {
                     if self.remote_sub.contains(&nd) {
                         Fate::Existing(nd)
                     } else if !remote.contains(&nd) && resurrect {
                         self.items[i].resurrects = Some(nd);
-                        Fate::Create(temp())
+                        match self.adopt_create(i, &mut claimed) {
+                            Some(nd) => Fate::Existing(nd),
+                            None => Fate::Create(temp()),
+                        }
                     } else {
                         Fate::Gone
                     }
@@ -1072,6 +1092,43 @@ impl<'a, 'c> Engine<'a, 'c> {
                 Fate::Existing(nd)
             }
         }
+    }
+
+    /// §7.3: an item about to become a create that an interrupted apply, or an earlier
+    /// pass of this cycle (a CAS rerun, §9), already created: an untagged item whose
+    /// parent was not known at step 3 of identity (it is adopted itself, or resurrected),
+    /// an item that lost a duplicated tag, one whose tags are all invalid, or a
+    /// resurrection (its tag still names the deleted node). It is matched like step 3
+    /// (same parent in `M`, the name it would be created with) and becomes
+    /// [`Ident::Adopted`], so the journal never re-creates a node.
+    fn adopt_create(&mut self, i: usize, claimed: &mut BTreeSet<NodeId>) -> Option<NodeId> {
+        let adoptions = self.inp.adoptions;
+        if adoptions.is_empty() {
+            return None;
+        }
+        // The create's parent (`create_parent`, without refusing anything yet): a parent
+        // that is itself a create has no adoption.
+        let parent = match self.create_parent_walk(i, self.inp.remote).0 {
+            None => self.root.clone(),
+            Some(p) if !p.is_temp() => p,
+            Some(_) => return None,
+        };
+        let name = self.create_values(i).name;
+        let (k, a) = adoptions.iter().enumerate().find(|(k, a)| {
+            !self.adopted[*k]
+                && a.parent == parent
+                && a.name == name
+                && !claimed.contains(&a.node)
+                && self.remote_sub.contains(&a.node)
+        })?;
+        self.adopted[k] = true;
+        claimed.insert(a.node.clone());
+        self.items[i].ident = Ident::Adopted(a.node.clone(), k);
+        self.report.push(ReportEvent::Adopted {
+            node: a.node.clone(),
+            line: self.items[i].item.line,
+        });
+        Some(a.node.clone())
     }
 
     // ----- phase 5: build M ----------------------------------------------------------------
@@ -1439,17 +1496,17 @@ impl<'a, 'c> Engine<'a, 'c> {
         self.commit_push(nd, push);
     }
 
-    /// Adopted nodes (an interrupted create): bring them to the local values.
+    /// Adopted nodes (an interrupted create): bring them to the values the create would
+    /// have written (for a resurrection, the §5.2 merge with its base values).
     fn merge_adopted_fields(&mut self, i: usize, nd: &NodeId, k: usize) {
-        let li = self.items[i].item;
         let a = &self.inp.adoptions[k];
         let r = self.inp.remote.get(nd).expect("existing").clone();
         let mut push = FieldPush::default();
-        let wl = self.md_to_wf(&li.name_md, field_kind(li));
-        if wl != r.name {
-            self.set_name(nd, &r.name, wl, false, &mut push);
+        let v = self.create_values(i);
+        if v.name != r.name {
+            self.set_name(nd, &r.name, v.name, false, &mut push);
         }
-        let wl = self.md_to_wf(&Self::note_md(li), FieldKind::Note);
+        let wl = v.note.unwrap_or_default();
         if wl != r.note.as_deref().unwrap_or("") {
             self.set_note(nd, r.note.as_deref(), wl, false, &mut push);
         }
@@ -1464,22 +1521,33 @@ impl<'a, 'c> Engine<'a, 'c> {
     /// existing placeholders are skipped (refused) unless `force` (§10).
     fn create_parent(&mut self, i: usize) -> NodeId {
         let line = self.items[i].item.line;
+        let (parent, placeholders) = self.create_parent_walk(i, &self.m);
+        for x in placeholders {
+            self.refuse(&x, line);
+        }
+        parent.unwrap_or_else(|| self.root.clone())
+    }
+
+    /// The walk of [`Engine::create_parent`] against `tree`: the parent (`None` for the
+    /// root) and the existing placeholders skipped on the way.
+    fn create_parent_walk(&self, i: usize, tree: &Tree) -> (Option<NodeId>, Vec<NodeId>) {
+        let mut skipped = Vec::new();
         let mut p = self.items[i].parent;
         while let Some(j) = p {
-            match self.items[j].fate.clone() {
-                Fate::Create(t) => return t,
+            match &self.items[j].fate {
+                Fate::Create(t) => return (Some(t.clone()), skipped),
                 Fate::Existing(x) => {
-                    if self.is_existing_placeholder(&self.m, &x) {
-                        self.refuse(&x, line);
+                    if self.is_existing_placeholder(tree, x) {
+                        skipped.push(x.clone());
                     } else {
-                        return x;
+                        return (Some(x.clone()), skipped);
                     }
                 }
                 Fate::Gone | Fate::Dropped | Fate::Undecided => {}
             }
             p = self.items[j].parent;
         }
-        self.root.clone()
+        (None, skipped)
     }
 
     fn new_layout(&self, li: &LocalItem) -> String {
@@ -1504,16 +1572,19 @@ impl<'a, 'c> Engine<'a, 'c> {
     fn create(&mut self, i: usize, t: NodeId) {
         let li = self.items[i].item;
         let parent = self.create_parent(i);
-        let kind = field_kind(li);
         let resurrects = self.items[i].resurrects.clone();
-        let (name, note, layout) = match &resurrects {
-            None => {
-                let note = (!li.note_md.is_empty())
-                    .then(|| self.md_to_wf(&Self::note_md(li), FieldKind::Note));
-                (self.md_to_wf(&li.name_md, kind), note, self.new_layout(li))
-            }
-            Some(old) => self.resurrected_values(i, old, &t),
-        };
+        let CreateValues {
+            name,
+            note,
+            layout,
+            lost,
+        } = self.create_values(i);
+        for field in lost {
+            self.report.push(ReportEvent::LossyWrite {
+                node: t.clone(),
+                field,
+            });
+        }
         let mut ticked = li.checkbox == Checkbox::Ticked;
         if ticked && self.safe {
             self.suppressed += 1;
@@ -1544,28 +1615,37 @@ impl<'a, 'c> Engine<'a, 'c> {
         }
     }
 
+    /// The values a create of item `i` writes: the local text, or for a resurrection
+    /// ([`Engine::resurrected_values`]) the base values with the local edits applied.
+    fn create_values(&self, i: usize) -> CreateValues {
+        let li = self.items[i].item;
+        match &self.items[i].resurrects {
+            Some(old) => self.resurrected_values(i, old),
+            None => CreateValues {
+                name: self.md_to_wf(&li.name_md, field_kind(li)),
+                note: (!li.note_md.is_empty())
+                    .then(|| self.md_to_wf(&Self::note_md(li), FieldKind::Note)),
+                layout: self.new_layout(li),
+                lost: Vec::new(),
+            },
+        }
+    }
+
     /// §6.2 resurrection: the base values, with the local edits applied (§5.2), so the
     /// locally typed text is never lost.
-    fn resurrected_values(
-        &mut self,
-        i: usize,
-        old: &NodeId,
-        t: &NodeId,
-    ) -> (String, Option<String>, String) {
+    fn resurrected_values(&self, i: usize, old: &NodeId) -> CreateValues {
         let li = self.items[i].item;
         let b = self.inp.base.get(old).expect("base item in base").clone();
         let d = self.detected[i].clone().expect("base item detected");
         let kind = field_kind(li);
+        let mut lost = Vec::new();
         let name = match &d.name {
             Some(md) => {
                 let w = self
                     .codec
                     .write_value(&b.name, md, d.name_kind, self.inline);
                 if w.lost {
-                    self.report.push(ReportEvent::LossyWrite {
-                        node: t.clone(),
-                        field: ConflictField::Name,
-                    });
+                    lost.push(ConflictField::Name);
                 }
                 w.wf
             }
@@ -1579,10 +1659,7 @@ impl<'a, 'c> Engine<'a, 'c> {
                     .codec
                     .write_value(&base_note, md, FieldKind::Note, self.inline);
                 if w.lost {
-                    self.report.push(ReportEvent::LossyWrite {
-                        node: t.clone(),
-                        field: ConflictField::Note,
-                    });
+                    lost.push(ConflictField::Note);
                 }
                 w.wf
             }
@@ -1591,7 +1668,12 @@ impl<'a, 'c> Engine<'a, 'c> {
         };
         let note = (!note.is_empty()).then_some(note);
         let layout = d.layout.clone().unwrap_or(b.layout);
-        (name, note, layout)
+        CreateValues {
+            name,
+            note,
+            layout,
+            lost,
+        }
     }
 
     /// §6.2 local move of a base item.
@@ -1878,7 +1960,17 @@ impl<'a, 'c> Engine<'a, 'c> {
             local_children.entry(parent).or_default().push(id);
         }
 
-        // §6.3 sibling orders over visible nodes.
+        // §6.3 sibling orders over visible nodes. An adopted node is a local create that
+        // an interrupted apply placed at the bottom (§7.1 step 1) and may not have
+        // reordered yet: it takes its local position, not its remote one.
+        let adopted: BTreeSet<NodeId> = self
+            .items
+            .iter()
+            .filter_map(|li| match &li.ident {
+                Ident::Adopted(n, _) => Some(n.clone()),
+                _ => None,
+            })
+            .collect();
         let mut orders = BTreeMap::new();
         for p in &m_vis {
             let kids: Vec<NodeId> = self.m.children(p).to_vec();
@@ -1899,7 +1991,7 @@ impl<'a, 'c> Engine<'a, 'c> {
             let remote_order: Vec<NodeId> = remote
                 .children(p)
                 .iter()
-                .filter(|c| self.remote_vis.contains(*c))
+                .filter(|c| self.remote_vis.contains(*c) && !adopted.contains(*c))
                 .cloned()
                 .collect();
             let local_order = local_children.get(p).map(Vec::as_slice);

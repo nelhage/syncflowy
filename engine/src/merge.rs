@@ -51,10 +51,17 @@
 //!    [`ReportEvent::ForeignTag`] and the item is new. UNVERIFIED design choice: §4.4
 //!    would move any existing node; we only move nodes out of managed roots, to avoid
 //!    pulling unmanaged content into a file.
-//! 3. `adoptions` (nodes created by a crashed earlier apply, see `apply::recover`): an
-//!    untagged item whose parent resolves to `adoption.parent` and whose
-//!    `md_to_wf(name_md)` equals `adoption.name` takes `adoption.node` (first match in
-//!    file order) instead of becoming a create ([`ReportEvent::Adopted`]).
+//! 3. `adoptions` (nodes created by a crashed earlier apply, see `apply::recover`, or
+//!    by an earlier pass of this cycle before a CAS rerun): an untagged item whose
+//!    parent resolves to `adoption.parent` and whose `md_to_wf(name_md)` equals
+//!    `adoption.name` takes `adoption.node` (first match in file order) instead of
+//!    becoming a create ([`ReportEvent::Adopted`]). Every other item that would become
+//!    a create gets the same chance when its fate is decided (§7.3: the journal never
+//!    re-creates a node): items that lost a duplicated tag, items whose tags are all
+//!    invalid, resurrections (matched on the values the resurrection would write), and
+//!    untagged items under an adopted or resurrected parent; the parent is then the
+//!    one the create would have in `M`. An adopted node takes its local position in
+//!    the sibling order (the interrupted apply created it at the bottom).
 //! 4. Deleted-tag fallback: an untagged item under the same parent as an unmatched base
 //!    item (tagged in `base_doc`, tag missing from `local_doc`), at a nearby sibling
 //!    position (at most [`REMATCH_MAX_DISTANCE`] apart), with similar text (similarity

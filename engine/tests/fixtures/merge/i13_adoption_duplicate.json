@@ -1,0 +1,129 @@
+{
+  "adoptions": [
+    {
+      "name": "Gamma copy",
+      "node": "n1",
+      "parent": "a"
+    }
+  ],
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§7.3/§4.4: a copied line that lost its duplicated tag, already created by an interrupted apply or an earlier CAS pass, is adopted, not created again.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "    n1 \"Gamma copy\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2",
+        "n1"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "DuplicateTag": {
+          "kept_line": 10,
+          "lines": [
+            7,
+            10
+          ],
+          "short": "c"
+        }
+      },
+      {
+        "Adopted": {
+          "line": 7,
+          "node": "n1"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 7,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 2,
+      "item": {
+        "name": "Gamma copy",
+        "tag": "c"
+      },
+      "op": "insert",
+      "parent": "a"
+    }
+  ],
+  "remote_edits": [
+    {
+      "index": 2,
+      "node": {
+        "id": "n1",
+        "name": "Gamma copy"
+      },
+      "op": "insert",
+      "parent": "a"
+    }
+  ]
+}

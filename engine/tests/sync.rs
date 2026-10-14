@@ -950,6 +950,89 @@ fn crash_recovery_through_the_journal() {
     }
 }
 
+/// The creates that keep a tag: a resurrection (Later deleted in Workflowy, edited
+/// here), a copied line that lost its duplicated tag (Bob's, pasted above it, so a
+/// reorder follows the creates), plus an untagged new line.
+fn edit_tagged_creates(f: &Fixture) {
+    f.env.ui("delete", json!({"id": f.later.as_str()}));
+    let text = read(&f.file);
+    let bob = line_of(&text, &f.bob).to_owned();
+    let copy = bob.replace("Call Bob", "Call Bob again");
+    edit(
+        &f.file,
+        &format!("{bob}\n"),
+        &format!("{copy}\n{bob}\n\t- Untagged new\n"),
+    );
+    edit(&f.file, "Later", "Later, edited");
+}
+
+/// Each of the creates of [`edit_tagged_creates`] exists exactly once.
+fn assert_tagged_creates_single(f: &Fixture, what: &str) {
+    let tree = f.env.export();
+    assert_eq!(
+        child_names(&tree, &f.errands),
+        ["Buy milk", "Call Bob again", "Call Bob", "Untagged new"],
+        "{what}"
+    );
+    assert_eq!(
+        child_names(&tree, &f.root),
+        ["Plan", "Errands", "Later, edited"],
+        "{what}"
+    );
+    let text = read(&f.file);
+    assert_eq!(text.matches("Later, edited").count(), 1, "{what}:\n{text}");
+    assert_eq!(text.matches("Call Bob again").count(), 1, "{what}:\n{text}");
+}
+
+#[test]
+fn cas_rerun_does_not_recreate_resurrections_or_copied_lines() {
+    let f = fixture();
+    edit_tagged_creates(&f);
+    let file = f.file.clone();
+    // After the apply (at the re-export), the user edits another line: the file
+    // changed, so the merge runs again with this cycle's creates as adoptions (§9).
+    let api = TestApi::with_export_hook(&f.env.client, |n| {
+        if n == 1 {
+            edit(&file, "Buy milk", "Buy soy milk");
+        }
+    });
+    let r = sync::sync_once(&api, &f.file, &f.env.cfg).unwrap();
+    synced(&r);
+    assert_eq!(
+        f.env.export().get(&f.milk).unwrap().name,
+        "Buy soy milk",
+        "{r:#?}"
+    );
+    let tree = f.env.export();
+    assert_eq!(
+        child_names(&tree, &f.errands),
+        ["Buy soy milk", "Call Bob again", "Call Bob", "Untagged new"],
+        "{r:#?}"
+    );
+    assert_eq!(
+        child_names(&tree, &f.root),
+        ["Plan", "Errands", "Later, edited"],
+        "{r:#?}"
+    );
+    assert_settled(&f);
+}
+
+#[test]
+fn crash_recovery_does_not_recreate_resurrections_or_copied_lines() {
+    // Three creates (one request each), then the reorder: crash after each create
+    // (after the last one, before the reorder), and before the second.
+    for (at, after) in [(0, true), (1, false), (1, true), (2, true), (3, true)] {
+        let f = fixture();
+        edit_tagged_creates(&f);
+        crash_during_sync(&f, at, after);
+        let r = f.env.sync(&f.file);
+        synced(&r);
+        assert!(r.recovered.is_some(), "{r:#?}");
+        assert_tagged_creates_single(&f, &format!("crash at {at} (after: {after})"));
+        assert_settled(&f);
+    }
+}
+
 // ---------------------------------------------------------------------------------------
 // status and dry runs
 // ---------------------------------------------------------------------------------------
