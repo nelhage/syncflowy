@@ -30,6 +30,8 @@ cargo clippy --all-targets -- -D warnings
 
 Anything that talks to production reads `WORKFLOWY_API_KEY` from `.envrc.local`, which is git-ignored.
 
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the Python suite and the engine's rustfmt, clippy and tests on every push to `main` and every pull request.
+
 ## Documents
 
 | path | what it is |

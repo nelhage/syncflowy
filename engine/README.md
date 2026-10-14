@@ -18,6 +18,13 @@ cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
 
+A static Linux binary (§12.1), which is what CI publishes as a build artifact, needs the musl target and a musl C
+compiler for `ring` (`rustup target add x86_64-unknown-linux-musl`, `apt-get install musl-tools`):
+
+```sh
+CC_x86_64_unknown_linux_musl=musl-gcc cargo build --release --target x86_64-unknown-linux-musl
+```
+
 The end-to-end tests run against the **Python mock server** (`src/syncflowy/mock`). `testsupport::MockServer`
 starts it with `uv run syncflowy-mock`, so `uv` and the Python environment of the repository root must work
 (`uv sync`, or the Nix dev shell). The differential tests also call the Python `wfhtml` and the mock's create
