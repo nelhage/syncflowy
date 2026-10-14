@@ -1,0 +1,4 @@
+scratchpad origins whose registry holds only ghosts: 4
+beta GET 200 {"node": {"id": "37a48256-2756-489e-ab08-e220156c2a76", "name": "O0-plain", "note": null, "parent_id": "d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17", "priority": 200, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["5b7a44e7-e8b0-497f-9f86-fe98c1ed7971"]}}, "createdAt": 1791835634, "modifiedAt": 1791835634, "completedAt": null}}
+beta DELETE 400 {"code": "invalid_request", "message": "Cannot delete a node that has mirrors"}
+beta GET after 200 {"node": {"id": "37a48256-2756-489e-ab08-e220156c2a76", "name": "O0-plain", "note": null, "parent_id": "d3b2a5fb-93e7-4621-8ff1-7fefa1a66e17", "priority": 200, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["5b7a44e7-e8b0-497f-9f86-fe98c1ed7971"]}}, "createdAt": 1791835634, "modifiedAt": 1791835634, "completedAt": null}}

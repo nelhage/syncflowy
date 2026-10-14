@@ -43,7 +43,7 @@ These are the facts from the investigation that shape the design most, roughly i
 | **Text is WF-HTML, an XML fragment** (UI:E1–E8, F1/F2): `&amp; &lt; &gt; &quot;`, `<b> <i> <u> <s> <code> <a href> <span class="colored …"> <time …>`, raw `\n` in notes. A malformed name renders blank and is wiped by the next UI edit. | All writes go through `wfhtml` and must be well-formed and canonical (a fixed point of `wfhtml.canonicalize`). |
 | **Mutations need the full UUID**; only GET takes short ids (DM§3.1). | The checkpoint maps short id → UUID. Markdown can carry the short id. |
 | **A move into one's own descendant returns 200 and creates a cycle** (DM§4.7.5). | The planner must check for cycles against *fresh* remote state before every move. This is a hard safety requirement. |
-| **Mirrors cannot be detected or resolved through the API** (DM§10.1, UI:H1–H4). The UI shows the origin's content, while the API shows an empty shell. | Mirrored content cannot be synced yet. Writes to a shell are invisible to UI users (§10). Full support is pending an API change (§15.1). |
+| **Mirrors cannot be detected or resolved through the API** (DM§10.1, UI:H1–H4). The UI shows the origin's content, while the API shows an empty shell. | Mirrored content cannot be synced yet. Writes to a shell are invisible to UI users (§10). The beta API fixes this (DM§10.5), and full support is planned on it (§15.1). |
 | **Delete is soft** (UI:B1/B2). Deleted ids can come back with the same id. | A 404 is not a tombstone. On the plus side, every delete we push can be recovered from the Workflowy Trash. |
 | **10 req/s budget** (self-imposed, no 429 observed). | A full initial upload of N nodes costs about 2N requests (§7.2). |
 | **API-created parents appear collapsed in the UI** (UI:C2). Collapse state is not exposed. | A small "tell" to collaborators that we cannot avoid. |
@@ -634,8 +634,8 @@ an origin shows up as "origin moved, shell vanished" (UI:H6), which the general 
 This is the one place where "collaborators won't notice" is not fully achievable, and the gap is in what *we*
 can see, not in what we break.
 
-Full mirror support, where a mirror is edited in place as in the UI, is planned in §15.1. It is **pending an
-upstream API change** that exposes each shell's origin.
+Full mirror support, where a mirror is edited in place as in the UI, is planned in §15.1. The upstream API change it
+needs now exists on the **beta** API (DM§10.5) but not yet in production.
 
 ## 11. What collaborators could notice
 
@@ -738,11 +738,29 @@ Some could be settled with more UI scenarios ([ui-scenarios.md](workflowy/ui-sce
 
 ### 15.1 Mirrors as their origins (pending an upstream API change)
 
-**Status: blocked.** This needs the API to return each shell's origin on GET, list and export (for example
-the `origin_id` that `POST /mirror` already returns, or a `mirror_origin_id` field). This has been
-requested from Workflowy support. Until then, §10's read-only placeholders apply.
+**Status: unblocked on the beta API (2026-10-13), not yet in production.** This needed the API to return each
+shell's origin on GET, list and export. The beta API (`beta.workflowy.com`, DM§10.5) does that and more: GET, list and
+export carry `data.mirror.origin_id` on shells and `data.mirror.mirror_ids` on origins. A shell reports its origin's
+content, a list of a shell returns the origin's children, and update, complete and create through a shell reach the
+origin. This was observed on the beta host on 2026-10-13 (open-questions R1–R11). The mock implements it behind
+`beta_mirrors`. Until the engine targets the beta host, or production catches up, §10's read-only placeholders apply.
 
-A workaround exists today and has been rejected: `POST /nodes/S/mirror` into a scratch parent returns the
+Three caveats were also observed:
+- `mirror_ids` is a registry stored on the origin. The UI can leave a live shell out of it, and a production-host
+  delete of a shell leaves a **ghost** in it. So the engine should build the origin → shells map from each shell's
+  `origin_id`.
+- A ghost makes its origin undeletable through beta, so the engine must remove shells only with `DELETE /mirror`
+  or a beta plain delete.
+- A shell's own persisted children are invisible in lists, but export includes them, and they are deleted along
+  with the shell.
+
+Two beta rules change the plan below. First, the engine can write through a shell, but it does not need to, because the
+content node's own id always works. Second, **deleting a node fails while it, or any node in its subtree, is an origin
+that still has mirrors**. So a Markdown delete of a subtree that contains origins must first delete their mirror roots
+(`DELETE /nodes/S/mirror`) or decline the delete. Removing a mirror that WF users rely on is a visible change, so the
+safer default is to decline the delete and report it.
+
+For production, a workaround exists and has been rejected: `POST /nodes/S/mirror` into a scratch parent returns the
 resolved `origin_id` (DM§10.2), and the throwaway shell can then be deleted. That costs two requests per
 candidate and has side effects visible to collaborators: the origin's `modifiedAt` is bumped, a brief extra
 mirror exists, and an entry lands in the Trash.

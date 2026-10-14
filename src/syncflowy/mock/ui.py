@@ -313,6 +313,7 @@ class UiOps:
             shell = self._insert(
                 tx, parent, self._slot_priority(tx, parent, slot), "", None, now, mirror_origin_id=origin.id
             )
+            tx.register_mirror(origin.id, shell.id)  # [I] as for API-made mirrors
             tx.touch(origin.id, now)
             return {"id": shell.id, "origin_id": origin.id}
 
@@ -367,6 +368,11 @@ class UiOps:
 
         Deleting a shell deletes just the shell (UNVERIFIED, H7 not run; the
         origin is not bumped).
+
+        Mirror registry (data-model §10.5): a promotion **empties** the
+        origin's registry, so the surviving shells are no longer listed in
+        ``mirror_ids`` [O: H6 seen through beta, one case]. A plain UI delete
+        unregisters the deleted shells (UNVERIFIED).
         """
         with self.ops.store.transaction() as tx:
             node = self._get(tx, body.get("id"))
@@ -382,6 +388,7 @@ class UiOps:
                 old_parent = node.parent_id
                 op = tx.delete_subtree(shell.id, now)
                 tx.set_fields(node.id, parent_id=shell.parent_id, priority=shell.priority, modified_at=now)
+                tx.clear_registry(node.id)
                 for p in (shell.parent_id, old_parent):
                     if p is not None:
                         tx.touch(p, now)
@@ -392,7 +399,9 @@ class UiOps:
                     "promoted": {"origin_id": node.id, "replaced_shell_id": shell.id, "parent_id": shell.parent_id},
                 }
             ids = tx.subtree_ids(node.id)
+            shells = [i for i in ids if (n := tx.get(i)) is not None and n.mirror_origin_id is not None]
             op = tx.delete_subtree(node.id, now)
+            tx.unregister_shells(shells)
             return {"status": "ok", "deleted": ids, "delete_op": op, "promoted": None}
 
     def restore(self, body: dict[str, Any]) -> dict[str, Any]:

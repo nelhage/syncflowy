@@ -30,6 +30,12 @@ Schema (see also docs/mock-server.md §Storage)::
       deleted_at        INTEGER NOT NULL   -- unix seconds of the delete
       delete_op         INTEGER NOT NULL   -- one id per delete operation (subtree)
       op_root           INTEGER NOT NULL   -- 1 for the node the delete was issued on
+    mirror_registry                        -- HIDDEN: an origin's list of its mirrors (schema v3),
+      origin_id  TEXT NOT NULL             --   exposed as data.mirror.mirror_ids with beta_mirrors.
+      shell_id   TEXT NOT NULL             --   Kept apart from nodes.mirror_origin_id because
+                                           --   production lets the two disagree (data-model §10.5):
+                                           --   a production-host delete of a shell leaves a "ghost"
+                                           --   row, a UI delete-promotion drops live ones.
     meta
       key   TEXT PRIMARY KEY               -- "schema_version", "next_create_seq",
       value TEXT NOT NULL                  -- "next_delete_op"
@@ -41,9 +47,10 @@ exactly the live outline, so every API-visible query (GET, list, export,
 short-id lookup) is unchanged and deleted nodes 404 exactly as before.
 Restoring (``/_mock/ui/restore``) moves a delete operation's rows back.
 
-Migration: schema v1 files (no ``trash`` table) are upgraded in place on open
-(``CREATE TABLE IF NOT EXISTS`` + ``schema_version`` bump); nodes hard-deleted
-under v1 are of course not recoverable.
+Migration: older files are upgraded in place on open (``CREATE TABLE IF NOT
+EXISTS`` + ``schema_version`` bump). v1 has no ``trash`` (nodes hard-deleted
+under v1 are of course not recoverable); v1/v2 have no ``mirror_registry``,
+which is backfilled with every live shell.
 
 Concurrency: a single connection guarded by one re-entrant lock. Every API
 request runs inside :meth:`Store.transaction`, which holds the lock and wraps
@@ -61,7 +68,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS nodes (
@@ -107,6 +114,11 @@ CREATE TABLE IF NOT EXISTS trash (
     op_root          INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS trash_by_op ON trash(delete_op);
+CREATE TABLE IF NOT EXISTS mirror_registry (
+    origin_id TEXT NOT NULL,
+    shell_id  TEXT NOT NULL,
+    PRIMARY KEY (origin_id, shell_id)
+);
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -181,13 +193,23 @@ class Store:
         with self.lock:
             self.conn.execute("PRAGMA journal_mode=WAL")
             self.conn.execute("PRAGMA synchronous=NORMAL")
+            row = None
+            if self.conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'meta'").fetchone():
+                row = self.conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
+            old_version = int(row[0]) if row else None
             self.conn.executescript(SCHEMA)
+            if old_version is not None and old_version < 3:
+                # v2 -> v3: register every live shell with its origin.
+                self.conn.execute(
+                    "INSERT OR IGNORE INTO mirror_registry(origin_id, shell_id) "
+                    "SELECT mirror_origin_id, id FROM nodes WHERE mirror_origin_id IS NOT NULL"
+                )
             self.conn.execute(
                 "INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,)
             )
             self.conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('next_create_seq', '1')")
             self.conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('next_delete_op', '1')")
-            # v1 -> v2: the trash table was created above; record the upgrade.
+            # v1 -> v2 -> v3: the new tables were created above; record the upgrade.
             self.conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_version'", (SCHEMA_VERSION,))
 
     def close(self) -> None:
@@ -215,6 +237,7 @@ class Store:
             tx.conn.execute("DELETE FROM nodes")
             tx.conn.execute("DELETE FROM shortcuts")
             tx.conn.execute("DELETE FROM trash")
+            tx.conn.execute("DELETE FROM mirror_registry")
             tx.conn.execute("UPDATE meta SET value = '1' WHERE key IN ('next_create_seq', 'next_delete_op')")
 
 
@@ -253,6 +276,18 @@ class Tx:
                 f"SELECT {NODE_COLUMNS} FROM nodes WHERE parent_id = ? ORDER BY create_seq", (parent_id,)
             ).fetchall()
         return [Node.from_row(r) for r in rows]
+
+    def registered_mirrors(self, origin_id: str) -> list[str]:
+        """``origin_id``'s mirror registry, sorted by id. May list deleted
+        shells (ghosts) and miss live ones (see the module docstring)."""
+        rows = self.conn.execute(
+            "SELECT shell_id FROM mirror_registry WHERE origin_id = ? ORDER BY shell_id", (origin_id,)
+        ).fetchall()
+        return [r[0] for r in rows]
+
+    def registry_dump(self) -> list[dict[str, str]]:
+        rows = self.conn.execute("SELECT origin_id, shell_id FROM mirror_registry ORDER BY origin_id, shell_id")
+        return [{"origin_id": o, "shell_id": s} for o, s in rows]
 
     def all_nodes(self) -> list[Node]:
         rows = self.conn.execute(f"SELECT {NODE_COLUMNS} FROM nodes ORDER BY create_seq").fetchall()
@@ -344,6 +379,16 @@ class Tx:
         )
         self.conn.execute(self._SUBTREE_CTE + "DELETE FROM nodes WHERE id IN (SELECT id FROM sub)", (node_id,))
         return op
+
+    def register_mirror(self, origin_id: str, shell_id: str) -> None:
+        self.conn.execute("INSERT OR IGNORE INTO mirror_registry(origin_id, shell_id) VALUES (?, ?)", (origin_id, shell_id))
+
+    def unregister_shells(self, shell_ids: list[str]) -> None:
+        """Drop the registry rows of these shells, whichever origin holds them."""
+        self.conn.executemany("DELETE FROM mirror_registry WHERE shell_id = ?", [(i,) for i in shell_ids])
+
+    def clear_registry(self, origin_id: str) -> None:
+        self.conn.execute("DELETE FROM mirror_registry WHERE origin_id = ?", (origin_id,))
 
     # -- trash ---------------------------------------------------------------
 
