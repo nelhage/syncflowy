@@ -360,7 +360,8 @@ fn server_errors_are_retried_then_typed(mock: &MockServer) {
     cfg.backoff = Duration::from_millis(1);
     let c = Client::new(cfg);
     let root = top_level(mock, "root");
-    // A NUL in the create note cannot be stored: 500, nothing created (DM§2.6).
+    // A NUL in the create note cannot be stored: 500, nothing created (DM§2.6). The
+    // error is deterministic and create is not idempotent: it is not retried.
     let before = c.request_count();
     let r = c.create(&CreateRequest {
         parent_id: root.clone(),
@@ -373,9 +374,13 @@ fn server_errors_are_retried_then_typed(mock: &MockServer) {
         Err(ApiError::Server { status: 500, body }) => assert!(body.contains("internal_error")),
         other => panic!("expected a 500, got {other:?}"),
     }
-    assert_eq!(c.request_count(), before + 3, "first attempt + 2 retries");
+    assert_eq!(
+        c.request_count(),
+        before + 1,
+        "a create is never resent on a 5xx"
+    );
     assert_eq!(c.list(Some(&root)).unwrap(), vec![]);
-    // The same through update's layoutMode.
+    // The same through update's layoutMode; update is idempotent and is retried.
     let child = create(&c, &root, "child", None, None);
     let before = c.request_count();
     assert!(matches!(
@@ -747,16 +752,21 @@ fn retries_5xx_and_429_but_not_4xx() {
 }
 
 #[test]
-fn create_is_retried_on_5xx_but_not_after_a_maybe_sent_transport_error() {
+fn create_is_never_resent_after_a_5xx_or_a_maybe_sent_transport_error() {
+    let created = r#"{"item_id": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d"}"#;
     let fake = fake_server(vec![
+        // The application's own deterministic 500 (DM§2.6): typed, not retried.
         Reply::Status(
             500,
             r#"{"code": "internal_error", "message": "An internal server error occurred"}"#,
         ),
-        Reply::Status(
-            200,
-            r#"{"item_id": "5e2e76e4-fea4-4f1f-9c5b-a846cfce4c6d"}"#,
-        ),
+        // A gateway 504: the backend may have committed the create.
+        Reply::Status(504, "<html>504 Gateway Time-out</html>"),
+        // What a resend would get (it must not happen).
+        Reply::Status(200, created),
+        // A 503 and a 500 with an unknown body are just as ambiguous.
+        Reply::Status(503, ""),
+        Reply::Status(500, r#"{"code": "other"}"#),
         Reply::Hangup,
         Reply::Hangup,
         Reply::Status(200, r#"{"nodes": []}"#),
@@ -769,17 +779,52 @@ fn create_is_retried_on_5xx_but_not_after_a_maybe_sent_transport_error() {
         layout: None,
         position: Position::Bottom,
     };
+    match c.create(&req) {
+        Err(ApiError::Server { status: 500, body }) => assert!(body.contains("internal_error")),
+        other => panic!("expected the internal_error 500, got {other:?}"),
+    }
+    assert_eq!(c.request_count(), 1, "a deterministic 500 is not retried");
+    // §7.3: reported as maybe applied, so that apply scans for the node instead of
+    // resending and leaving a duplicate.
+    match c.create(&req) {
+        Err(ApiError::Transport {
+            maybe_applied: true,
+            message,
+        }) => assert!(message.contains("504"), "{message}"),
+        other => panic!("expected a maybe-applied error after a 504, got {other:?}"),
+    }
+    assert_eq!(c.request_count(), 2, "a 504 is not resent");
+    let posts = |fake: &Fake| {
+        fake.seen
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|r| r.request_line == "POST /api/v1/nodes HTTP/1.1")
+            .count()
+    };
+    assert_eq!(posts(&fake), 2);
+    // The scripted 200 is consumed by the next create.
     assert_eq!(c.create(&req).unwrap().as_str(), ID);
-    assert_eq!(c.request_count(), 2);
+    for _ in 0..2 {
+        assert!(matches!(
+            c.create(&req),
+            Err(ApiError::Transport {
+                maybe_applied: true,
+                ..
+            })
+        ));
+    }
+    assert_eq!(c.request_count(), 5);
     // The server read the request and hung up: it may have created the node (§7.3).
     match c.create(&req) {
         Err(ApiError::Transport { maybe_applied, .. }) => assert!(maybe_applied),
         other => panic!("expected a maybe-applied transport error, got {other:?}"),
     }
-    assert_eq!(c.request_count(), 3, "not retried");
+    assert_eq!(c.request_count(), 6, "not retried");
     // An idempotent request retries over the same failure.
     assert_eq!(c.list(None).unwrap(), vec![]);
-    assert_eq!(c.request_count(), 5);
+    assert_eq!(c.request_count(), 8);
+    assert_eq!(posts(&fake), 6);
 }
 
 #[test]

@@ -43,10 +43,13 @@
 //! * **Retries**: on 5xx, 429 and transport errors, retry up to
 //!   [`ClientConfig::max_retries`] times with exponential backoff
 //!   (`backoff * 2^attempt`, capped at 30 s). Exception: `create` is not idempotent, so
-//!   it is retried only on 5xx/429 (the server changes nothing on those, DM§2.6) and
-//!   **never** on a transport error after the request may have been sent; such a failure
-//!   is returned as [`ApiError::Transport`] with `maybe_applied: true` so `apply` can
-//!   recover through the nonce (§7.3). A transport error that provably happened before
+//!   it is retried only on 429 and **never** on a 5xx or on a transport error after the
+//!   request may have been sent. The application's own `500 internal_error` changes
+//!   nothing (DM§2.6) but is deterministic, so it is returned at once as
+//!   [`ApiError::Server`]; any other 5xx (a gateway 502/503/504, an unknown body) and a
+//!   maybe-sent transport error are returned as [`ApiError::Transport`] with
+//!   `maybe_applied: true` so `apply` can recover through the nonce (§7.3). A transport
+//!   error that provably happened before
 //!   anything was sent (connection refused, DNS failure, connect timeout) is retried even
 //!   for create, and reported with `maybe_applied: false`. `delete` treats a 404 on a
 //!   retry as success. Other 4xx responses are never retried. 429 is retried although
@@ -170,7 +173,9 @@ pub enum ApiError {
         body: String,
     },
     /// Network failure after the retries. `maybe_applied` is true when the request may
-    /// have reached the server (only reported for non-idempotent requests: create).
+    /// have reached the server (only reported for non-idempotent requests: create). A
+    /// create answered by a 5xx other than the application's `internal_error` (e.g. a
+    /// gateway 504) is reported here too, with `maybe_applied: true`.
     #[error("transport error: {message}")]
     Transport {
         /// Description.
@@ -253,9 +258,9 @@ const MAX_RESPONSE_BYTES: u64 = 1 << 30;
 enum Retry {
     /// Idempotent: retry on 5xx, 429 and every transport error.
     Idempotent,
-    /// Not idempotent (create): retry on 5xx and 429 (the server changed nothing,
-    /// DM§2.6), and on transport errors only when the request provably never left
-    /// (connection refused, DNS failure, connect timeout).
+    /// Not idempotent (create): retry on 429, never on 5xx (see
+    /// `non_idempotent_server_error`), and on transport errors only when the request
+    /// provably never left (connection refused, DNS failure, connect timeout).
     NonIdempotent,
     /// DELETE: idempotent, and a 404 on a retry means an earlier attempt succeeded.
     Delete,
@@ -456,6 +461,9 @@ impl Client {
                         // An earlier attempt may have deleted the node before failing.
                         return Ok(json!({"status": "ok"}));
                     }
+                    if status >= 500 && req.retry == Retry::NonIdempotent {
+                        return Err(non_idempotent_server_error(status, &resp.text));
+                    }
                     // Retry 5xx and 429 (prod_client retries 429 too); never other 4xx.
                     if (status >= 500 || status == 429) && can_retry {
                         std::thread::sleep(self.backoff(attempt));
@@ -553,6 +561,33 @@ impl Client {
             retry: Retry::Idempotent,
         })?;
         Ok(())
+    }
+}
+
+/// A 5xx answer to a non-idempotent request (create) is never resent (§7.3).
+///
+/// Only the application's own `500 {"code": "internal_error"}` is known to change
+/// nothing (DM§2.6); it is deterministic (a NUL or lone surrogate), so a retry cannot
+/// help, and it is returned as [`ApiError::Server`] at once. Any other 5xx (a gateway
+/// 502/503/504 from the nginx in front, DM§2.7, or an unknown body) may come back after
+/// the backend committed the create, so it is reported like a lost response:
+/// [`ApiError::Transport`] with `maybe_applied: true`, which makes `apply` look for the
+/// node by its nonce or name before deciding.
+// UNVERIFIED: no gateway 5xx was ever observed from the production API; that the backend
+// can commit a create behind one is assumed, not measured.
+fn non_idempotent_server_error(status: u16, body: &str) -> ApiError {
+    let code = serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|v| v.get("code").and_then(Value::as_str).map(str::to_owned));
+    if status == 500 && code.as_deref() == Some("internal_error") {
+        return map_error(status, body);
+    }
+    ApiError::Transport {
+        message: format!(
+            "server error {status} (the request may have been applied): {}",
+            truncate(body)
+        ),
+        maybe_applied: true,
     }
 }
 
