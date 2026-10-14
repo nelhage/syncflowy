@@ -51,6 +51,8 @@
 //! 8. **Plan** (`plan::plan`) with the same `force`. A brake gives
 //!    [`SyncOutcome::Braked`]: nothing is written anywhere (§8.3).
 //! 9. **Dry run** ([`SyncConfig::dry_run`]): return [`SyncOutcome::DryRun`] with the plan.
+//!    A dry run skips step 3 (recovery writes to Workflowy and to the journal) and warns
+//!    that a journal is pending instead; the next real run recovers it.
 //! 10. **Apply** if the plan is not empty: `Journal::begin` (with the carried adoptions)
 //!     at `StateStore::journal_path`, then `Applier::apply` without its own verification
 //!     export. An error returns `Error::Apply` and leaves the journal for the next run's
@@ -1523,7 +1525,18 @@ pub fn sync_all(
             let journal = store.journal_path(&root);
             let had_journal = journal.exists();
             let mut carried = Vec::new();
-            if had_journal {
+            if had_journal && cfg.dry_run {
+                // A dry run writes nothing anywhere (`SyncConfig::dry_run`), and recovery
+                // writes: it finishes two-step creates, deletes duplicate nonce nodes
+                // (§7.3) and appends to the journal. So the journal is left for the next
+                // real run, and the plan below ignores the interrupted cycle (it may
+                // propose creating again what that cycle created).
+                report.warnings.push(
+                    "an interrupted cycle left a journal; a real sync recovers it first, \
+                     this dry run did not, so its plan may differ"
+                        .to_owned(),
+                );
+            } else if had_journal {
                 match apply::recover(&journal, api) {
                     Ok(rec) => {
                         if let Some(rec) = &rec {

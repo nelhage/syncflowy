@@ -1030,6 +1030,54 @@ fn crash_recovery_does_not_recreate_resurrections_or_copied_lines() {
         assert!(r.recovered.is_some(), "{r:#?}");
         assert_tagged_creates_single(&f, &format!("crash at {at} (after: {after})"));
         assert_settled(&f);
+
+/// A dry run writes nothing anywhere, not even recovery's writes: with a journal left by
+/// a crash in the middle of an apply (two-step creates included), it sends no request
+/// that mutates, leaves the journal byte-for-byte, warns that a journal is pending, and
+/// the next real run still recovers it.
+#[test]
+fn dry_run_does_not_recover_the_journal() {
+    for (at, after) in [(0, true), (1, false), (1, true), (2, true)] {
+        let f = fixture();
+        let text = read(&f.file);
+        let later = line_of(&text, &f.later).to_owned();
+        edit(
+            &f.file,
+            &format!("{later}\n"),
+            &format!("{later}\n\t- First new\n\t- *Second* new\n"),
+        );
+        edit(&f.file, "Call Bob", "Call Bob back");
+        let edited = read(&f.file);
+        crash_during_sync(&f, at, after);
+        let store = StateStore::open(&f.env.cfg.state_dir).unwrap();
+        let journal = store.journal_path(&f.root);
+        let journal_text = std::fs::read(&journal).expect("the journal survives the crash");
+        let before = f.env.snapshot();
+
+        let api = TestApi::new(&f.env.client);
+        let mut cfg = f.env.cfg.clone();
+        cfg.dry_run = true;
+        let r = sync::sync_once(&api, &f.file, &cfg).unwrap();
+        assert!(matches!(r.outcome, SyncOutcome::DryRun { .. }), "{r:#?}");
+        assert_eq!(api.mutations(), 0, "crash at {at}: {:?}", api.calls());
+        assert_eq!(f.env.snapshot(), before);
+        assert_eq!(std::fs::read(&journal).unwrap(), journal_text);
+        assert_eq!(read(&f.file), edited);
+        assert!(r.recovered.is_none(), "{r:#?}");
+        assert!(
+            r.warnings.iter().any(|w| w.contains("journal")),
+            "{:?}",
+            r.warnings
+        );
+
+        let r = f.env.sync(&f.file);
+        synced(&r);
+        assert!(r.recovered.is_some(), "{r:#?}");
+        assert_eq!(
+            child_names(&f.env.export(), &f.later),
+            ["First new", "<i>Second</i> new"],
+            "crash at {at} (after: {after})"
+        );
     }
 }
 
