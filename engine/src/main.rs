@@ -3,7 +3,8 @@
 //! ```text
 //! syncflowy [global options] render <ROOT> <OUT.md> [--headings N] [--force]
 //! syncflowy [global options] sync <FILE.md>... [--force] [--dry-run]
-//! syncflowy [global options] daemon <VAULT> [--debounce SECS] [--poll SECS] [--delete-grace SECS]
+//! syncflowy [global options] daemon --vault <DIR> [--debounce SECS] [--poll SECS]
+//!           [--min-export-interval SECS] [--delete-grace SECS] [--status-note PATH]
 //! syncflowy [global options] status [FILE.md]...
 //! ```
 //!
@@ -84,17 +85,24 @@ enum Command {
     },
     /// Watch a vault and sync continuously.
     Daemon {
-        /// The vault directory.
+        /// The vault directory (synced files are found by their `workflowy:` root).
+        #[arg(long)]
         vault: PathBuf,
         /// Quiet period before syncing a changed file, in seconds.
         #[arg(long, default_value_t = 45)]
         debounce: u64,
-        /// Remote poll interval, in seconds.
+        /// Interval of the periodic cycle that picks up remote changes, in seconds.
         #[arg(long, default_value_t = 60)]
         poll: u64,
+        /// Minimum interval between two cycles (each exports), in seconds.
+        #[arg(long, default_value_t = 60)]
+        min_export_interval: u64,
         /// Grace period of deferred deletes, in seconds.
         #[arg(long, default_value_t = 600)]
         delete_grace: u64,
+        /// The status note, relative to the vault.
+        #[arg(long, default_value = daemon::STATUS_NOTE)]
+        status_note: PathBuf,
     },
     /// Show the local sync state (no API calls).
     Status {
@@ -249,13 +257,17 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
             vault,
             debounce,
             poll,
+            min_export_interval,
             delete_grace,
+            status_note,
         } => {
             let api = client(&cli)?;
             let mut dcfg = DaemonConfig::new(vault.clone(), cfg);
             dcfg.debounce = Duration::from_secs(*debounce);
             dcfg.remote_poll = Duration::from_secs(*poll);
+            dcfg.min_export_interval = Duration::from_secs(*min_export_interval);
             dcfg.delete_grace = Duration::from_secs(*delete_grace);
+            dcfg.status_note = status_note.clone();
             daemon::run(&api, &dcfg)?;
             Ok(true)
         }
