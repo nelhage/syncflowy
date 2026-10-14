@@ -24,7 +24,10 @@
 //!    handling (guard 5). Each file is read and classified **by content**, never by
 //!    mtime (guard 4): *clean* if its text is the checkpoint's `base_md` (nothing local
 //!    to push), *paused* (`paused: true`), or *dirty*: then its content fingerprint is
-//!    fed to the [`Debouncer`].
+//!    fed to the [`Debouncer`]. A dirty file whose content was already handed to a cycle
+//!    that did not settle it (a brake, a skip, an error) is retried at every cycle
+//!    without a new debounce, until its content changes; repeated identical failures
+//!    are logged once.
 //! 2. A dirty file is **ready** when its content has been stable for
 //!    [`DaemonConfig::debounce`] (default 45 s, guard 4: no half-typed lines pushed, no
 //!    write into a burst of edits). Its frontmatter parsed with a root at every scan,
@@ -467,6 +470,10 @@ enum FileState {
     Clean,
     /// Local edits (or no checkpoint): debounced.
     Dirty,
+    /// Local edits already handed to a cycle that did not settle them (a brake, a
+    /// skip, an error): retried at every cycle without a new debounce, until the text
+    /// changes again.
+    Retry,
     /// `paused: true`.
     Paused,
     /// Cannot be read now (retried at the next scan).
@@ -483,6 +490,8 @@ struct Tracked {
     state: FileState,
     has_checkpoint: bool,
     conflicts: Vec<ConflictLine>,
+    /// Content fingerprint (when the file could be read).
+    fp: Option<Fingerprint>,
 }
 
 /// Each synced file's report, or its error as text.
@@ -521,6 +530,8 @@ pub struct Daemon {
     events: VecDeque<Event>,
     deletes_held: bool,
     status_text: Option<String>,
+    /// The content of each dirty file when it was last handed to a cycle.
+    attempted: BTreeMap<PathBuf, Fingerprint>,
 }
 
 /// True for errors after which the daemon must stop (module docs, step 6): the API
@@ -641,6 +652,7 @@ impl Daemon {
             events: VecDeque::new(),
             deletes_held: false,
             status_text: None,
+            attempted: BTreeMap::new(),
         })
     }
 
@@ -737,6 +749,7 @@ impl Daemon {
                 state: FileState::Dirty,
                 has_checkpoint: checkpoint.is_some(),
                 conflicts: Vec::new(),
+                fp: None,
             };
             let text = match std::fs::read(&f.path).map(String::from_utf8) {
                 Ok(Ok(text)) => text,
@@ -763,18 +776,26 @@ impl Daemon {
                     continue;
                 }
             };
+            let fp = fingerprint(&text);
             t.conflicts = conflicts_of(&f.path, &doc);
             t.state = if doc.frontmatter.paused {
                 FileState::Paused
             } else if checkpoint.as_ref().is_some_and(|c| c.md_unchanged(&text)) {
                 FileState::Clean
+            } else if self.attempted.get(&f.path) == Some(&fp) {
+                FileState::Retry
             } else {
                 FileState::Dirty
             };
             match t.state {
-                FileState::Dirty => self.debouncer.observe(&f.path, fingerprint(&text), now),
-                _ => self.debouncer.forget(&f.path),
+                FileState::Dirty => self.debouncer.observe(&f.path, fp.clone(), now),
+                FileState::Retry => self.debouncer.forget(&f.path),
+                FileState::Clean | FileState::Paused | FileState::Unreadable(_) => {
+                    self.debouncer.forget(&f.path);
+                    self.attempted.remove(&f.path);
+                }
             }
+            t.fp = Some(fp);
             tracked.push(t);
         }
         let live: BTreeSet<PathBuf> = tracked
@@ -783,6 +804,8 @@ impl Daemon {
             .map(|t| t.path.clone())
             .collect();
         self.debouncer.retain(|p| live.contains(p));
+        let known: BTreeSet<&Path> = tracked.iter().map(|t| t.path.as_path()).collect();
+        self.attempted.retain(|p, _| known.contains(p.as_path()));
         for (path, reason) in &disc.skipped {
             if !self
                 .discovery
@@ -819,8 +842,17 @@ impl Daemon {
     fn record(&mut self, file: &Path, report: &SyncReport) {
         let unix = self.time.unix();
         self.errors.remove(file);
-        self.outcomes
+        let previous = self
+            .outcomes
             .insert(file.to_path_buf(), report.outcome.clone());
+        if matches!(
+            report.outcome,
+            SyncOutcome::Braked(_) | SyncOutcome::Skipped { .. }
+        ) && previous.as_ref() == Some(&report.outcome)
+        {
+            // A retry that failed the same way: already in the log.
+            return;
+        }
         let tree = report
             .root
             .as_ref()
@@ -898,12 +930,17 @@ impl Daemon {
             .tracked
             .iter()
             .filter(|t| match t.state {
-                FileState::Clean => true,
+                FileState::Clean | FileState::Retry => true,
                 FileState::Dirty => ready.contains(&t.path),
                 FileState::Paused | FileState::Unreadable(_) => false,
             })
             .map(|t| t.path.clone())
             .collect();
+        for t in &self.tracked {
+            if let (true, Some(fp)) = (ready.contains(&t.path), &t.fp) {
+                self.attempted.insert(t.path.clone(), fp.clone());
+            }
+        }
         self.last_cycle = Some(now);
         self.last_cycle_unix = self.time.unix();
         self.deletes_held = held;
@@ -946,7 +983,9 @@ impl Daemon {
                             } else {
                                 EventKind::Error
                             };
-                            self.log_event(Some(&fr.file), kind, e.to_string());
+                            if self.errors.get(&fr.file) != Some(&e.to_string()) {
+                                self.log_event(Some(&fr.file), kind, e.to_string());
+                            }
                             self.errors.insert(fr.file.clone(), e.to_string());
                             self.outcomes.remove(&fr.file);
                             results.push((fr.file, Err(e.to_string())));
