@@ -280,6 +280,52 @@ fn edits_are_pushed_only_after_the_quiet_period() {
 }
 
 #[test]
+fn an_edit_made_during_a_cycle_gets_its_full_quiet_period() {
+    // A cycle can take tens of seconds (an export, rate-limited writes). An edit saved
+    // while it runs must be debounced from when it was seen, not from the cycle's start
+    // (guard 4).
+    let (env, _root, a, _b, file) = one_file();
+    let mut rig = Rig::with(env, |c| {
+        c.debounce = Duration::from_secs(45);
+        c.min_export_interval = Duration::from_secs(60);
+        c.remote_poll = Duration::from_secs(60);
+    });
+    let time = rig.time.clone();
+    let edited = file.clone();
+    let api = TestApi::with_export_hook(&rig.env.client, move |n| {
+        if n == 1 {
+            // The second cycle's export takes 40 s; the user saves meanwhile.
+            time.advance(Duration::from_secs(40));
+            edit(&edited, "] Alpha ", "] Alpha typ ");
+        }
+    });
+    step_with(&mut rig.d, &api, &[]); // t = 0
+    rig.time.advance(Duration::from_secs(60));
+    step_with(&mut rig.d, &api, &[]); // t = 60; the cycle ends at t = 100
+    assert!(read(&file).contains("] Alpha typ "));
+    let name = |rig: &Rig| rig.env.export().get(&a).unwrap().name.clone();
+    use syncflowy::daemon::Time;
+    let edited_at = rig.time.now();
+    assert_eq!(
+        rig.d.next_wakeup(),
+        edited_at + Duration::from_secs(20),
+        "the poll at t = 120 comes first"
+    );
+    rig.time.advance(Duration::from_secs(20));
+    let r = step_with(&mut rig.d, &api, &[]); // t = 120: 20 s after the edit
+    assert!(r.synced.is_some(), "the poll cycle runs: {r:#?}");
+    assert!(
+        r.results.iter().all(|(f, _)| f != &file),
+        "the file is still settling: {r:#?}"
+    );
+    assert_eq!(name(&rig), "Alpha");
+    rig.time.advance(Duration::from_secs(60));
+    let r = step_with(&mut rig.d, &api, &[]); // t = 180
+    assert!(is_synced(&Rig::outcome(&r, &file)), "{r:#?}");
+    assert_eq!(name(&rig), "Alpha typ");
+}
+
+#[test]
 fn remote_changes_are_polled_without_file_events() {
     let (env, _root, a, _b, file) = one_file();
     let mut rig = Rig::new(env);

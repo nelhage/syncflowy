@@ -1180,9 +1180,13 @@ impl Daemon {
                 Ok((files, results)) => {
                     // The cycle may have rewritten files (new tags, conflict markers):
                     // classify them again so the status note and the debouncer see the
-                    // text now on disk.
+                    // text now on disk. The clock is read again: a cycle can take tens
+                    // of seconds (export, rate-limited writes), and an edit saved
+                    // meanwhile must get its whole quiet period from when it was seen,
+                    // not from the cycle's start (guard 4).
                     if !files.is_empty() {
-                        self.scan(now)?;
+                        let after = self.time.now();
+                        self.scan(after)?;
                     }
                     report.synced = Some(files);
                     report.results = results;
