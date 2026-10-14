@@ -678,12 +678,17 @@ pub fn map_error(status: u16, body: &str) -> ApiError {
         404 => match message {
             Some("Item not found") => ApiError::ItemNotFound,
             Some("Parent item not found") => ApiError::ParentNotFound,
-            Some(m) if m.starts_with("Location '") && m.ends_with("' not found") => {
-                let raw = &m["Location '".len()..m.len() - "' not found".len()];
-                ApiError::LocationNotFound(raw.to_owned())
-            }
+            // Strip the affixes in turn: they overlap in `Location ' not found`, which a
+            // prefix and suffix test would both accept (the body is untrusted).
+            Some(m) => match m
+                .strip_prefix("Location '")
+                .and_then(|r| r.strip_suffix("' not found"))
+            {
+                Some(raw) => ApiError::LocationNotFound(raw.to_owned()),
+                None => unexpected(),
+            },
             // An unknown route gives an HTML 404 (DM§2.1).
-            _ => unexpected(),
+            None => unexpected(),
         },
         400 => {
             if code == Some("invalid_json") {
@@ -914,6 +919,30 @@ mod tests {
             ),
             ApiError::LocationNotFound("x'y".into())
         );
+        assert_eq!(
+            map_error(
+                404,
+                r#"{"code": "not_found", "message": "Location '' not found"}"#
+            ),
+            ApiError::LocationNotFound(String::new())
+        );
+        // A lone affix, or both overlapping on one quote: not a location message, and no
+        // panic (the body is untrusted).
+        for m in [
+            "Location ' not found",
+            "Location '",
+            "' not found",
+            "Location",
+        ] {
+            let body = json!({"code": "not_found", "message": m}).to_string();
+            assert!(
+                matches!(
+                    map_error(404, &body),
+                    ApiError::Unexpected { status: 404, .. }
+                ),
+                "{m:?}"
+            );
+        }
         assert!(matches!(
             map_error(404, "<!DOCTYPE html><title>404</title>"),
             ApiError::Unexpected { status: 404, .. }
