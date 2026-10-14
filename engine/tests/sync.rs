@@ -576,6 +576,50 @@ fn emptied_file_is_braked() {
 }
 
 #[test]
+fn emptied_file_is_braked_despite_a_concurrent_remote_edit() {
+    // A small file (under the fraction brake's minimum) truncated to its frontmatter
+    // while a collaborator edits one item, or while it holds a mirror placeholder. The
+    // merge keeps that item (delete vs edit, §6.2; placeholder deletes need --force,
+    // §10), so it deletes fewer nodes than the base showed, but the file is still empty
+    // (§8.3).
+    for concurrent in ["edit", "placeholder"] {
+        let env = Env::new();
+        let root = env.ui_create(None, "Small");
+        let alpha = env.ui_create(Some(&root), "Alpha");
+        env.ui_create(Some(&root), "Beta");
+        env.ui_create(Some(&root), "Gamma");
+        if concurrent == "placeholder" {
+            env.ui_create(Some(&root), "");
+        }
+        let file = env.path("small.md");
+        env.render(&root, &file);
+        if concurrent == "edit" {
+            env.ui(
+                "edit",
+                json!({"id": alpha.as_str(), "text": "Alpha (edited)"}),
+            );
+        }
+        let text = read(&file);
+        let fm_end = text.find("\n---\n").unwrap() + 5;
+        write(&file, &text[..fm_end]);
+        let before = env.snapshot();
+        let api = TestApi::new(&env.client);
+        let r = sync::sync_once(&api, &file, &env.cfg).unwrap();
+        assert!(
+            matches!(r.outcome, SyncOutcome::Braked(Brake::EmptyFile { .. })),
+            "{concurrent}: {r:#?}"
+        );
+        assert_eq!(api.mutations(), 0, "{concurrent}");
+        assert_eq!(env.snapshot(), before, "{concurrent}");
+        assert_eq!(
+            read(&file),
+            &text[..fm_end],
+            "a braked cycle writes nothing"
+        );
+    }
+}
+
+#[test]
 fn missing_file_pauses_without_touching_workflowy() {
     let f = fixture();
     std::fs::remove_file(&f.file).unwrap();

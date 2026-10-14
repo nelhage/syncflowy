@@ -1275,6 +1275,20 @@ fn empty_file_brake() {
 }
 
 #[test]
+fn empty_file_brake_holds_when_the_merge_keeps_a_deleted_node() {
+    // The file was truncated to its frontmatter, but a collaborator had edited c2 (or c2
+    // is a mirror placeholder): the merge keeps c2 (delete vs edit, §6.2; §10) and
+    // deletes only c0 and c1. The file is still empty, so the brake holds (§8.3).
+    let mut sc = wide_scenario(3, 0, 2, 0, &[]);
+    assert_eq!(sc.merge.stats.deleted_visible, 2);
+    sc.merge.stats.local_items = 0;
+    assert_eq!(brake(&sc), Some(Brake::EmptyFile { base_visible: 3 }));
+    // The same merge with the item still in the file is an ordinary small delete.
+    sc.merge.stats.local_items = 1;
+    assert_eq!(brake(&sc), None);
+}
+
+#[test]
 fn completion_brake_has_its_own_higher_thresholds() {
     // Ticks are not deletes: 10 of 20 (50%) pass, where 10 deletes would brake.
     assert_eq!(brake(&wide_scenario(20, 0, 0, 10, &[])), None);
@@ -1330,10 +1344,22 @@ fn deferred_deletes_count_toward_brakes_but_are_not_sent() {
 fn relisted_pending_deletes_do_not_brake_again() {
     // The merge re-lists still-pending deletes of earlier cycles in `deletes` but leaves
     // them out of `stats` (they were counted when first deleted, §9.1 guard 2). When one
-    // falls due its delete is sent; it must not count again (here it would look like an
-    // emptied file: every intent deletes a node, but none of the base's visible nodes).
+    // falls due its delete is sent; it must not count again (here 5 due deletes would
+    // exceed the fraction brake). The base is the render after the first delete, so it
+    // no longer shows them: 15 visible, all still in the file.
+    let mut sc = wide_scenario(20, 0, 5, 0, &[]);
+    assert!(matches!(brake(&sc), Some(Brake::TooManyDeletes { .. })));
+    sc.merge.stats.base_visible = 15;
+    sc.merge.stats.deleted_visible = 0;
+    sc.merge.stats.deleted_hidden = 0;
+    assert_eq!(brake(&sc), None);
+    let plan = check_plan(&sc.merge, &sc.remote, &sc.cfg);
+    assert_eq!(plan.summary.deletes, 5);
+    // The same when the due deletes were the whole file: the render that followed them
+    // was empty, so the base is too, and an empty base is not an emptied file.
     let mut sc = wide_scenario(3, 0, 3, 0, &[]);
     assert_eq!(brake(&sc), Some(Brake::EmptyFile { base_visible: 3 }));
+    sc.merge.stats.base_visible = 0;
     sc.merge.stats.deleted_visible = 0;
     sc.merge.stats.deleted_hidden = 0;
     assert_eq!(brake(&sc), None);

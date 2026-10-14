@@ -50,7 +50,8 @@
 //!   [`BrakeConfig::max_deletes`], or are at least
 //!   [`BrakeConfig::min_deletes_for_fraction`] and exceed
 //!   [`BrakeConfig::max_delete_fraction`] of `merge.stats.base_visible`;
-//! * the merge deletes every visible node of a non-empty base ([`Brake::EmptyFile`]);
+//! * the base is non-empty and the file has no (non-marker) item, or the merge deletes
+//!   every visible node of the base ([`Brake::EmptyFile`]);
 //! * completions exceed the (higher) completion thresholds.
 //!
 //! # Postconditions (property tests)
@@ -98,6 +99,13 @@
 //!   engage the brake when a pending delete falls due (with a base that no longer shows
 //!   the node, a single due delete looked like an emptied file). Completions count
 //!   `merge.ticks` (existing nodes); new items typed ticked are not a mass change.
+//! * **Empty file.** [`Brake::EmptyFile`] also looks at the file itself
+//!   (`merge.stats.local_items`), not only at the deletes that survive the merge: the
+//!   delete-vs-edit rule (§6.2) and refused placeholder deletes (§10) keep nodes the
+//!   file dropped, so a truncated file with one such node would otherwise slip under it.
+//!   As a consequence a file emptied by cutting every item into another file of the run
+//!   also needs `--force` (§8.3 reads "if the file is ... empty, refuse"; a split arrival
+//!   of the same cut, §9.1 guard 2, would look identical).
 //! * **Consistency.** Pushes must name the remote value as `expected`; orders must list
 //!   children of their parent in `S`. Anything else is [`PlanError::Inconsistent`].
 //!   Redundant intents (a move to the current parent, a tick of a completed node, a
@@ -439,8 +447,12 @@ fn check_brakes(merge: &MergeResult, cfg: &BrakeConfig) -> Result<(), Brake> {
     // `stats`, not the intents: re-listed pending deletes are not new (module docs).
     let visible = merge.stats.deleted_visible;
     let hidden = merge.stats.deleted_hidden;
-    // "If the file is missing or empty, refuse" (§8.3): every visible node is deleted.
-    if base_visible > 0 && visible >= base_visible {
+    // "If the file is missing or empty, refuse" (§8.3), judged on the local side: the
+    // file shows no item at all, or every visible node is deleted (the file was replaced
+    // by new items). The delete count alone is not enough: the merge keeps a deleted node
+    // a collaborator edited (§6.2) or a placeholder (§10), so an emptied file can delete
+    // fewer nodes than the base showed, and a small file is under the fraction brake.
+    if base_visible > 0 && (merge.stats.local_items == 0 || visible >= base_visible) {
         return Err(Brake::EmptyFile { base_visible });
     }
     // Hidden descendants count toward the threshold: the user cannot see them (§4.5).
