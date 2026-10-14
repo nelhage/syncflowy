@@ -26,6 +26,11 @@
               packages = [
                 python
                 pkgs.uv
+                pkgs.cargo
+                pkgs.rustc
+                pkgs.clippy
+                pkgs.rustfmt
+                pkgs.rust-analyzer
               ];
               UV_PYTHON = "${python}/bin/python";
             };

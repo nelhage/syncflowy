@@ -3,3 +3,4 @@
 engine/target/
 .venv/
 __pycache__/
+.claude/worktrees/
