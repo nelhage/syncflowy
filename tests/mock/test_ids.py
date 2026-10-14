@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import random
+import uuid
+
 import pytest
+
+from syncflowy.mock.ops import SeededIds, new_node_id, short_id_has_letter
 
 from .conftest import WF, rand_uuid
 
@@ -218,3 +223,54 @@ def test_mirror_parent_exact_uuid_only(wf: WF) -> None:
         r = wf.mirror_raw(src, {"parent_id": raw})
         assert r.status_code == 404 and r.json() == PARENT, raw
     assert wf.mirror(src, dest)["origin_id"] == src
+
+
+# ------------------------------------------------------------------ generated ids
+
+
+class _ScriptedBits:
+    """A stand-in for ``random.Random`` that returns the given 128-bit draws in order."""
+
+    def __init__(self, *draws: int):
+        self.draws = list(draws)
+
+    def getrandbits(self, k: int) -> int:
+        assert k == 128
+        return self.draws.pop(0)
+
+
+# A UUIDv4 whose short id (last 12 hex characters) is all digits: upper-casing
+# it changes nothing, so the conformance normaliser could not tell
+# ``short.upper()`` from ``short`` in a transcript (flaky ids_* scenarios).
+ALL_DIGIT_SUFFIX = 0x123456789012
+LETTERED_SUFFIX = 0x1234567890AB
+
+
+def test_new_node_id_redraws_an_all_digit_short_id() -> None:
+    rng = _ScriptedBits(ALL_DIGIT_SUFFIX, LETTERED_SUFFIX)
+    got = new_node_id(rng)  # type: ignore[arg-type]
+    assert got[-12:] == "1234567890ab"
+    assert rng.draws == []  # both draws consumed: the first was rejected
+    assert not short_id_has_letter(str(uuid.UUID(int=ALL_DIGIT_SUFFIX, version=4)))
+    assert short_id_has_letter(got)
+
+
+@pytest.mark.parametrize("seed", [0, 1, 7, 42, 2026])
+def test_seeded_ids_always_have_a_letter_in_the_short_id(seed: int) -> None:
+    ids = SeededIds(seed)
+    sample = [ids() for _ in range(3000)]
+    assert all(short_id_has_letter(i) for i in sample)
+    assert all(i == i.lower() and i[14] == "4" and i[19] in "89ab" for i in sample)  # well-formed UUIDv4
+    assert len(set(sample)) == len(sample)
+    # The filter is the only change: the sequence is otherwise random.Random(seed)'s.
+    rng = random.Random(seed)
+    expected = []
+    while len(expected) < 5:
+        c = str(uuid.UUID(int=rng.getrandbits(128), version=4))
+        if short_id_has_letter(c):
+            expected.append(c)
+    assert sample[:5] == expected
+
+
+def test_random_ids_always_have_a_letter_in_the_short_id() -> None:
+    assert all(short_id_has_letter(new_node_id()) for _ in range(3000))

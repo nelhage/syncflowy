@@ -76,6 +76,26 @@ def has_errors(raw: dict) -> list[str]:
     return [st["message"] for st in raw["steps"] if st.get("type") == "error"]
 
 
+def ambiguous_aliases(raw: dict) -> list[str]:
+    """Aliased nodes whose short id has no letter, as ``"<name>=<id>"`` strings.
+
+    Scenarios send short ids and URLs both as-is and upper-cased, and the
+    normaliser labels the upper-cased form ``:UPPER`` by looking at the letters
+    in the token. An all-digit short id (about 0.36% of UUIDv4s) is its own
+    upper case, so such a transcript cannot be normalised consistently and must
+    not become a golden. The mock never generates these ids
+    (``syncflowy.mock.ops.new_node_id``); production does, so ``record``
+    re-runs the scenario in a fresh sandbox when this list is non-empty.
+    """
+    out = []
+    for st in raw["steps"]:
+        if st.get("type") == "alias":
+            node_id = str(st["id"])
+            if not any(c.isalpha() for c in node_id[-12:]):
+                out.append(f"{st['name']}={node_id}")
+    return out
+
+
 # ---------------------------------------------------------------------------
 # golden files
 

@@ -137,11 +137,42 @@ class Clock:
         return self.base() + self.offset
 
 
+def short_id_has_letter(node_id: str) -> bool:
+    """True if the node's short id (its last 12 hex characters, §1.1) contains a letter.
+
+    Upper-casing an all-digit short id changes nothing, so a request that sent
+    ``short.upper()`` is indistinguishable from one that sent ``short``. The
+    conformance normaliser then labels that step ``<P:short>`` on one run and
+    ``<P:short:UPPER>`` on another, and the harness and golden tests fail at
+    random (about 0.36% of UUIDv4s have an all-digit suffix). The mock therefore
+    never hands out such an id: see :func:`new_node_id`.
+    """
+    return any(c.isalpha() for c in node_id[-12:])
+
+
+def new_node_id(rng: random.Random | None = None) -> str:
+    """A fresh lowercase UUIDv4 whose short id contains at least one letter.
+
+    Ids come from ``rng`` when given (reproducible sequences, :class:`SeededIds`)
+    and from :func:`uuid.uuid4` otherwise. Candidates that fail
+    :func:`short_id_has_letter` are redrawn. This is a deliberate deviation from
+    production, where ids are unfiltered (docs/mock-server.md, deviation 5).
+    """
+    while True:
+        if rng is None:
+            candidate = str(uuid.uuid4())
+        else:
+            candidate = str(uuid.UUID(int=rng.getrandbits(128), version=4))
+        if short_id_has_letter(candidate):
+            return candidate
+
+
 class SeededIds:
     """Deterministic UUIDv4 generator for reproducible tests (``id_seed``).
 
-    Ids are well-formed lowercase UUIDv4 strings drawn from ``random.Random(seed)``;
-    :meth:`reset` restarts the sequence (``POST /_mock/reset``).
+    Ids are well-formed lowercase UUIDv4 strings drawn from ``random.Random(seed)``
+    through :func:`new_node_id`; :meth:`reset` restarts the sequence
+    (``POST /_mock/reset``).
     """
 
     def __init__(self, seed: int):
@@ -152,7 +183,7 @@ class SeededIds:
         self._rng = random.Random(self.seed)
 
     def __call__(self) -> str:
-        return str(uuid.UUID(int=self._rng.getrandbits(128), version=4))
+        return new_node_id(self._rng)
 
 
 class _EmptyLocation(Exception):
@@ -195,7 +226,7 @@ class Ops:
     def _new_id(self) -> str:
         if self.id_factory is not None:
             return self.id_factory()
-        return str(uuid.uuid4())
+        return new_node_id()
 
     def assign_priority(self, tx: Tx, parent: Parent, position: str | None, exclude: str | None = None) -> int:
         """§7: shared by create, move (incl. same-parent) and mirror."""

@@ -66,6 +66,8 @@ No selector means all scenarios.
   `--keep-sandboxes`. The request log tag (`SYNCFLOWY_TAG`) is `conformance:<name>`. A golden is *not*
   written when:
   - the scenario raised (for example a helper's create failed). `--allow-errors` overrides this.
+  - an aliased node's short id has no letter, so its upper-cased forms could not be told apart by the normaliser.
+    The recorder re-runs the scenario in a fresh sandbox up to 3 times before giving up (`runner.ambiguous_aliases`).
   - timestamps could not be attributed to epochs (see below). Re-run the scenario.
   - the safety vetting refused a request (`REFUSE`). That is a scenario bug, so fix the scenario.
 

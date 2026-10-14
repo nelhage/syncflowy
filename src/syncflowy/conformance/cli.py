@@ -28,6 +28,7 @@ from .runner import (
     MockPool,
     check_scenario,
     golden_path,
+    ambiguous_aliases,
     has_errors,
     read_golden,
     run_scenario,
@@ -42,6 +43,10 @@ def _cmd_list(args) -> int:
         opts = f" {sc.mock_options}" if sc.mock_options else ""
         print(f"{g}  {sc.area:10s} {sc.name:45s} {first}{opts}")
     return 0
+
+
+#: How many times ``record`` runs a scenario whose ids came out ambiguous.
+RECORD_ATTEMPTS = 3
 
 
 def _cmd_record(args) -> int:
@@ -68,9 +73,21 @@ def _cmd_record(args) -> int:
         os.environ["SYNCFLOWY_TAG"] = f"conformance:{sc.name}"
         t = time.time()
         try:
-            raw = run_scenario(backend, sc)
+            # Production ids are unfiltered: an aliased node whose short id has
+            # no letter makes the upper-cased id forms ambiguous, so draw fresh
+            # ids by re-running in a new sandbox (at most RECORD_ATTEMPTS times).
+            for attempt in range(1, RECORD_ATTEMPTS + 1):
+                raw = run_scenario(backend, sc)
+                ambiguous = ambiguous_aliases(raw)
+                if not ambiguous:
+                    break
+                print(f"retry  {sc.name}: all-digit short id for {', '.join(ambiguous)} (attempt {attempt})")
         except HarnessError as e:
             print(f"REFUSE {sc.name}: {e}")
+            failures += 1
+            continue
+        if ambiguous:
+            print(f"ERROR  {sc.name}: ambiguous ids after {RECORD_ATTEMPTS} attempts; not saved, re-run")
             failures += 1
             continue
         errs = has_errors(raw)

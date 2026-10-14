@@ -9,7 +9,7 @@ import pytest
 
 from syncflowy.conformance.backend import FakeClock, ProdBackend, UnsafeRequest
 from syncflowy.conformance.normalize import Clock, Symbols, normalize, render
-from syncflowy.conformance.runner import diff_transcripts
+from syncflowy.conformance.runner import ambiguous_aliases, diff_transcripts
 
 ROOT = "5e2e76e4-fea4-4f1f-9c5b-0123456789ab"
 PARENT = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
@@ -348,3 +348,27 @@ def test_html_pages_are_summarized():
     out = normalize(raw(steps))
     assert out[0]["text"] == out[1]["text"] == "<HTML page title='404'>"
     assert out[2]["text"] == ""
+
+
+# ------------------------------------------------------------------ recorder guard
+
+
+def test_ambiguous_aliases_flags_all_digit_short_ids() -> None:
+    """An all-digit short id is its own upper case, so the normaliser cannot label
+    ``short(p).upper()`` consistently: the recorder must re-run such a scenario."""
+    digits = "5e2e76e4-fea4-4f1f-9c5b-012345678901"
+    raw = {
+        "steps": [
+            {"type": "alias", "id": A, "name": "A"},
+            {"type": "alias", "id": digits, "name": "P"},
+            {"type": "request", "method": "GET", "path": "/api/v1/nodes"},
+        ]
+    }
+    assert ambiguous_aliases(raw) == [f"P={digits}"]
+    raw["steps"][1]["id"] = B
+    assert ambiguous_aliases(raw) == []
+    # The ambiguity itself, as the normaliser sees it: the two forms collapse.
+    syms = Symbols(aliases={digits: "P"})
+    assert syms.replace(digits[-12:]) == syms.replace(digits[-12:].upper()) == "<P:short>"
+    syms = Symbols(aliases={A: "A"})
+    assert syms.replace(A[-12:]) == "<A:short>" and syms.replace(A[-12:].upper()) == "<A:short:UPPER>"
