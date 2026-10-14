@@ -35,8 +35,15 @@ use serde::{Deserialize, Serialize};
 use crate::error::Error;
 use crate::mdblock::RootRef;
 use crate::state::Fingerprint;
-use crate::sync::{RootStatus, SyncConfig, SyncReport};
+use crate::sync::SyncConfig;
 use crate::wfclient::Api;
+
+mod status;
+
+pub use status::{
+    ConflictLine, Event, EventKind, PendingLine, RootLine, RootState, StatusReport, format_time,
+    render_status,
+};
 
 /// The default status note's file name (engine-owned, overwritten every cycle).
 pub const STATUS_NOTE: &str = "Workflowy Sync Status.md";
@@ -129,28 +136,6 @@ impl Debouncer {
     pub fn take_ready(&mut self, now: Instant, quiet: Duration) -> Vec<PathBuf> {
         todo!()
     }
-}
-
-/// What the status note shows (§9.1 "control and status through the vault").
-#[derive(Debug, Clone, Default)]
-pub struct StatusReport {
-    /// Unix seconds of this report.
-    pub at: i64,
-    /// Per-root state.
-    pub roots: Vec<RootStatus>,
-    /// The last cycle's per-file reports.
-    pub last: Vec<SyncReport>,
-    /// Per-file errors of the last cycle.
-    pub errors: Vec<(PathBuf, String)>,
-    /// Discovery problems (duplicates, skipped files).
-    pub discovery: Discovery,
-}
-
-/// Render the status note as Markdown (no frontmatter, so it is never mistaken for a
-/// synced file): last successful sync per root, conflicts awaiting resolution, pending
-/// deletes and when they fire, safe-mode episodes, dropped resurrections, API errors.
-pub fn render_status(report: &StatusReport) -> String {
-    todo!()
 }
 
 /// Run the daemon loop until a fatal error (module docs).
