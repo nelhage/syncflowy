@@ -3,8 +3,9 @@
 //! concurrent web-UI edits, crash recovery through the journal, and the live cycle guard.
 
 use std::collections::BTreeSet;
+use std::ops::Deref;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -46,11 +47,26 @@ fn export(c: &Client) -> Tree {
     Tree::from_nodes(c.export().expect("export")).expect("tree")
 }
 
-fn journal_path() -> PathBuf {
-    let n: u64 = rand::random();
-    std::env::temp_dir()
-        .join(format!("syncflowy-apply-{}-{n:016x}", std::process::id()))
-        .join("journal.jsonl")
+/// A journal path in a temporary directory of its own, removed with it on drop.
+struct JournalPath {
+    _dir: tempfile::TempDir,
+    path: PathBuf,
+}
+
+impl Deref for JournalPath {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.path
+    }
+}
+
+fn journal_path() -> JournalPath {
+    let dir = tempfile::Builder::new()
+        .prefix("syncflowy-apply-")
+        .tempdir()
+        .expect("tempdir");
+    let path = dir.path().join("journal.jsonl");
+    JournalPath { _dir: dir, path }
 }
 
 fn plan_of(root: &NodeId, ops: Vec<Op>) -> Plan {
@@ -61,7 +77,7 @@ fn plan_of(root: &NodeId, ops: Vec<Op>) -> Plan {
     }
 }
 
-fn begin(plan: &Plan) -> (PathBuf, Journal) {
+fn begin(plan: &Plan) -> (JournalPath, Journal) {
     let path = journal_path();
     let j = Journal::begin(&path, &JournalEntry::new_begin(plan, Vec::new())).expect("begin");
     (path, j)
@@ -193,7 +209,7 @@ fn crash<T>(f: impl FnOnce() -> T) {
     assert!(r.is_err(), "expected the injected crash");
 }
 
-fn entries(path: &std::path::Path) -> Vec<JournalEntry> {
+fn entries(path: &Path) -> Vec<JournalEntry> {
     Journal::read(path).expect("read").expect("journal exists")
 }
 
@@ -710,20 +726,18 @@ fn crash_between_create_steps_is_recovered(mock: &MockServer) {
 
     // The next cycle carries the adoptions; recovering *its* journal still returns them.
     let next = plan_of(&root, Vec::new());
-    let path2 = path.clone();
     let j = Journal::begin(
-        &path2,
+        &path,
         &JournalEntry::new_begin(&next, rec.adoptions.clone()),
     )
     .unwrap();
     drop(j);
-    let carried = recover(&path2, &c).unwrap().unwrap();
+    let carried = recover(&path, &c).unwrap().unwrap();
     assert_eq!(carried.adoptions, rec.adoptions);
     // Once the node is gone, the carried adoption is dropped.
     c.delete(&half_id).unwrap();
-    let carried = recover(&path2, &c).unwrap().unwrap();
+    let carried = recover(&path, &c).unwrap().unwrap();
     assert!(carried.adoptions.is_empty());
-    let _ = std::fs::remove_file(&path2);
 }
 
 /// A crash mid-append leaves the journal without a final newline; the `Created` entry
@@ -757,7 +771,7 @@ fn recovery_after_a_torn_journal_tail_is_repeatable(mock: &MockServer) {
         use std::io::Write;
         let mut f = std::fs::OpenOptions::new()
             .append(true)
-            .open(&path)
+            .open(&*path)
             .unwrap();
         f.write_all(br#"{"type":"done","ind"#).unwrap();
     }
@@ -776,7 +790,6 @@ fn recovery_after_a_torn_journal_tail_is_repeatable(mock: &MockServer) {
     assert_eq!(again.adoptions, rec.adoptions);
     assert!(again.finished.is_empty());
     assert_eq!(named(&export(&c), "a").len(), 1);
-    let _ = std::fs::remove_file(&path);
 }
 
 fn crash_after_direct_create_is_recovered(mock: &MockServer) {
@@ -814,7 +827,6 @@ fn crash_after_direct_create_is_recovered(mock: &MockServer) {
     let t = export(&c);
     assert_eq!(named(&t, "plain").len(), 2);
     assert_eq!(rec.adoptions[0].layout, "bullets");
-    let _ = std::fs::remove_file(&path);
 }
 
 fn crash_before_any_request_sends_nothing_twice(mock: &MockServer) {
@@ -1096,5 +1108,4 @@ fn api_failure_stops_and_reports_progress(mock: &MockServer) {
     let rec = recover(&path, &c).unwrap().unwrap();
     assert!(rec.adoptions.is_empty());
     assert_eq!(export(&c).len(), remote.len());
-    let _ = std::fs::remove_file(&path);
 }
