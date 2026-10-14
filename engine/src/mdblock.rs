@@ -49,11 +49,16 @@
 //!   `dataview-hidden` | `html`, default `auto`), `checkboxes` (`todos-and-leaves` |
 //!   `todos` | `all` | `none`, default `todos-and-leaves`), `dates` (bool, default
 //!   true), `depth` (positive int, default unlimited), `paused` (bool, default false),
-//!   `force` (bool; consumed by the engine and never written back), `gen` (u64, always
-//!   written once known). Unknown keys inside `syncflowy:` produce a warning and are
-//!   dropped on the next render.
+//!   `force` (bool; consumed by the engine: `sync` clears it before rendering, and
+//!   [`Frontmatter::render`] writes what it is given), `gen` (u64, always written once
+//!   known; an unparseable value reads as `None`, not as an error). Unknown keys inside
+//!   `syncflowy:` produce a warning and are dropped on the next render. Booleans are
+//!   `true`/`false` (any case); values may be quoted; `# comments` are ignored; a flow
+//!   mapping may continue on the following lines. An invalid value of a known key is
+//!   [`ParseError::BadConfig`] (skip the cycle rather than guess).
 //! * Every other frontmatter line is preserved verbatim, in order, after the two engine
-//!   keys.
+//!   keys. The `workflowy:` value is kept as written ([`RootRef::raw`], comment
+//!   included); a second `workflowy:` key naming another root is [`ParseError::BadRoot`].
 //!
 //! ## Body
 //!
@@ -103,7 +108,52 @@
 //! * **Leniency** (§9.1 guard 4): the parser never fails on body content. Lines that fit
 //!   nowhere (for example column-0 text after a list, a CommonMark lazy continuation)
 //!   are attached to the nearest preceding item's note with a warning; nothing is ever
-//!   dropped silently. Only frontmatter problems are [`ParseError`]s.
+//!   dropped silently. Only frontmatter problems are [`ParseError`]s; a missing, empty
+//!   or frontmatter-less file is [`ParseError::NoFrontmatter`], never an empty document.
+//!
+//! ## Details fixed by the implementation
+//!
+//! These refine the rules above where the design leaves a choice; each is consistent
+//! between [`render`] and [`parse`] (the property tests check it).
+//!
+//! * **Structure by indentation width**: a list item is a child of the nearest open item
+//!   whose marker is indented less (a stack, as in CommonMark), with tabs counting to the
+//!   next multiple of 4 columns. An item whose indentation differs from its earlier
+//!   siblings' is kept where the stack puts it, with [`WarningKind::Indentation`].
+//! * **Empty note lines**: a blank line before or between continuation lines of a list
+//!   item is an empty note line. Empty lines at the *end* of a note are rendered as the
+//!   continuation indentation alone (a whitespace-only line), because a truly blank line
+//!   there would read as the gap before the next item; the parser counts whitespace-only
+//!   lines indented deeper than the marker as empty note lines.
+//!   UNVERIFIED: whether Obsidian (or a formatter on a client) keeps such lines.
+//! * **Root and heading notes** lose leading and trailing empty lines on render (a WF
+//!   note `"\nx\n"` shows as `x`); this is lossy only for those edge lines, and a field
+//!   the Markdown user does not edit is never written (§5.1).
+//! * **Fences inside notes**: a note line that opens a fence (typed by the user; rendered
+//!   text is escaped, EC 4) keeps the following lines as note text up to its closing
+//!   fence, if that fence comes before the note's item ends; an unclosed fence is plain
+//!   text and never swallows the items after it.
+//! * **Code at heading depth**: `# ``` %%wf:…%%`, the code at column 0, a closing fence
+//!   at column 0. UNVERIFIED (our choice): Obsidian shows it as a heading followed by a
+//!   code block.
+//! * **Fence length**: code is fenced with one backtick more than the longest backtick run
+//!   that starts one of its lines (at least three), so a `ReadOnly` code value with a
+//!   ```` ``` ```` line still reads back exactly.
+//! * **Kinds without a box**: headings, code, quotes, dividers and placeholders never
+//!   render `[ ]` (UNVERIFIED, our choice for quotes: `- [ ] > x` reads badly).
+//! * **Dividers are not shells**: a `divider` node with an empty name renders as `- ---`
+//!   even though it matches the shell heuristic (the UI gives it `note ""`, UI:G2, while
+//!   shells always get layout `bullets`, UI:H2).
+//! * **Text without an `ro` flag is a fixed point**: a `Lossy` value (and a `ReadOnly`
+//!   root note, which cannot carry a flag) is rendered as its own normal form
+//!   `wf_to_md(md_to_wf(text))`, so re-rendering the parsed file gives the same bytes.
+//! * **Read-only items** carry the `ro` flag and the `🔒 ` prefix when any of their
+//!   fields is `ReadOnly`; their texts are kept verbatim by [`normalize`].
+//! * **Conflict markers** of a code block's name (several lines) are written as a fenced
+//!   block: `- ⚠ ``` %%wf-conflict:name%%`, the local code, the closing fence. Markers
+//!   with children, or written as headings, are kept with
+//!   [`WarningKind::MisplacedMarker`]; an id tag on a marker line is moved to
+//!   `extra_tags` with [`WarningKind::MultipleTags`].
 //!
 //! # Invariants (§5.4); implementers must property-test them
 //!
@@ -114,15 +164,20 @@
 //! 3. Rendering never emits a line that the parser would read differently from the View
 //!    (a direct consequence of the escaping contract EC of `mdinline`).
 
-#![allow(unused_variables, dead_code)] // stubs; remove when implemented
+mod emit;
+mod frontmatter;
+mod parse;
+mod view;
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::mdinline::{ConflictField, IdTag, InlineConfig, MdText};
+use crate::mdinline::{ConflictField, FieldKind, IdTag, InlineConfig, MdText, TagFlag, md_to_wf};
 use crate::tree::{IdMap, NodeId, ShortId, Tree};
+
+use emit::RItem;
 
 /// The text of a mirror placeholder item (§10).
 pub const PLACEHOLDER_TEXT: &str = "⧉ (empty or mirror)";
@@ -210,12 +265,12 @@ impl RootRef {
     /// Parse a short id, a full UUID or a `https://workflowy.com/#/<short>` URL
     /// (DM§3.2 URL form). Surrounding whitespace is trimmed.
     pub fn parse(s: &str) -> Result<RootRef, ParseError> {
-        todo!()
+        RootRef::parse_impl(s)
     }
 
     /// The full id: `full` if present, else the [`IdMap`] lookup of `short`.
     pub fn resolve(&self, ids: &IdMap) -> Option<NodeId> {
-        todo!()
+        self.resolve_impl(ids)
     }
 }
 
@@ -254,7 +309,7 @@ impl Frontmatter {
     /// The frontmatter block including both `---` fences and a final newline, as
     /// [`render`] writes it (key order and defaults per the module docs).
     pub fn render(&self) -> String {
-        todo!()
+        frontmatter::render(self)
     }
 }
 
@@ -412,29 +467,55 @@ pub struct LocalDoc {
 impl LocalDoc {
     /// Every item with its path, in pre-order (file order).
     pub fn walk(&self) -> Vec<(ItemPath, &LocalItem)> {
-        todo!()
+        fn rec<'a>(
+            items: &'a [LocalItem],
+            path: &mut Vec<usize>,
+            out: &mut Vec<(ItemPath, &'a LocalItem)>,
+        ) {
+            for (i, it) in items.iter().enumerate() {
+                path.push(i);
+                out.push((ItemPath(path.clone()), it));
+                rec(&it.children, path, out);
+                path.pop();
+            }
+        }
+        let mut out = Vec::new();
+        rec(&self.items, &mut Vec::new(), &mut out);
+        out
     }
 
     /// The item at `path`.
     pub fn get(&self, path: &ItemPath) -> Option<&LocalItem> {
-        todo!()
+        let (first, rest) = path.0.split_first()?;
+        let mut it = self.items.get(*first)?;
+        for &i in rest {
+            it = it.children.get(i)?;
+        }
+        Some(it)
     }
 
     /// Paths of the non-marker items carrying each short id (winning tags only), in
     /// file order. More than one path means a duplicated tag (§4.4).
     pub fn tags(&self) -> BTreeMap<ShortId, Vec<ItemPath>> {
-        todo!()
+        let mut out: BTreeMap<ShortId, Vec<ItemPath>> = BTreeMap::new();
+        for (path, it) in self.walk() {
+            if let (false, Some(t)) = (it.is_marker(), &it.tag) {
+                out.entry(t.short.clone()).or_default().push(path);
+            }
+        }
+        out
     }
 }
 
 /// Parse a whole file. Never fails on body content (module docs).
 pub fn parse(text: &str) -> Result<LocalDoc, ParseError> {
-    todo!()
+    parse::parse(text)
 }
 
 /// Parse only the frontmatter (cheap; used by `daemon` discovery, §9.1 guard 5).
 pub fn parse_frontmatter(text: &str) -> Result<Frontmatter, ParseError> {
-    todo!()
+    let lines = frontmatter::split_lines(text);
+    frontmatter::parse(&lines).map(|p| p.fm)
 }
 
 /// Re-render a parsed document in canonical form without a tree: same items, kinds,
@@ -442,7 +523,66 @@ pub fn parse_frontmatter(text: &str) -> Result<Frontmatter, ParseError> {
 /// config), checkbox kept as written (`Ticked` stays ticked). Used for invariant 2 and
 /// tests; `render` of a View built from the same content must produce the same bytes.
 pub fn normalize(doc: &LocalDoc) -> String {
-    todo!()
+    let inline = &doc.frontmatter.config.inline;
+    let root_note = canonical_note(&doc.root_note, inline);
+    let items: Vec<RItem> = doc.items.iter().map(|i| local_ritem(i, inline)).collect();
+    emit::emit(&doc.frontmatter, &root_note, &items)
+}
+
+fn has_ro(item: &LocalItem) -> bool {
+    item.tag
+        .as_ref()
+        .is_some_and(|t| t.flags.contains(&TagFlag::ReadOnly))
+}
+
+fn name_kind(kind: ItemKind) -> FieldKind {
+    if kind == ItemKind::Code {
+        FieldKind::Code
+    } else {
+        FieldKind::Name
+    }
+}
+
+/// The canonical Markdown of a note: `wf_to_md(md_to_wf(lines))` (empty if the value is).
+fn canonical_note(lines: &[String], cfg: &InlineConfig) -> Vec<String> {
+    let wf = md_to_wf(&lines.join("\n"), FieldKind::Note, cfg);
+    if wf.is_empty() {
+        return Vec::new();
+    }
+    view::md_text(&wf, FieldKind::Note, cfg, false)
+        .text
+        .split('\n')
+        .map(str::to_owned)
+        .collect()
+}
+
+/// The writer's form of a parsed item (see [`normalize`]): texts of editable items are
+/// canonicalised; read-only items and conflict markers keep their text as written.
+fn local_ritem(it: &LocalItem, cfg: &InlineConfig) -> RItem {
+    let ro = has_ro(it) || it.kind == ItemKind::Placeholder;
+    let verbatim = ro || it.is_marker();
+    let name = if verbatim {
+        it.name_md.clone()
+    } else {
+        let kind = name_kind(it.kind);
+        view::md_text(&md_to_wf(&it.name_md, kind, cfg), kind, cfg, false).text
+    };
+    let note = if verbatim {
+        it.note_md.clone()
+    } else {
+        canonical_note(&it.note_md, cfg)
+    };
+    RItem {
+        tag: it.tag.as_ref().map(|t| (t.short.clone(), t.flags.clone())),
+        kind: it.kind,
+        heading: it.heading,
+        checkbox: it.checkbox,
+        ordered: it.ordered,
+        read_only: ro && it.kind != ItemKind::Placeholder,
+        name,
+        note,
+        children: it.children.iter().map(|c| local_ritem(c, cfg)).collect(),
+    }
 }
 
 /// Semantic equality of two parsed documents (§5.4 "≅"): same frontmatter (root, config,
@@ -452,7 +592,35 @@ pub fn normalize(doc: &LocalDoc) -> String {
 /// `md_to_wf(note_md)` (so escaping variants are equal). Line numbers and warnings are
 /// ignored.
 pub fn equivalent(a: &LocalDoc, b: &LocalDoc, cfg: &InlineConfig) -> bool {
-    todo!()
+    let (fa, fb) = (&a.frontmatter, &b.frontmatter);
+    let same_fm = fa.root.short == fb.root.short
+        && fa.root.full == fb.root.full
+        && fa.config == fb.config
+        && fa.generation == fb.generation
+        && fa.paused == fb.paused
+        && fa.force == fb.force
+        && fa.other == fb.other;
+    let note = |l: &[String]| md_to_wf(&l.join("\n"), FieldKind::Note, cfg);
+    same_fm && note(&a.root_note) == note(&b.root_note) && items_equivalent(&a.items, &b.items, cfg)
+}
+
+fn items_equivalent(a: &[LocalItem], b: &[LocalItem], cfg: &InlineConfig) -> bool {
+    a.len() == b.len() && a.iter().zip(b).all(|(x, y)| item_equivalent(x, y, cfg))
+}
+
+fn item_equivalent(a: &LocalItem, b: &LocalItem, cfg: &InlineConfig) -> bool {
+    let tag = |i: &LocalItem| i.tag.as_ref().map(|t| (t.short.clone(), t.flags.clone()));
+    let ticked = |i: &LocalItem| i.checkbox == Checkbox::Ticked;
+    let name = |i: &LocalItem| md_to_wf(&i.name_md, name_kind(i.kind), cfg);
+    let note = |i: &LocalItem| md_to_wf(&i.note_md.join("\n"), FieldKind::Note, cfg);
+    tag(a) == tag(b)
+        && a.kind == b.kind
+        && a.heading == b.heading
+        && ticked(a) == ticked(b)
+        && a.ordered == b.ordered
+        && name(a) == name(b)
+        && note(a) == note(b)
+        && items_equivalent(&a.children, &b.children, cfg)
 }
 
 // ---------------------------------------------------------------------------------------
@@ -561,22 +729,37 @@ impl View {
         cfg: &DocConfig,
         extras: &ViewExtras,
     ) -> Result<View, ViewError> {
-        todo!()
+        view::build(tree, root, cfg, extras)
     }
 
     /// Every node in the view (the root and all items), i.e. the visible set.
     pub fn ids(&self) -> BTreeSet<NodeId> {
-        todo!()
+        let mut out: BTreeSet<NodeId> =
+            self.walk().into_iter().map(|(_, i)| i.id.clone()).collect();
+        out.insert(self.root.clone());
+        out
     }
 
     /// True if `id` is the root or an item of the view.
     pub fn contains(&self, id: &NodeId) -> bool {
-        todo!()
+        *id == self.root || self.walk().iter().any(|(_, i)| i.id == *id)
     }
 
     /// Every item with its parent id (the root for top-level items), in pre-order.
     pub fn walk(&self) -> Vec<(&NodeId, &ViewItem)> {
-        todo!()
+        fn rec<'a>(
+            parent: &'a NodeId,
+            items: &'a [ViewItem],
+            out: &mut Vec<(&'a NodeId, &'a ViewItem)>,
+        ) {
+            for it in items {
+                out.push((parent, it));
+                rec(&it.id, &it.children, out);
+            }
+        }
+        let mut out = Vec::new();
+        rec(&self.root, &self.items, &mut out);
+        out
     }
 }
 
@@ -586,5 +769,68 @@ impl View {
 /// (`sync` sets `gen` and clears `force` first); `frontmatter.config` drives the tag form
 /// (the View already embodies the other config choices).
 pub fn render(view: &View, frontmatter: &Frontmatter) -> String {
-    todo!()
+    let root_note: Vec<String> = view
+        .root_note
+        .as_ref()
+        .map(|n| n.text.split('\n').map(str::to_owned).collect())
+        .unwrap_or_default();
+    let mut items: Vec<RItem> = view.root_conflicts.iter().map(marker_ritem).collect();
+    items.extend(view.items.iter().map(view_ritem));
+    emit::emit(frontmatter, &root_note, &items)
+}
+
+/// The writer's form of a conflict marker (§6.1). Texts are trimmed the way the parser
+/// trims them, so that the marker reads back exactly.
+fn marker_ritem(m: &ConflictMarker) -> RItem {
+    let trimmed = m.local_md.trim_matches([' ', '\t']);
+    let (name, note) = match m.field {
+        ConflictField::Name if emit::marker_needs_fence(trimmed) => {
+            (m.local_md.clone(), Vec::new())
+        }
+        ConflictField::Name => (trimmed.to_owned(), Vec::new()),
+        ConflictField::Note if m.local_md.is_empty() => (String::new(), Vec::new()),
+        ConflictField::Note => (
+            String::new(),
+            m.local_md
+                .split('\n')
+                .map(|l| l.trim_matches([' ', '\t']).to_owned())
+                .collect(),
+        ),
+    };
+    RItem {
+        tag: None,
+        kind: ItemKind::ConflictMarker(m.field),
+        heading: None,
+        checkbox: Checkbox::None,
+        ordered: false,
+        read_only: false,
+        name,
+        note,
+        children: Vec::new(),
+    }
+}
+
+fn view_ritem(v: &ViewItem) -> RItem {
+    let flags = if v.read_only {
+        BTreeSet::from([TagFlag::ReadOnly])
+    } else {
+        BTreeSet::new()
+    };
+    let mut children: Vec<RItem> = v.conflicts.iter().map(marker_ritem).collect();
+    children.extend(v.children.iter().map(view_ritem));
+    RItem {
+        tag: v.tag.clone().map(|t| (t, flags)),
+        kind: v.kind,
+        heading: v.heading,
+        checkbox: v.checkbox,
+        ordered: v.ordered && v.heading.is_none(),
+        read_only: v.read_only && v.kind != ItemKind::Placeholder,
+        name: v.name.text.clone(),
+        note: v
+            .note
+            .as_ref()
+            .map(|n| n.text.split('\n').map(str::to_owned).collect())
+            .unwrap_or_default(),
+        children,
+    }
 }
