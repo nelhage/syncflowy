@@ -89,12 +89,15 @@
 //! * **Boundary roots.** The boundary guard uses [`PlanConfig::sync_roots`] plus
 //!   `merge.root` (so an empty set means "this root only"). The node of a move must lie
 //!   strictly inside one of them (a root itself is never moved).
-//! * **Brake counts.** Deletes are counted over all of `merge.deletes`, deferred ones
-//!   included: the brake is about the local diff (§8.3), and a truncated file must stop
-//!   the run at once, not ten minutes later. Each count is the larger of `merge.stats`
-//!   and the sum over the [`crate::merge::DeleteIntent`]s, so an inconsistent `stats`
-//!   can only make the brake stricter. Completions count `merge.ticks` (existing nodes);
-//!   new items typed ticked are not a mass change.
+//! * **Brake counts.** Deletes are counted from `merge.stats`, which covers this
+//!   cycle's local deletes whether or not they are deferred: the brake is about the
+//!   local diff (§8.3), and a truncated file must stop the run at once, not ten minutes
+//!   later. The [`crate::merge::DeleteIntent`]s are not summed: they also re-list the
+//!   pending deletes of earlier cycles (§9.1 guard 2), which the merge leaves out of
+//!   `stats` because they were counted when first deleted; counting them again would
+//!   engage the brake when a pending delete falls due (with a base that no longer shows
+//!   the node, a single due delete looked like an emptied file). Completions count
+//!   `merge.ticks` (existing nodes); new items typed ticked are not a mass change.
 //! * **Consistency.** Pushes must name the remote value as `expected`; orders must list
 //!   children of their parent in `S`. Anything else is [`PlanError::Inconsistent`].
 //!   Redundant intents (a move to the current parent, a tick of a completed node, a
@@ -433,14 +436,9 @@ pub fn plan(merge: &MergeResult, remote: &Tree, cfg: &PlanConfig) -> Result<Plan
 /// §8.3: the brakes, evaluated on the merge's local diff (module docs, "Brake counts").
 fn check_brakes(merge: &MergeResult, cfg: &BrakeConfig) -> Result<(), Brake> {
     let base_visible = merge.stats.base_visible;
-    let intents_visible: usize = merge
-        .deletes
-        .iter()
-        .map(|d| 1 + d.visible_descendants)
-        .sum();
-    let intents_hidden: usize = merge.deletes.iter().map(|d| d.hidden_descendants).sum();
-    let visible = merge.stats.deleted_visible.max(intents_visible);
-    let hidden = merge.stats.deleted_hidden.max(intents_hidden);
+    // `stats`, not the intents: re-listed pending deletes are not new (module docs).
+    let visible = merge.stats.deleted_visible;
+    let hidden = merge.stats.deleted_hidden;
     // "If the file is missing or empty, refuse" (§8.3): every visible node is deleted.
     if base_visible > 0 && visible >= base_visible {
         return Err(Brake::EmptyFile { base_visible });

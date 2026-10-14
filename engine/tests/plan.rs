@@ -1326,6 +1326,21 @@ fn deferred_deletes_count_toward_brakes_but_are_not_sent() {
     assert_eq!(render_ops(&plan, &sc.keys), "delete c1 (hidden 0)\n");
 }
 
+#[test]
+fn relisted_pending_deletes_do_not_brake_again() {
+    // The merge re-lists still-pending deletes of earlier cycles in `deletes` but leaves
+    // them out of `stats` (they were counted when first deleted, §9.1 guard 2). When one
+    // falls due its delete is sent; it must not count again (here it would look like an
+    // emptied file: every intent deletes a node, but none of the base's visible nodes).
+    let mut sc = wide_scenario(3, 0, 3, 0, &[]);
+    assert_eq!(brake(&sc), Some(Brake::EmptyFile { base_visible: 3 }));
+    sc.merge.stats.deleted_visible = 0;
+    sc.merge.stats.deleted_hidden = 0;
+    assert_eq!(brake(&sc), None);
+    let plan = check_plan(&sc.merge, &sc.remote, &sc.cfg);
+    assert_eq!(plan.summary.deletes, 3);
+}
+
 // =======================================================================================
 // Create fast path (§7.2) and the plan summary
 // =======================================================================================
