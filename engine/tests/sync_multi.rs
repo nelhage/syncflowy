@@ -201,6 +201,48 @@ fn pasted_line_edited_in_the_move_is_pushed_or_marked() {
     settled(&t);
 }
 
+/// §6.1 + §9: a collaborator renames a pasted, edited line between our export and the
+/// write. The move is done, the rename is skipped by the pre-write check, and the
+/// cycle merges again: the node now sits in beta's subtree but its pasted line is still
+/// compared with alpha's render of it, so the local edit becomes a conflict marker.
+#[test]
+fn pasted_edit_raced_by_a_remote_rename_becomes_a_conflict() {
+    let t = two_files();
+    cut_and_paste(&t, |p| p.replace("Wanders off", "Wanders off LOCALEDIT"));
+    let mut fired = false;
+    let api = TestApi::with_call_hook(&t.env.client, |kind| {
+        if kind == "get" && !fired {
+            fired = true;
+            t.env.ui(
+                "edit",
+                serde_json::json!({"id": t.x.as_str(), "text": "Wanders off REMOTE"}),
+            );
+        }
+    });
+    let rs = reports(&t.env, &api, &[t.a.clone(), t.b.clone()]);
+    drop(api);
+    assert!(fired);
+    for r in &rs {
+        assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    }
+    let tree = t.env.export();
+    assert_eq!(tree.parent(&t.x), Some(&t.target));
+    assert_eq!(tree.parent(&t.x_child), Some(&t.x));
+    assert_eq!(tree.get(&t.x).unwrap().name, "Wanders off REMOTE");
+    let b_text = read(&t.b);
+    assert!(
+        line_of(&b_text, &t.x).contains("Wanders off REMOTE"),
+        "{b_text}"
+    );
+    assert!(
+        b_text.contains("Wanders off LOCALEDIT"),
+        "the local edit is kept as a marker:\n{b_text}"
+    );
+    assert_eq!(rs[1].conflicts.len(), 1, "{:#?}", rs[1]);
+    assert!(!read(&t.a).contains("Wanders off"));
+    settled(&t);
+}
+
 #[test]
 fn edits_in_both_files_in_one_run() {
     let t = two_files();

@@ -903,6 +903,7 @@ impl<'a, 'c> Engine<'a, 'c> {
                 // without one, nothing is pushed (the pasted text may be any older
                 // render, guard 3), as for nodes hidden in the base.
                 Ident::Cross(n, _) if self.inp.cross.bases.contains_key(n) => n.clone(),
+                Ident::Known(n) if self.arrived(n) => n.clone(),
                 _ => continue,
             };
             let d = self.detect(i, &n);
@@ -910,11 +911,30 @@ impl<'a, 'c> Engine<'a, 'c> {
         }
     }
 
+    /// §6.4 + §9: a node of another file's root that is already in this root remotely
+    /// but has no line in this file's base: the cross-file move was applied by an
+    /// earlier pass of this cycle, which merges again because a write was skipped
+    /// (`sync::rerun`). Its tag now resolves inside the subtree ([`Ident::Known`]), yet
+    /// the pasted line is still an old render from the source file, so its fields are
+    /// merged against that file's base ([`CrossFile::bases`]) exactly as in the pass
+    /// that moved it: the skipped edit becomes a §6.1 conflict instead of being dropped
+    /// silently. `bases` only holds nodes that were under another root at the run's
+    /// export, so outside such a rerun no node of this subtree has an entry.
+    fn arrived(&self, n: &NodeId) -> bool {
+        self.remote_sub.contains(n) && self.inp.cross.bases.contains_key(n)
+    }
+
     /// The base of item `i`'s field merge (§5.1, §6.1): its line in the base render, the
     /// node's base value, and its lines in earlier renders (guard 3). For a cross-file
-    /// move (§6.4) all three come from the source file (`CrossFile::bases`).
+    /// move (§6.4), also one already applied ([`Engine::arrived`]), all three come from
+    /// the source file (`CrossFile::bases`).
     fn base_of(&self, i: usize, n: &NodeId) -> (&'a LocalItem, &'a Node, Vec<&'a LocalItem>) {
-        if let Ident::Cross(..) = self.items[i].ident {
+        let cross = match &self.items[i].ident {
+            Ident::Cross(..) => true,
+            Ident::Known(k) => self.arrived(k),
+            _ => false,
+        };
+        if cross {
             let cross: &'a CrossFile = self.inp.cross;
             let cb = &cross.bases[n];
             return (&cb.item, &cb.wf, cb.prior.iter().collect());
@@ -1185,6 +1205,9 @@ impl<'a, 'c> Engine<'a, 'c> {
                 }
                 // §6.4: the same three-way merge, against the source file's base.
                 (Ident::Cross(nd, _), Fate::Existing(_)) => self.merge_base_fields(i, &nd),
+                (Ident::Known(nd), Fate::Existing(_)) if self.arrived(&nd) => {
+                    self.merge_base_fields(i, &nd)
+                }
                 (Ident::Adopted(nd, k), Fate::Existing(_)) => self.merge_adopted_fields(i, &nd, k),
                 (Ident::Base(nd) | Ident::Rematched(nd), Fate::Gone) if self.moved_out(i, &nd) => {
                     // §6.2: moved out of the subtree remotely, but the node exists: the

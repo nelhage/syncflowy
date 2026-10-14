@@ -101,9 +101,13 @@
 //! same rules against the source file's base ([`CrossFile::bases`]: its line in the
 //! source file's base render, the node's value in that file's `base_wf`, and its lines
 //! in older renders for guard 3), so a stale paste never reverts a remote edit (§1);
-//! without such a base its fields are never pushed. Adopted nodes are brought to the
-//! local values; reappearing pending deletes and other tagged nodes that were hidden in
-//! the base never push fields (their text may be stale, guard 3).
+//! without such a base its fields are never pushed. The same holds once the move is
+//! applied: when a cycle merges again after a skipped write (§9, `sync`), the node is in
+//! this root remotely but still has no base item here, and its line is still merged
+//! against its `CrossFile::bases` entry, so a skipped edit of it becomes a §6.1 conflict
+//! instead of being treated like a node hidden in the base (and dropped). Adopted nodes
+//! are brought to the local values; reappearing pending deletes and other tagged nodes
+//! that were hidden in the base never push fields (their text may be stale, guard 3).
 //!
 //! **Completion (§4.3, §6.2 table).** `[x]` on a visible item is a tick: `ticks` gets the
 //! node (unless it is already completed remotely: [`ReportEvent::AlreadyCompleted`]), and

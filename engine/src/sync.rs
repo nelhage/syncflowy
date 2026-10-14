@@ -98,6 +98,10 @@
 //! were applied (so a user's further edit of a line we just pushed is a plain local
 //! edit, not a conflict with our own push), and this cycle's creates as adoptions; the
 //! uncommitted journal protects those creates if the process dies before the commit.
+//! Nodes moved in from another file are not added to that base: the rerun keeps the
+//! run's `CrossFile`, and the merge still compares their pasted lines with the source
+//! file's base (`CrossFile::bases`, §6.4), so a skipped edit of a pasted line is a
+//! conflict like any other.
 //!
 //! # Several files (§6.4)
 //!
