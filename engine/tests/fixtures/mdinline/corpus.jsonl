@@ -1,0 +1,111 @@
+{"expect":"ui","kind":"name","md":"a < b > c & d \"q\" 'q'","src":"UI:E1","tier":"Exact","wf":"a &lt; b &gt; c &amp; d &quot;q&quot; 'q'"}
+{"expect":"ui","kind":"name","md":"5 > 3","src":"UI:E1","tier":"Exact","wf":"5 &gt; 3"}
+{"expect":"ui","kind":"name","md":"AT&T","src":"UI:E1","tier":"Exact","wf":"AT&amp;T"}
+{"expect":"ui","kind":"name","md":"\\<b>not bold\\</b>","src":"UI:E2","tier":"Exact","wf":"&lt;b&gt;not bold&lt;/b&gt;"}
+{"expect":"ui","kind":"name","md":"plain **WORD** plain","src":"UI:E3","tier":"Exact","wf":"plain <b>WORD</b> plain"}
+{"expect":"ui","kind":"name","md":"plain *WORD* plain","src":"UI:E3","tier":"Exact","wf":"plain <i>WORD</i> plain"}
+{"expect":"ui","kind":"name","md":"plain <u>WORD</u> plain","src":"UI:E3","tier":"Passthrough","wf":"plain <u>WORD</u> plain"}
+{"expect":"ui","kind":"name","md":"plain ~~WORD~~ plain","src":"UI:E3","tier":"Exact","wf":"plain <s>WORD</s> plain"}
+{"expect":"ui","kind":"name","md":"plain **_WORD_** plain","src":"UI:E3","tier":"Exact","wf":"plain <b><i>WORD</i></b> plain"}
+{"expect":"ui","kind":"name","md":"plain `CODE` plain","src":"UI:E3","tier":"Exact","wf":"plain <code>CODE</code> plain"}
+{"expect":"ui","kind":"name","md":"see https://example.com/a?b=1&c=2","src":"UI:E5","tier":"Exact","wf":"see <a href=\"https://example.com/a?b=1&c=2\">https://example.com/a?b=1&amp;c=2</a>"}
+{"expect":"ui","kind":"name","md":"click [here](https://example.org/)","src":"UI:E5","tier":"Exact","wf":"click <a href=\"https://example.org/\">here</a>"}
+{"expect":"ui","kind":"name","md":"F01 <u>underline z</u>","src":"UI:F01","tier":"Passthrough","wf":"F01 <u>underline z</u>"}
+{"expect":"ui","kind":"name","md":"F02 <span class=\"colored c-red\">red span z</span>","src":"UI:F02","tier":"Passthrough","wf":"F02 <span class=\"colored c-red\">red span z</span>"}
+{"expect":"ui","kind":"name","md":"F09 **upper z**","src":"UI:F09","tier":"Exact","wf":"F09 <b>upper z</b>"}
+{"expect":"ui","kind":"name","md":"F14 a & b \\<tag> z","src":"UI:F14","tier":"Exact","wf":"F14 a &amp; b &lt;tag&gt; z"}
+{"expect":"ui","kind":"name","md":"F16 he said \"hi\" z","src":"UI:F16","tier":"Exact","wf":"F16 he said &quot;hi&quot; z"}
+{"expect":"ui","kind":"name","md":"X #t","src":"UI:C2","tier":"Exact","wf":"X #t"}
+{"expect":"ui","kind":"name","md":"#urgent call @alice re #a-b_c","src":"UI:E7","tier":"Exact","wf":"#urgent call @alice re #a-b_c"}
+{"expect":"ui","kind":"name","md":"📅 2026-07-05","src":"DM§11","tier":"Exact","wf":"<time startYear=\"2026\" startMonth=\"7\" startDay=\"5\">Sun, Jul 5, 2026</time>"}
+{"expect":"ui","kind":"name","md":"📅 2026-01-15","src":"T§7","tier":"Exact","wf":"<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time>"}
+{"expect":"ui","kind":"name","md":"📅 2026-01-15 14:30","src":"T§7","tier":"Exact","wf":"<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"14\" startMinute=\"30\">Thu, Jan 15, 2026 at 2:30 PM</time>"}
+{"expect":"ui","kind":"name","md":"📅 2026-01-15 00:00","src":"T§7","tier":"Exact","wf":"<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"0\" startMinute=\"0\">Thu, Jan 15, 2026 at 12:00 AM</time>"}
+{"expect":"ui","kind":"name","md":"📅 2026-01-05","src":"T§7","tier":"Exact","wf":"<time startYear=\"2026\" startMonth=\"1\" startDay=\"5\">Mon, Jan 5, 2026</time>"}
+{"expect":"ui","kind":"name","md":"📅 0001-01-01","src":"T§7","tier":"Exact","wf":"<time startYear=\"1\" startMonth=\"1\" startDay=\"1\">Mon, Jan 1, 1</time>"}
+{"expect":"ui","kind":"name","md":"**📅 2026-01-15**","src":"T§7","tier":"Exact","wf":"<b><time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time></b>"}
+{"expect":"ui","kind":"name","md":"[📅 2026-01-15](https://e.com)","src":"T§7","tier":"Exact","wf":"<a href=\"https://e.com\"><time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time></a>"}
+{"expect":"ui","kind":"name","md":"📅 2026-01-15 - 📅 2026-01-20","src":"T§7","tier":"Exact","wf":"<time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time> - <time startYear=\"2026\" startMonth=\"1\" startDay=\"20\">Tue, Jan 20, 2026</time>"}
+{"expect":"ui","kind":"name","md":"x **bold** y","src":"T§6.1","tier":"Exact","wf":"x <b>bold</b> y"}
+{"expect":"ui","kind":"name","md":"x *it* y","src":"T§6.1","tier":"Exact","wf":"x <i>it</i> y"}
+{"expect":"ui","kind":"name","md":"x ~~st~~ y","src":"T§6.1","tier":"Exact","wf":"x <s>st</s> y"}
+{"expect":"ui","kind":"name","md":"x [text](https://example.com/a?b=1&c=2) y","src":"T§6.1","tier":"Exact","wf":"x <a href=\"https://example.com/a?b=1&c=2\">text</a> y"}
+{"expect":"ui","kind":"name","md":"[rel](/foo)","src":"T§6.1","tier":"Exact","wf":"<a href=\"/foo\">rel</a>"}
+{"expect":"ui","kind":"name","md":"[**b**](https://e.com)","src":"T§6.1","tier":"Exact","wf":"<a href=\"https://e.com\"><b>b</b></a>"}
+{"expect":"ui","kind":"name","md":"**bold *ital* bold**","src":"T§6.1","tier":"Exact","wf":"<b>bold <i>ital</i> bold</b>"}
+{"expect":"ui","kind":"name","md":"x <code>co*de*</code> y","src":"T§6.1","tier":"Passthrough","wf":"x <code>co<i>de</i></code> y"}
+{"expect":"ui","kind":"name","md":"x `<b>` y","src":"T§6.1","tier":"Exact","wf":"x <code>&lt;b&gt;</code> y"}
+{"expect":"ui","kind":"name","md":"[](https://e.com)","src":"T§6.1","tier":"Exact","wf":"<a href=\"https://e.com\"></a>"}
+{"expect":"ui","kind":"name","md":"[t](<>)","src":"T§6.1","tier":"Exact","wf":"<a href=\"\">t</a>"}
+{"expect":"ui","kind":"name","md":"[t](<a b>)","src":"T§6.1","tier":"Exact","wf":"<a href=\"a b\">t</a>"}
+{"expect":"ui","kind":"name","md":"[a \\[b\\] c](https://e.com)","src":"T§6.1","tier":"Exact","wf":"<a href=\"https://e.com\">a [b] c</a>"}
+{"expect":"ui","kind":"name","md":"\\![alt](https://example.com/x.png)","src":"T§6.1","tier":"Exact","wf":"!<a href=\"https://example.com/x.png\">alt</a>"}
+{"expect":"ui","kind":"name","md":"#a*b*c","src":"T§6.1","tier":"Exact","wf":"#a<i>b</i>c"}
+{"expect":"ui","kind":"name","md":"**_bi_**","src":"T§6.3","tier":"Exact","wf":"<b><i>bi</i></b>"}
+{"expect":"ui","kind":"name","md":"<i></i>unclosed","src":"T§6.3","tier":"Passthrough","wf":"<i></i>unclosed"}
+{"expect":"ui","kind":"name","md":"<b></b>x<b></b>","src":"T§6.3","tier":"Passthrough","wf":"<b></b>x<b></b>"}
+{"expect":"ui","kind":"name","md":"<b> spaced </b>","src":"T§6.3","tier":"Passthrough","wf":"<b> spaced </b>"}
+{"expect":"ui","kind":"name","md":"2*3*4","src":"T§6.3","tier":"Exact","wf":"2<i>3</i>4"}
+{"expect":"ui","kind":"name","md":"<s>~x</s>~","src":"T§6.3","tier":"Passthrough","wf":"<s>~x</s>~"}
+{"expect":"ui","kind":"name","md":"<code></code>a <code> b</code>\\`","src":"T§6.3","tier":"Passthrough","wf":"<code></code>a <code> b</code>`"}
+{"expect":"ui","kind":"name","md":"<b> H4</b>","src":"T§5","tier":"Passthrough","wf":"<b> H4</b>"}
+{"expect":"ui","kind":"name","md":"Buy milk & eggs (2x) — **today**!","src":"typed","tier":"Exact","wf":"Buy milk &amp; eggs (2x) — <b>today</b>!"}
+{"expect":"ui","kind":"name","md":"Meeting w/ @bob re: Q3 #planning","src":"typed","tier":"Exact","wf":"Meeting w/ @bob re: Q3 #planning"}
+{"expect":"ui","kind":"name","md":"*Note:* use `cargo test -- --nocapture`","src":"typed","tier":"Exact","wf":"<i>Note:</i> use <code>cargo test -- --nocapture</code>"}
+{"expect":"ui","kind":"name","md":"10:30 standup; 1:1 @ 2pm","src":"typed","tier":"Exact","wf":"10:30 standup; 1:1 @ 2pm"}
+{"expect":"ui","kind":"name","md":"C++ vs C# vs F*","src":"typed","tier":"Exact","wf":"C++ vs C# vs F*"}
+{"expect":"ui","kind":"name","md":"\\*args, \\*\\*kwargs","src":"typed","tier":"Exact","wf":"*args, **kwargs"}
+{"expect":"ui","kind":"name","md":"foo_bar_baz and \\_\\_dunder\\_\\_","src":"typed","tier":"Exact","wf":"foo_bar_baz and __dunder__"}
+{"expect":"ui","kind":"name","md":"price: \\$10-\\$20","src":"typed","tier":"Exact","wf":"price: $10-$20"}
+{"expect":"ui","kind":"name","md":"x <= y && y >= z","src":"typed","tier":"Exact","wf":"x &lt;= y &amp;&amp; y &gt;= z"}
+{"expect":"ui","kind":"name","md":"TODO: fix [bug] in `parse()`","src":"typed","tier":"Exact","wf":"TODO: fix [bug] in <code>parse()</code>"}
+{"expect":"ui","kind":"name","md":"2 * 3 = 6","src":"typed","tier":"Exact","wf":"2 * 3 = 6"}
+{"expect":"ui","kind":"name","md":"100% done!","src":"typed","tier":"Exact","wf":"100% done!"}
+{"expect":"ui","kind":"name","md":"~~cancelled~~ moved to 📅 2026-10-20","src":"typed","tier":"Exact","wf":"<s>cancelled</s> moved to <time startYear=\"2026\" startMonth=\"10\" startDay=\"20\">Tue, Oct 20, 2026</time>"}
+{"expect":"ui","kind":"name","md":"→ next step 🎉","src":"typed","tier":"Exact","wf":"→ next step 🎉"}
+{"expect":"ui","kind":"name","md":"~/.bashrc and C:\\Users\\me","src":"typed","tier":"Exact","wf":"~/.bashrc and C:\\Users\\me"}
+{"expect":"ui","kind":"name","md":"1\\. first thing","src":"typed","tier":"Exact","wf":"1. first thing"}
+{"expect":"ui","kind":"name","md":"\\- dash at start","src":"typed","tier":"Exact","wf":"- dash at start"}
+{"expect":"ui","kind":"name","md":"\\# not a heading","src":"typed","tier":"Exact","wf":"# not a heading"}
+{"expect":"ui","kind":"name","md":"\\> quoted","src":"typed","tier":"Exact","wf":"&gt; quoted"}
+{"expect":"ui","kind":"name","md":"\\[ ] fake box","src":"typed","tier":"Exact","wf":"[ ] fake box"}
+{"expect":"ui","kind":"name","md":"\\---","src":"typed","tier":"Exact","wf":"---"}
+{"expect":"ui","kind":"name","md":"\\[\\[Wiki Link]] and \\=\\=hl\\=\\= and \\$x^2\\$","src":"typed","tier":"Exact","wf":"[[Wiki Link]] and ==hl== and $x^2$"}
+{"expect":"ui","kind":"name","md":"block id \\^abc","src":"typed","tier":"Exact","wf":"block id ^abc"}
+{"expect":"ui","kind":"name","md":"%\\%not a comment%\\%","src":"typed","tier":"Exact","wf":"%%not a comment%%"}
+{"expect":"ui","kind":"name","md":"&#32;&#32;leading and trailing&#32;&#32;","src":"typed","tier":"Exact","wf":"  leading and trailing  "}
+{"expect":"ui","kind":"name","md":"日本語のメモ","src":"typed","tier":"Exact","wf":"日本語のメモ"}
+{"expect":"ui","kind":"name","md":"emoji &#128197; 2026-01-15 typed by hand","src":"typed","tier":"Exact","wf":"emoji 📅 2026-01-15 typed by hand"}
+{"expect":"ui","kind":"name","md":"read <https://en.wikipedia.org/wiki/Foo_(bar)> later","src":"typed","tier":"Exact","wf":"read <a href=\"https://en.wikipedia.org/wiki/Foo_(bar)\">https://en.wikipedia.org/wiki/Foo_(bar)</a> later"}
+{"expect":"ui","kind":"name","md":"docs: https://docs.rs/similar/latest/similar/.","src":"typed","tier":"Exact","wf":"docs: <a href=\"https://docs.rs/similar/latest/similar/\">https://docs.rs/similar/latest/similar/</a>."}
+{"expect":"ui","kind":"name","md":"<span class=\"colored c-red\">urgent</span> **call** <u>Alice</u>","src":"typed","tier":"Passthrough","wf":"<span class=\"colored c-red\">urgent</span> <b>call</b> <u>Alice</u>"}
+{"expect":"ui","kind":"name","md":"**Bold**: *it*, <u>under</u>","src":"typed","tier":"Passthrough","wf":"<b>Bold</b>: <i>it</i>, <u>under</u>"}
+{"expect":"ui","kind":"name","md":"a**b**c","src":"typed","tier":"Exact","wf":"a<b>b</b>c"}
+{"expect":"ui","kind":"note","md":"line one\nline two\n\nhas \\<angle> & **bold**","src":"UI:E8","tier":"Exact","wf":"line one\nline two\n\nhas &lt;angle&gt; &amp; <b>bold</b>"}
+{"expect":"ui","kind":"note","md":"https://example.net/x","src":"UI:E5","tier":"Exact","wf":"<a href=\"https://example.net/x\">https://example.net/x</a>"}
+{"expect":"ui","kind":"note","md":"\\- not a child\n1\\. not a list\n\\> not a quote\n\\# not a heading\n\\---\n\\```","src":"typed","tier":"Exact","wf":"- not a child\n1. not a list\n&gt; not a quote\n# not a heading\n---\n```"}
+{"expect":"ui","kind":"note","md":"steps:\n1\\) open\n2\\) close","src":"typed","tier":"Exact","wf":"steps:\n1) open\n2) close"}
+{"expect":"ui","kind":"note","md":"**bold across\nlines** then text","src":"typed","tier":"Exact","wf":"<b>bold across\nlines</b> then text"}
+{"expect":"ui","kind":"note","md":"<b>bold across\n\nparagraphs</b>","src":"typed","tier":"Passthrough","wf":"<b>bold across\n\nparagraphs</b>"}
+{"expect":"ui","kind":"note","md":"&#32;&#32;indented\n&#9;tabbed\ntrailing&#32;&#32;","src":"typed","tier":"Exact","wf":"  indented\n\ttabbed\ntrailing  "}
+{"expect":"ui","kind":"note","md":"a\n\n\nb\n","src":"typed","tier":"Exact","wf":"a\n\n\nb\n"}
+{"expect":"ui","kind":"note","md":"see https://e.com/a\nand [this](https://e.com/b)","src":"typed","tier":"Exact","wf":"see <a href=\"https://e.com/a\">https://e.com/a</a>\nand <a href=\"https://e.com/b\">this</a>"}
+{"expect":"ui","kind":"note","md":"`one`\n<code>\\`\\`two\\`\\`</code>","src":"typed","tier":"Passthrough","wf":"<code>one</code>\n<code>``two``</code>"}
+{"expect":"any","kind":"name","md":"F03 alert(1)after script","src":"UI:F03","tier":"Lossy","wf":"F03 <script>alert(1)</script>after script"}
+{"expect":"any","kind":"name","md":"F04 in div","src":"UI:F04","tier":"Lossy","wf":"F04 <div>in div</div>"}
+{"expect":"any","kind":"name","md":"F05 linebreak","src":"UI:F05","tier":"ReadOnly","wf":"F05 line<br>break"}
+{"expect":"any","kind":"name","md":"F06 img","src":"UI:F06","tier":"ReadOnly","wf":"F06 <img src=\"x\">img"}
+{"expect":"any","kind":"name","md":"F07&#32;","src":"UI:F07","tier":"Lossy","wf":"F07 <a href=\"javascript:alert(1)\">js link</a>"}
+{"expect":"any","kind":"name","md":"F08 unclosed bold","src":"UI:F08","tier":"ReadOnly","wf":"F08 <b>unclosed bold"}
+{"expect":"any","kind":"name","md":"F09 **upper**","src":"UI:F09","tier":"Lossy","wf":"F09 <B>upper</B>"}
+{"expect":"any","kind":"name","md":"F10 **strong**","src":"UI:F10","tier":"Lossy","wf":"F10 <strong>strong</strong>"}
+{"expect":"any","kind":"name","md":"F11 xy","src":"UI:F11","tier":"Lossy","wf":"F11 x<!-- comment -->y"}
+{"expect":"any","kind":"name","md":"F12 mark","src":"UI:F12","tier":"Lossy","wf":"F12 <mark>mark</mark>"}
+{"expect":"any","kind":"name","md":"F13 a  d","src":"UI:F13","tier":"ReadOnly","wf":"F13 a < b & c > d"}
+{"expect":"any","kind":"name","md":"F15 nb sp 'q' \"dq\"","src":"UI:F15","tier":"ReadOnly","wf":"F15 nb&nbsp;sp &#39;q&#39; &quot;dq&quot;"}
+{"expect":"any","kind":"name","md":"F16 he said \"hi\"","src":"UI:F16","tier":"Lossy","wf":"F16 he said \"hi\""}
+{"expect":"any","kind":"name","md":"[t](https://e.com)","src":"T§4.3","tier":"Lossy","wf":"<a href='https://e.com' target=\"_blank\">t</a>"}
+{"expect":"any","kind":"name","md":"**b**","src":"T§4.3","tier":"Lossy","wf":"<b class=\"x\" style=\"y\">b</b>"}
+{"expect":"any","kind":"name","md":"*em*","src":"T§4.3","tier":"Lossy","wf":"<em>em</em>"}
+{"expect":"any","kind":"name","md":"plain span","src":"T§4.3","tier":"Lossy","wf":"<span>plain span</span>"}
+{"expect":"any","kind":"name","md":"multi ⏎ line name","src":"T§5","tier":"ReadOnly","wf":"multi\nline name"}
