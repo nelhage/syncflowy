@@ -58,7 +58,11 @@
 //!   ([`DaemonConfig::delete_grace`], default 10 min) is over **and** the file was
 //!   unchanged for one more cycle; the periodic cycles provide those cycles. A tag that
 //!   shows up in another file of the run cancels the delete and becomes a cross-file
-//!   move; a line that comes back cancels it.
+//!   move; a line that comes back cancels it. While another synced file has edits
+//!   waiting for its debounce, no pending delete is sent in that cycle (they may be the
+//!   paste half of a cut and paste, a split arrival). UNVERIFIED design choice: the
+//!   design only asks for the grace period; holding deletes for a waiting file costs at
+//!   most one debounce period.
 //! * Guard 4: `sync` writes the file only for remote changes or new tags (pure
 //!   normalisation is deferred); the daemon syncs a file only once its content is
 //!   stable; a frontmatter that does not parse is skipped and retried, never read as
@@ -882,6 +886,14 @@ impl Daemon {
             .take_ready(now, self.cfg.debounce)
             .into_iter()
             .collect();
+        // Split arrivals (guard 2): hold due deletes while a file with a checkpoint has
+        // edits that are still settling.
+        let held = self.tracked.iter().any(|t| {
+            t.state == FileState::Dirty
+                && t.has_checkpoint
+                && !ready.contains(&t.path)
+                && self.debouncer.contains(&t.path)
+        });
         let files: Vec<PathBuf> = self
             .tracked
             .iter()
@@ -894,11 +906,16 @@ impl Daemon {
             .collect();
         self.last_cycle = Some(now);
         self.last_cycle_unix = self.time.unix();
+        self.deletes_held = held;
         let mut results = Vec::new();
         if files.is_empty() {
             return Ok((files, results));
         }
-        let cfg = self.cfg.sync.clone();
+        let mut cfg = self.cfg.sync.clone();
+        if held {
+            // A grace period that never ends: nothing is due this cycle.
+            cfg.delete_grace = Some(Duration::from_secs(i64::MAX as u64));
+        }
         match sync::sync_all(api, &files, &cfg) {
             // `sync_all` fails as a whole only on the state directory or the export.
             Err(e) if is_fatal(&e) || matches!(e, Error::State(_)) => return Err(e),

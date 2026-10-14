@@ -128,8 +128,9 @@
 //! `deletes` again on every merge (and removed from `M`), so that `sync` can keep
 //! deferring them and finally send them; they do not count in [`MergeStats`] (they were
 //! counted when first deleted). A pending node that reappears in the file, or that
-//! changed remotely (delete vs edit), or that left the subtree, is in
-//! `cancelled_pending`.
+//! changed remotely (delete vs edit), or that left the subtree, or whose tag is in
+//! `cross.claimed_elsewhere` (a cut and paste into another file of the run, which that
+//! file's merge turns into a move), is in `cancelled_pending`.
 //!
 //! **Appear / disappear (§4.5, §6.2 last row).** Remote uncompletion (of the node or an
 //! ancestor) is an appear: the node is in `M` at its remote position and the renderer

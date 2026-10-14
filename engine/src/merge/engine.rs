@@ -1617,6 +1617,14 @@ impl<'a, 'c> Engine<'a, 'c> {
             if self.cancelled.contains(p) || claimed.contains(p) || dset.contains(p) {
                 continue;
             }
+            if self.inp.cross.claimed_elsewhere.contains(p) {
+                // §9.1 guard 2: the tag showed up in another file of the run (a split
+                // cut and paste); that file's merge moves the node, so the delete is off.
+                self.cancelled.insert(p.clone());
+                self.report
+                    .push(ReportEvent::PendingDeleteCancelled { node: p.clone() });
+                continue;
+            }
             if self.m.contains(p) {
                 pset.insert(p.clone());
             } else {
