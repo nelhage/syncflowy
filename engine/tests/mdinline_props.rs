@@ -389,11 +389,11 @@ proptest! {
         let w = md_to_wf(&m, FieldKind::Code, &cfg);
         prop_assert!(wfhtml::is_well_formed(&w));
         prop_assert_eq!(wfhtml::canonicalize(&w), w.clone());
+        // Every code value `md_to_wf` writes is exact, even with lines that look like
+        // fences: mdblock picks a fence longer than any of them (§5.3).
         let r = wf_to_md(&w, FieldKind::Code, &cfg);
-        if r.tier != Tier::ReadOnly {
-            prop_assert_eq!(r.tier, Tier::Exact);
-            prop_assert_eq!(md_to_wf(&r.text, FieldKind::Code, &cfg), w);
-        }
+        prop_assert_eq!(r.tier, Tier::Exact);
+        prop_assert_eq!(md_to_wf(&r.text, FieldKind::Code, &cfg), w);
     }
 
     #[test]

@@ -58,7 +58,7 @@ a malformed name (UI:F1)
 
 # 🔒 line one ⏎ line two %%wf:00000000001a-ro%%
 
-# 🔒 ```` %%wf:00000000001b-ro%%
+# ```` %%wf:00000000001b%%
 x
 ```
 y

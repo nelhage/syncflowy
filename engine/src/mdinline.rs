@@ -99,9 +99,11 @@
 //! For [`FieldKind::Code`] (the name of a `code-block` node, rendered inside a fence by
 //! `mdblock`): `text` is `to_plain_text(x)` verbatim (no escaping; line breaks normalised
 //! to `\n`), and `md_to_wf` is `escape_text(m)` (line breaks normalised, characters XML
-//! forbids dropped); the tier is `Exact` iff that round-trips, `ReadOnly` if the value is
-//! malformed or a line of the code would close the fence (a line starting with
-//! ```` ``` ```` after optional spaces or tabs), else `Lossy`.
+//! forbids dropped); the tier is `ReadOnly` if the value is malformed, else `Exact` iff
+//! that round-trips, else `Lossy`. A code line starting with ```` ``` ```` is not a
+//! hazard here: `mdblock` fences code with a backtick run longer than any that starts
+//! one of its lines, so such a value reads back byte for byte (§5.3 reserves tier 3 for
+//! values the dialect cannot hold).
 //! UNVERIFIED: how the UI stores code-block names (§13 Q2); this mapping is a guess.
 //!
 //! # Id tags (§4.4)
@@ -180,8 +182,8 @@ pub enum Tier {
     /// client, an unknown element, …). Still editable: edits go through [`write_value`]
     /// (§5.2), which preserves what the rendering could not show where possible.
     Lossy,
-    /// Tier 3: not representable (malformed WF-HTML, a newline in a non-code name, a code
-    /// line that would close the fence). Rendered as a best-effort, read-only form
+    /// Tier 3: not representable (malformed WF-HTML, a newline in a non-code name).
+    /// Rendered as a best-effort, read-only form
     /// (`mdblock` adds a `🔒` and the `ro` tag flag); local edits are refused (§5.3).
     ReadOnly,
 }
@@ -293,10 +295,9 @@ pub fn wf_to_md(wf: &str, kind: FieldKind, cfg: &InlineConfig) -> MdText {
 
 fn code_to_md(wf: &str, cfg: &InlineConfig) -> MdText {
     let text = chars::sanitize(&wfhtml::to_plain_text(wf));
-    let closes_fence = text
-        .split('\n')
-        .any(|l| l.trim_start_matches([' ', '\t']).starts_with("```"));
-    let tier = if !wfhtml::is_well_formed(wf) || closes_fence {
+    // §5.3: only malformed values are tier 3. A line starting with ``` needs no special
+    // tier: `mdblock` writes a longer fence around it (mdblock `fence_for`).
+    let tier = if !wfhtml::is_well_formed(wf) {
         Tier::ReadOnly
     } else if md_to_wf(&text, FieldKind::Code, cfg) == wf {
         Tier::Exact

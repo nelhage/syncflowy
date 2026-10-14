@@ -1063,13 +1063,16 @@ fn view_read_only_tiers() {
     ]);
     let v = View::build(&t, &id(1), &DocConfig::default(), &ViewExtras::default()).unwrap();
     let ro: Vec<bool> = v.items.iter().map(|i| i.read_only).collect();
-    assert_eq!(ro, vec![true, true, true, true, false]);
+    // A code line that would close a ``` fence is not tier 3: the fence is lengthened and
+    // the code stays editable (§5.3).
+    assert_eq!(ro, vec![true, true, true, false, false]);
     assert_eq!(v.items[0].name.tier, Tier::ReadOnly);
+    assert_eq!(v.items[3].name.tier, Tier::Exact);
     assert_eq!(v.items[4].name.tier, Tier::Lossy);
     let md = render_tree(&t, &DocConfig::default(), &ViewExtras::default());
     assert_eq!(
         body(&md),
-        "- [ ] 🔒 broken bold ^wf-000000000002-ro\n- [ ] 🔒 two ⏎ lines ^wf-000000000003-ro\n- [ ] 🔒 fine ^wf-000000000004-ro\n\tunclosed\n- 🔒 ```` ^wf-000000000005-ro\n\ta\n\t```\n\t````\n- [ ] **x** y ^wf-000000000006\n"
+        "- [ ] 🔒 broken bold ^wf-000000000002-ro\n- [ ] 🔒 two ⏎ lines ^wf-000000000003-ro\n- [ ] 🔒 fine ^wf-000000000004-ro\n\tunclosed\n- ```` ^wf-000000000005\n\ta\n\t```\n\t````\n- [ ] **x** y ^wf-000000000006\n"
     );
     let d = parse(&md).unwrap();
     assert_eq!(d.items[0].name_md, "broken bold");

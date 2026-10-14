@@ -8,9 +8,9 @@ its short id is the 12-hex number itself (`000000000007` for node 7).
 The tree covers: a root note (the preamble), completed subtrees (hidden with incomplete
 descendants), notes with empty lines, every layout kind (todo, code-block, quote-block,
 numbered, divider, h1, p, board), mirror shells (`note ""` and `note null`, UI:H2) with
-vestigial children, tier-3 values (malformed WF-HTML, a newline in a name, a code line
-that would close the fence), a lossy value, text that needs line-start escapes, links,
-dates, passthrough HTML, and nesting six levels deep.
+vestigial children, tier-3 values (malformed WF-HTML, a newline in a name), a code line
+that would close a ``` fence (exact: it gets a longer fence), a lossy value, text that
+needs line-start escapes, links, dates, passthrough HTML, and nesting six levels deep.
 """
 
 import json

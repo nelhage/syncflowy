@@ -616,8 +616,11 @@ fn code_kind() {
     );
     check(CODE, &cfg(), "**x** &amp;", "**x** &", Tier::Exact);
     check(CODE, &cfg(), "<b>x</b> = 1", "x = 1", Tier::Lossy);
-    check(CODE, &cfg(), "a\n```\nb", "a\n```\nb", Tier::ReadOnly);
-    check(CODE, &cfg(), "a\n  ```x", "a\n  ```x", Tier::ReadOnly);
+    // A line that would close a ``` fence is still exact: mdblock writes a longer fence
+    // (§5.3 tier 3 is only for values the dialect cannot hold).
+    check(CODE, &cfg(), "a\n```\nb", "a\n```\nb", Tier::Exact);
+    check(CODE, &cfg(), "a\n  ```x", "a\n  ```x", Tier::Exact);
+    check(CODE, &cfg(), "```\n````", "```\n````", Tier::Exact);
     check(CODE, &cfg(), "<b>x", "x", Tier::ReadOnly);
     assert_eq!(
         md_to_wf("a < b\r\n\"q\"", CODE, &cfg()),

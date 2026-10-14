@@ -137,8 +137,8 @@
 //!   at column 0. UNVERIFIED (our choice): Obsidian shows it as a heading followed by a
 //!   code block.
 //! * **Fence length**: code is fenced with one backtick more than the longest backtick run
-//!   that starts one of its lines (at least three), so a `ReadOnly` code value with a
-//!   ```` ``` ```` line still reads back exactly.
+//!   that starts one of its lines (at least three), so a code value with a
+//!   ```` ``` ```` line reads back exactly and stays editable (tier `Exact`, §5.3).
 //! * **Kinds without a box**: headings, code, quotes, dividers and placeholders never
 //!   render `[ ]` (UNVERIFIED, our choice for quotes: `- [ ] > x` reads badly).
 //! * **Dividers are not shells**: a `divider` node with an empty name renders as `- ---`

@@ -61,7 +61,7 @@ a malformed name (UI:F1)
 
 # 🔒 line one ⏎ line two [wid:: 00000000001a-ro]
 
-# 🔒 ```` [wid:: 00000000001b-ro]
+# ```` [wid:: 00000000001b]
 x
 ```
 y
