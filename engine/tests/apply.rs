@@ -214,6 +214,10 @@ fn against_the_mock() {
             "crash between steps",
             crash_between_create_steps_is_recovered,
         ),
+        (
+            "torn journal tail",
+            recovery_after_a_torn_journal_tail_is_repeatable,
+        ),
         ("crash after direct", crash_after_direct_create_is_recovered),
         (
             "crash before send",
@@ -720,6 +724,59 @@ fn crash_between_create_steps_is_recovered(mock: &MockServer) {
     let carried = recover(&path2, &c).unwrap().unwrap();
     assert!(carried.adoptions.is_empty());
     let _ = std::fs::remove_file(&path2);
+}
+
+/// A crash mid-append leaves the journal without a final newline; the `Created` entry
+/// recovery appends must still be readable, so that a second recovery (after the nonce
+/// is gone) adopts the node instead of letting the next merge create it again.
+fn recovery_after_a_torn_journal_tail_is_repeatable(mock: &MockServer) {
+    let c = Client::new(mock.client_config());
+    let root = top_level(mock, "root");
+    let remote = export(&c);
+    let plan = plan_of(
+        &root,
+        vec![Op::Create {
+            temp: NodeId::temp(1),
+            parent: root.clone(),
+            name: CreateName::Deferred("a".into()),
+            note: None,
+            layout: String::new(),
+        }],
+    );
+    let expected = plan::simulate(&plan, &remote).unwrap();
+    let api = TestApi::new(&c, Fault::CrashAfter(0));
+    let (path, mut journal) = begin(&plan);
+    crash(|| {
+        Applier::new(&api, ApplyOptions::default(), roots(&root))
+            .apply(&plan, &remote, &expected, &mut journal)
+            .ok();
+    });
+    drop(journal);
+    // The crash also cut a journal line mid-write.
+    {
+        use std::io::Write;
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap();
+        f.write_all(br#"{"type":"done","ind"#).unwrap();
+    }
+    let rec = recover(&path, &c).unwrap().unwrap();
+    assert_eq!(rec.adoptions.len(), 1, "{rec:#?}");
+    assert_eq!(rec.finished.len(), 1);
+    let id = rec.adoptions[0].node.clone();
+    assert!(
+        entries(&path)
+            .iter()
+            .any(|e| matches!(e, JournalEntry::Created { index: 0, id: i, .. } if *i == id)),
+        "the Created entry is readable"
+    );
+    // The nonce is gone now; a second recovery must find the node by its id.
+    let again = recover(&path, &c).unwrap().unwrap();
+    assert_eq!(again.adoptions, rec.adoptions);
+    assert!(again.finished.is_empty());
+    assert_eq!(named(&export(&c), "a").len(), 1);
+    let _ = std::fs::remove_file(&path);
 }
 
 fn crash_after_direct_create_is_recovered(mock: &MockServer) {

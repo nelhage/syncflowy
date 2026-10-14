@@ -294,8 +294,32 @@ impl Journal {
     }
 
     /// Open an existing journal for appending (recovery records `Created` entries).
+    ///
+    /// A crash mid-append can leave the file without a final newline. Appending after
+    /// such a tail would glue the new entry onto it, so that [`Journal::read`] drops both
+    /// as one truncated last line (or, once more entries follow, fails the whole read
+    /// with `InvalidData`). So the tail is repaired first (§7.3: the journal must keep
+    /// every record recovery relies on): a tail that decodes as an entry (only the
+    /// newline was lost) is terminated with a newline, and anything else is cut off,
+    /// which loses nothing that `read` would have returned.
     fn open_append(path: &Path) -> io::Result<Journal> {
-        let file = OpenOptions::new().append(true).open(path)?;
+        let mut file = OpenOptions::new().read(true).append(true).open(path)?;
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)?;
+        let keep = bytes.iter().rposition(|&b| b == b'\n').map_or(0, |i| i + 1);
+        let tail = &bytes[keep..];
+        if !tail.is_empty() {
+            if serde_json::from_slice::<JournalEntry>(tail).is_ok() {
+                file.write_all(b"\n")?;
+            } else {
+                log::warn!(
+                    "{}: cutting a truncated last journal line before appending",
+                    path.display()
+                );
+                file.set_len(keep as u64)?;
+            }
+            file.sync_data()?;
+        }
         Ok(Journal {
             path: path.to_path_buf(),
             file,
@@ -1636,6 +1660,41 @@ mod tests {
         assert!(!path.exists());
         assert_eq!(Journal::read(&path).unwrap(), None);
         drop(j);
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn appending_after_a_torn_tail_keeps_the_new_entry_readable() {
+        let path = scratch("journal.jsonl");
+        let plan = Plan {
+            root: id(1),
+            ops: vec![Op::Complete { node: id(2) }],
+            summary: PlanSummary::default(),
+        };
+        let begin = JournalEntry::new_begin(&plan, Vec::new());
+        drop(Journal::begin(&path, &begin).unwrap());
+        let done = JournalEntry::Done { index: 0 };
+        let raw = |bytes: &[u8]| {
+            let mut f = OpenOptions::new().append(true).open(&path).unwrap();
+            f.write_all(bytes).unwrap();
+        };
+        // A cut line is dropped, so the appended entry starts a line of its own.
+        raw(br#"{"type":"skipped","ind"#);
+        Journal::open_append(&path).unwrap().append(&done).unwrap();
+        assert_eq!(
+            Journal::read(&path).unwrap().unwrap(),
+            vec![begin.clone(), done.clone()]
+        );
+        // Further appends stay readable (no InvalidData from a bad middle line).
+        Journal::open_append(&path).unwrap().append(&done).unwrap();
+        assert_eq!(Journal::read(&path).unwrap().unwrap().len(), 3);
+        // A complete entry that only lost its newline is kept, not cut.
+        let mut line = entry_line(&done).unwrap();
+        line.pop();
+        raw(&line);
+        assert_eq!(Journal::read(&path).unwrap().unwrap().len(), 4);
+        Journal::open_append(&path).unwrap().append(&done).unwrap();
+        assert_eq!(Journal::read(&path).unwrap().unwrap().len(), 5);
         let _ = std::fs::remove_dir_all(path.parent().unwrap());
     }
 
