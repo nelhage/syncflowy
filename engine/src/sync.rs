@@ -78,8 +78,10 @@
 //!     1, do not write, keep the journal, and rerun from step 4 with the new text, the
 //!     latest export and this cycle's creates as adoptions (at most
 //!     [`SyncConfig::cas_retries`] times, then [`SyncOutcome::Skipped`]; the next run
-//!     recovers). Otherwise save the history entry of the new generation and write the
-//!     file atomically (`state::atomic_write`).
+//!     recovers). The history entry of the new generation is saved *before* that
+//!     re-read, and the new text is staged in a temp file, so that only the re-read and
+//!     a rename separate the check from the write (`write_if_unchanged`); the entry of a
+//!     generation that lost the CAS is removed again.
 //! 13. **Commit**: save the checkpoint (gen, base_wf = new remote subtree, base_md = the
 //!     text now in the file (written or kept), ids extended, config echo, pending
 //!     deletes) and, when the file was not written, the history entry of the unchanged
@@ -923,15 +925,8 @@ fn finish(
             let generation = next_generation(store, &root, current_gen)?;
             fm.generation = Some(generation);
             let md = mdblock::render(&view, &fm);
-            // §9 compare-and-swap: re-read just before writing.
-            let now_text = read_text(&a.file).map_err(io_error(&a.file))?;
-            if now_text.as_deref() != Some(a.text.as_str()) {
-                log::info!(
-                    "{}: changed during the sync; merging again",
-                    a.file.display()
-                );
-                return Ok(Finished::CasConflict);
-            }
+            // The history entry first (state -> sync commit order), so that nothing slow
+            // sits between the compare-and-swap's re-read and its rename.
             store.put_history(
                 &root,
                 &HistoryEntry {
@@ -941,7 +936,24 @@ fn finish(
                     at: now,
                 },
             )?;
-            state::atomic_write(&a.file, md.as_bytes()).map_err(io_error(&a.file))?;
+            cas_hook("history");
+            // §9 compare-and-swap: re-read just before writing.
+            if !write_if_unchanged(&a.file, &a.text, md.as_bytes()).map_err(io_error(&a.file))? {
+                log::info!(
+                    "{}: changed during the sync; merging again",
+                    a.file.display()
+                );
+                // The generation was never written to the file; forget its entry so
+                // that guard 3 does not count a render nobody saw (next_generation
+                // would skip it anyway).
+                let path = store.history_path(&root, generation);
+                if let Err(e) = std::fs::remove_file(&path)
+                    && e.kind() != std::io::ErrorKind::NotFound
+                {
+                    log::warn!("cannot remove the unused {}: {e}", path.display());
+                }
+                return Ok(Finished::CasConflict);
+            }
             (md, generation, true)
         }
     };
@@ -1139,6 +1151,82 @@ fn needs_remerge(a: &mut Active, p: &Planned, applied: Option<&ApplyOutcome>) ->
         .messages
         .push(format!("{reason}; merged again so that they are kept"));
     Some(reason)
+}
+
+/// The §9 compare-and-swap write of a new generation: stage `bytes` in a temp file next
+/// to `path` (written and fsynced), then re-read `path` and rename the temp file over it
+/// only if it still holds exactly `expected`; fsync the directory. Returns `false`, and
+/// removes the temp file, if the file changed (or vanished). Everything slow happens
+/// before the re-read, so the window in which another writer's change (Obsidian Sync,
+/// §9.1) could still be replaced unseen is the re-read and one rename: a rename cannot
+/// be made conditional.
+fn write_if_unchanged(path: &Path, expected: &str, bytes: &[u8]) -> std::io::Result<bool> {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| std::io::Error::other("path has no file name"))?;
+    let dir = match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+        _ => PathBuf::from("."),
+    };
+    // A dot file: the daemon's discovery ignores it; the same `.tmp-` shape as
+    // `state::atomic_write`.
+    let tmp = dir.join(format!(
+        ".{name}.tmp-{}-cas{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+    let staged = (|| {
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)?;
+        f.write_all(bytes)?;
+        f.sync_all()
+    })();
+    let result = staged.and_then(|()| {
+        cas_hook("prepared");
+        if read_text(path)?.as_deref() != Some(expected) {
+            return Ok(false);
+        }
+        std::fs::rename(&tmp, path)?;
+        Ok(true)
+    });
+    match result {
+        Ok(true) => {
+            std::fs::File::open(&dir)?.sync_all()?;
+            Ok(true)
+        }
+        other => {
+            let _ = std::fs::remove_file(&tmp);
+            other
+        }
+    }
+}
+
+#[cfg(test)]
+type CasHook = Box<dyn FnMut(&'static str)>;
+
+#[cfg(test)]
+thread_local! {
+    /// Unit tests: run at named points of the compare-and-swap write, to race it.
+    static CAS_HOOK: std::cell::RefCell<Option<CasHook>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// A test seam inside the compare-and-swap write (no-op outside unit tests).
+fn cas_hook(stage: &'static str) {
+    #[cfg(test)]
+    CAS_HOOK.with(|h| {
+        if let Some(f) = h.borrow_mut().as_mut() {
+            f(stage)
+        }
+    });
+    #[cfg(not(test))]
+    let _ = stage;
 }
 
 /// Re-read the file for a CAS rerun. `Err(outcome)` ends the cycle.
@@ -1590,4 +1678,75 @@ pub fn status(cfg: &SyncConfig, files: &[PathBuf]) -> Result<Vec<RootStatus>, Er
         });
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testsupport::MockServer;
+    use crate::wfclient::Client;
+    use serde_json::json;
+
+    fn ui_create(mock: &MockServer, parent: Option<&NodeId>, text: &str) -> NodeId {
+        let parent = parent.map_or(serde_json::Value::Null, |p| json!(p.as_str()));
+        let r = mock.ui("create", json!({"parent_id": parent, "text": text}));
+        NodeId::parse(r["id"].as_str().expect("id")).expect("uuid")
+    }
+
+    /// §9: an edit that reaches the file while the engine writes its new generation
+    /// (here: right after the history entry, and right after the new text is staged) is
+    /// seen by the compare-and-swap and merged, never overwritten by the rename.
+    #[test]
+    fn a_file_edit_during_the_generation_write_is_merged_not_overwritten() {
+        for stage in ["history", "prepared"] {
+            let mock = MockServer::start();
+            let client = Client::new(mock.client_config());
+            let dir = tempfile::tempdir().expect("tempdir");
+            let mut cfg = SyncConfig::new(dir.path().join("state"));
+            cfg.clock = Clock::fixed(1_790_000_000);
+            let root = ui_create(&mock, None, "Root");
+            let alpha = ui_create(&mock, Some(&root), "Alpha");
+            let beta = ui_create(&mock, Some(&root), "Beta");
+            let file = dir.path().join("vault").join("root.md");
+            let short = root.short().expect("short").to_string();
+            render_once(&client, &short, &file, &DocConfig::default(), &cfg).expect("render");
+            // A remote edit, so that the cycle writes the file.
+            mock.ui("edit", json!({"id": beta.as_str(), "text": "Beta remote"}));
+
+            let fired = std::rc::Rc::new(std::cell::Cell::new(false));
+            let (f2, fired2) = (file.clone(), fired.clone());
+            CAS_HOOK.with(|h| {
+                *h.borrow_mut() = Some(Box::new(move |s| {
+                    if s == stage && !fired2.get() {
+                        fired2.set(true);
+                        // Obsidian Sync delivers an edit made on another device.
+                        let text = std::fs::read_to_string(&f2).unwrap();
+                        std::fs::write(&f2, text.replacen("Alpha", "Alpha typed", 1)).unwrap();
+                    }
+                }))
+            });
+            let r = sync_once(&client, &file, &cfg);
+            CAS_HOOK.with(|h| *h.borrow_mut() = None);
+            let r = r.expect("sync");
+            assert!(fired.get(), "{stage}: hook not reached");
+            assert!(
+                matches!(r.outcome, SyncOutcome::Synced { .. }),
+                "{stage}: {r:#?}"
+            );
+            let text = std::fs::read_to_string(&file).unwrap();
+            assert!(text.contains("Alpha typed"), "{stage}: edit lost:\n{text}");
+            assert!(text.contains("Beta remote"), "{stage}:\n{text}");
+            let tree = Tree::from_nodes(client.export().unwrap()).unwrap();
+            assert_eq!(tree.get(&alpha).unwrap().name, "Alpha typed", "{stage}");
+            // No staged temp file is left behind in the vault.
+            let names: Vec<_> = std::fs::read_dir(file.parent().unwrap())
+                .unwrap()
+                .map(|e| e.unwrap().file_name())
+                .collect();
+            assert_eq!(names, ["root.md"], "{stage}");
+            // Settled: the next cycle has nothing to do.
+            let r = sync_once(&client, &file, &cfg).expect("sync");
+            assert_eq!(r.outcome, SyncOutcome::Unchanged, "{stage}: {r:#?}");
+        }
+    }
 }
