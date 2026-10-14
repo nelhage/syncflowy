@@ -18,8 +18,8 @@ use super::codec::TextCodec;
 use super::diff3::diff3_lines;
 use super::order::{lcs_members, merge_sibling_order};
 use super::{
-    Change, DeleteIntent, FieldPush, MergeError, MergeInput, MergeResult, MergeStats, MoveIntent,
-    NewNode, REMATCH_MAX_DISTANCE, REMATCH_MIN_RATIO, ReportEvent, is_placeholder_node,
+    Change, CrossFile, DeleteIntent, FieldPush, MergeError, MergeInput, MergeResult, MergeStats,
+    MoveIntent, NewNode, REMATCH_MAX_DISTANCE, REMATCH_MIN_RATIO, ReportEvent, is_placeholder_node,
     visible_nodes,
 };
 use crate::mdblock::{Checkbox, ConflictMarker, ItemKind, LocalDoc, LocalItem};
@@ -896,26 +896,53 @@ impl<'a, 'c> Engine<'a, 'c> {
 
     fn detect_all(&mut self) {
         for i in 0..self.items.len() {
-            if let Some(n) = self.items[i].ident.base_node().cloned() {
-                let d = self.detect(i, &n);
-                self.detected[i] = Some(d);
-            }
+            let n = match &self.items[i].ident {
+                Ident::Base(n) | Ident::Rematched(n) => n.clone(),
+                // §6.4: a line cut from another file of the run is compared with that
+                // file's render of it (`CrossFile::bases`). UNVERIFIED design choice:
+                // without one, nothing is pushed (the pasted text may be any older
+                // render, guard 3), as for nodes hidden in the base.
+                Ident::Cross(n, _) if self.inp.cross.bases.contains_key(n) => n.clone(),
+                _ => continue,
+            };
+            let d = self.detect(i, &n);
+            self.detected[i] = Some(d);
         }
     }
 
-    /// Guard 3: the local value equals the node's value in an earlier render.
-    fn stale(&self, n: &NodeId, local_wf: &str, value: impl Fn(&LocalItem) -> String) -> bool {
-        let Some(short) = n.short() else { return false };
-        self.priors
-            .iter()
-            .filter_map(|p| p.get(&short))
-            .any(|pi| value(pi) == local_wf)
+    /// The base of item `i`'s field merge (§5.1, §6.1): its line in the base render, the
+    /// node's base value, and its lines in earlier renders (guard 3). For a cross-file
+    /// move (§6.4) all three come from the source file (`CrossFile::bases`).
+    fn base_of(&self, i: usize, n: &NodeId) -> (&'a LocalItem, &'a Node, Vec<&'a LocalItem>) {
+        if let Ident::Cross(..) = self.items[i].ident {
+            let cross: &'a CrossFile = self.inp.cross;
+            let cb = &cross.bases[n];
+            return (&cb.item, &cb.wf, cb.prior.iter().collect());
+        }
+        let base: &'a Tree = self.inp.base;
+        let priors = match n.short() {
+            Some(short) => self
+                .priors
+                .iter()
+                .filter_map(|p| p.get(&short))
+                .copied()
+                .collect(),
+            None => Vec::new(),
+        };
+        (
+            self.base_items[n].item,
+            base.get(n).expect("base item in base"),
+            priors,
+        )
     }
 
     fn detect(&mut self, i: usize, n: &NodeId) -> Detected {
-        let bi = self.base_items[n].item;
         let li = self.items[i].item;
-        let base_node = self.inp.base.get(n).expect("base item in base").clone();
+        let (bi, base_node, priors) = self.base_of(i, n);
+        // Guard 3: the local value equals the node's value in an earlier render.
+        let stale = |local_wf: &str, value: &dyn Fn(&LocalItem) -> String| {
+            priors.iter().any(|p| value(p) == local_wf)
+        };
         let kb = field_kind(bi);
         let kl = field_kind(li);
         // §10 placeholders and §5.3 read-only items.
@@ -930,7 +957,7 @@ impl<'a, 'c> Engine<'a, 'c> {
 
         let wl = self.md_to_wf(&li.name_md, kl);
         if self.md_to_wf(&bi.name_md, kb) != wl {
-            let stale = self.stale(n, &wl, |p| {
+            let stale = stale(&wl, &|p| {
                 self.codec.md_to_wf(&p.name_md, field_kind(p), self.inline)
             });
             if stale {
@@ -951,7 +978,7 @@ impl<'a, 'c> Engine<'a, 'c> {
         let local_note = Self::note_md(li);
         let wl = self.md_to_wf(&local_note, FieldKind::Note);
         if self.md_to_wf(&Self::note_md(bi), FieldKind::Note) != wl {
-            let stale = self.stale(n, &wl, |p| {
+            let stale = stale(&wl, &|p| {
                 self.codec
                     .md_to_wf(&Self::note_md(p), FieldKind::Note, self.inline)
             });
@@ -1156,7 +1183,8 @@ impl<'a, 'c> Engine<'a, 'c> {
                 (Ident::Base(nd) | Ident::Rematched(nd), Fate::Existing(_)) => {
                     self.merge_base_fields(i, &nd)
                 }
-                (Ident::Cross(nd, _), Fate::Existing(_)) => self.merge_nobase_fields(i, &nd),
+                // §6.4: the same three-way merge, against the source file's base.
+                (Ident::Cross(nd, _), Fate::Existing(_)) => self.merge_base_fields(i, &nd),
                 (Ident::Adopted(nd, k), Fate::Existing(_)) => self.merge_adopted_fields(i, &nd, k),
                 (Ident::Base(nd) | Ident::Rematched(nd), Fate::Gone) if self.moved_out(i, &nd) => {
                     // §6.2: moved out of the subtree remotely, but the node exists: the
@@ -1422,7 +1450,7 @@ impl<'a, 'c> Engine<'a, 'c> {
             return;
         }
         let ticked = self.items[i].item.checkbox == Checkbox::Ticked;
-        let b = self.inp.base.get(nd).expect("base item in base").clone();
+        let b = self.base_of(i, nd).1.clone();
         let r = self.inp.remote.get(nd).expect("existing").clone();
         let mut push = FieldPush::default();
         if let Some(t) = &d.layout {
@@ -1451,47 +1479,6 @@ impl<'a, 'c> Engine<'a, 'c> {
                 ticked,
                 &mut push,
             );
-        }
-        self.commit_push(nd, push);
-    }
-
-    /// Cross-file moves (§6.4): no base in this file, so push a field only where the
-    /// remote value is exactly representable and the local text differs from it.
-    fn merge_nobase_fields(&mut self, i: usize, nd: &NodeId) {
-        let li = self.items[i].item;
-        let r = self.inp.remote.get(nd).expect("existing").clone();
-        let ro = !self.force && (has_ro_flag(li) || li.kind == ItemKind::Placeholder);
-        let exact =
-            |c: &Self, wf: &str, kind| c.codec.classify(wf, kind, c.inline) <= Tier::Passthrough;
-        let mut push = FieldPush::default();
-        let kind = field_kind(li);
-        let wl = self.md_to_wf(&li.name_md, kind);
-        if wl != r.name && exact(self, &r.name, kind) {
-            if ro {
-                self.refuse(nd, li.line);
-            } else {
-                let w = self
-                    .codec
-                    .write_value(&r.name, &li.name_md, kind, self.inline);
-                if w.wf != r.name {
-                    self.set_name(nd, &r.name, w.wf, w.lost, &mut push);
-                }
-            }
-        }
-        let md = Self::note_md(li);
-        let wl = self.md_to_wf(&md, FieldKind::Note);
-        let rv = r.note.as_deref().unwrap_or("");
-        if wl != rv && exact(self, rv, FieldKind::Note) {
-            if ro {
-                self.refuse(nd, li.line);
-            } else {
-                let w = self
-                    .codec
-                    .write_value(rv, &md, FieldKind::Note, self.inline);
-                if w.wf != rv {
-                    self.set_note(nd, r.note.as_deref(), w.wf, w.lost, &mut push);
-                }
-            }
         }
         self.commit_push(nd, push);
     }

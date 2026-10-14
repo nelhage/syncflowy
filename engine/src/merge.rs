@@ -97,11 +97,13 @@
 //! Guard 3 (stale echo): if the local value equals the node's value in one of
 //! `prior_docs` and differs from `base_doc`'s, it is not an edit
 //! ([`ReportEvent::StaleEcho`]).
-//! Nodes without a base item: cross-file moves push a field only where the remote value
-//! is exactly representable (tier `Exact`/`Passthrough`) and the local text differs;
-//! adopted nodes are brought to the local values; reappearing pending deletes and
-//! other tagged nodes that were hidden in the base never push fields (their text may
-//! be stale, guard 3).
+//! Nodes without a base item in this file: a cross-file move (§6.4) is merged with the
+//! same rules against the source file's base ([`CrossFile::bases`]: its line in the
+//! source file's base render, the node's value in that file's `base_wf`, and its lines
+//! in older renders for guard 3), so a stale paste never reverts a remote edit (§1);
+//! without such a base its fields are never pushed. Adopted nodes are brought to the
+//! local values; reappearing pending deletes and other tagged nodes that were hidden in
+//! the base never push fields (their text may be stale, guard 3).
 //!
 //! **Completion (§4.3, §6.2 table).** `[x]` on a visible item is a tick: `ticks` gets the
 //! node (unless it is already completed remotely: [`ReportEvent::AlreadyCompleted`]), and
@@ -206,9 +208,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::apply::Adoption;
-use crate::mdblock::{ConflictMarker, DocConfig, LocalDoc};
+use crate::mdblock::{ConflictMarker, DocConfig, LocalDoc, LocalItem};
 use crate::mdinline::ConflictField;
-use crate::tree::{IdMap, NodeId, ShortId, Tree};
+use crate::tree::{IdMap, Node, NodeId, ShortId, Tree};
 
 mod codec;
 mod diff3;
@@ -251,6 +253,66 @@ pub struct CrossFile {
     /// Nodes whose tags appear in another file's current text (a cut from this file
     /// pasted there): missing here means "moved away", not "deleted".
     pub claimed_elsewhere: BTreeSet<NodeId>,
+    /// For nodes of the other roots whose tags appear in this file (a cut from another
+    /// file pasted here): that file's base for them, against which the pasted line is
+    /// merged. A node without an entry never has its fields pushed.
+    #[serde(default)]
+    pub bases: BTreeMap<NodeId, CrossBase>,
+}
+
+/// The source file's base for a node pasted into another file of the run (§6.4): the
+/// pasted line is an old render from the source file, so its local changes are its
+/// differences from that render (§5.1), merged with §6.1 against the node's value in
+/// the source file's `base_wf`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CrossBase {
+    /// The node in the source file's `base_wf`.
+    pub wf: Node,
+    /// The node's line in the source file's base render (`children` left empty).
+    pub item: LocalItem,
+    /// Its lines in older renders of the source file, for guard 3 (§9.1: a paste that
+    /// arrives late may carry an older render).
+    pub prior: Vec<LocalItem>,
+}
+
+/// The [`CrossBase`]s of the nodes in `wanted` that a source file shows: `base` and
+/// `base_doc` are that file's merge base (§9.1 guard 1, as its own merge chooses it),
+/// `prior_docs` its older renders, `ids` resolves tags. A node gets an entry only if its
+/// line is tagged in `base_doc` and the node is in `base`. Pure; `sync` calls it for
+/// every file of a run whose nodes another file claims.
+pub fn cross_bases(
+    base: &Tree,
+    base_doc: &LocalDoc,
+    prior_docs: &[LocalDoc],
+    ids: &IdMap,
+    wanted: &BTreeSet<NodeId>,
+) -> BTreeMap<NodeId, CrossBase> {
+    let lines = |doc: &LocalDoc| -> BTreeMap<NodeId, LocalItem> {
+        let mut out = BTreeMap::new();
+        for (_, it) in doc.walk() {
+            if it.is_marker() {
+                continue;
+            }
+            if let Some(n) = it.tag.as_ref().and_then(|t| ids.get(&t.short))
+                && wanted.contains(n)
+                && !out.contains_key(n)
+            {
+                let mut line = it.clone();
+                line.children = Vec::new();
+                out.insert(n.clone(), line);
+            }
+        }
+        out
+    };
+    let priors: Vec<BTreeMap<NodeId, LocalItem>> = prior_docs.iter().map(lines).collect();
+    lines(base_doc)
+        .into_iter()
+        .filter_map(|(n, item)| {
+            let wf = base.get(&n)?.clone();
+            let prior = priors.iter().filter_map(|p| p.get(&n).cloned()).collect();
+            Some((n, CrossBase { wf, item, prior }))
+        })
+        .collect()
 }
 
 /// Everything the merge reads.
@@ -758,7 +820,6 @@ pub(crate) fn is_placeholder_node(node: &crate::tree::Node) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tree::Node;
 
     #[test]
     fn describe_names_nodes_by_plain_text() {

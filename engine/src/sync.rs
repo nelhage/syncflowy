@@ -103,8 +103,11 @@
 //! [`SyncOutcome::Paused`] with [`PauseReason::DuplicateRoot`] (guard 5). A root inside
 //! another root of the run: the inner file fails with `Error::NestedRoots` (the outer
 //! one is synced). Then one export; then every merge (with `CrossFile.other_roots` = the
-//! other roots and `claimed_elsewhere` = nodes tagged in the other files, resolved with
-//! one global id map); then every plan and apply in file order (cross-file moves are
+//! other roots, `claimed_elsewhere` = nodes tagged in the other files, resolved with
+//! one global id map, and `bases` = for the nodes of each other root that this file
+//! pastes, that file's base as its own merge chooses it (step 4) and its older renders,
+//! so the move merges the pasted line against what was cut, `merge::cross_bases`);
+//! then every plan and apply in file order (cross-file moves are
 //! planned by the destination file); then one re-export; then each file's render, write
 //! and commit. A file whose apply failed is not rendered; the other files continue.
 
@@ -123,7 +126,7 @@ use crate::mdblock::{
     self, Checkbox, ConflictMarker, DocConfig, Frontmatter, LocalDoc, RootRef, Sticky, View,
     ViewExtras,
 };
-use crate::merge::{self, CrossFile, MergeConfig, MergeInput, MergeResult, ReportEvent};
+use crate::merge::{self, CrossBase, CrossFile, MergeConfig, MergeInput, MergeResult, ReportEvent};
 use crate::plan::{self, Brake, BrakeConfig, Op, Plan, PlanConfig, PlanError, PlanSummary};
 use crate::state::{
     self, Checkpoint, HistoryEntry, HistoryLimits, PendingDeletes, RootLock, StateError,
@@ -639,22 +642,12 @@ fn prepare(
                 .ok_or_else(|| Error::RootNotFound(root.to_string()))?;
             (BaseKind::Bootstrap, mdblock::render(&view, &fm), tree)
         }
-        (None, Some(cp)) => match a.doc.frontmatter.generation {
-            Some(g) if g == cp.generation => {
-                (BaseKind::Checkpoint, cp.base_md.clone(), cp.base_wf.clone())
-            }
-            Some(g) => match store.get_history(&root, g) {
-                Ok(Some(h)) => (BaseKind::History(g), h.md, h.tree),
-                Ok(None) => (BaseKind::Safe, cp.base_md.clone(), cp.base_wf.clone()),
-                Err(e) => {
-                    a.report
-                        .warnings
-                        .push(format!("history entry {g} unreadable ({e}); safe mode"));
-                    (BaseKind::Safe, cp.base_md.clone(), cp.base_wf.clone())
-                }
-            },
-            None => (BaseKind::Safe, cp.base_md.clone(), cp.base_wf.clone()),
-        },
+        (None, Some(cp)) => {
+            let (kind, md, wf, warning) =
+                base_for_gen(store, &root, a.doc.frontmatter.generation, cp);
+            a.report.warnings.extend(warning);
+            (kind, md, wf)
+        }
     };
     match kind {
         _ if a.rebase.is_some() => {}
@@ -731,22 +724,7 @@ fn prepare(
         BaseKind::History(g) => Some(g),
         _ => checkpoint.as_ref().map(|c| c.generation),
     };
-    let mut prior_docs = Vec::new();
-    let gens: Vec<u64> = store
-        .history_gens(&root)?
-        .into_iter()
-        .filter(|g| Some(*g) != base_gen)
-        .collect();
-    for g in gens.iter().rev().take(PRIOR_DOCS_MAX) {
-        match store.get_history(&root, *g) {
-            Ok(Some(h)) => match mdblock::parse(&h.md) {
-                Ok(d) => prior_docs.push(d),
-                Err(e) => log::warn!("history {g} of {root} does not parse: {e}"),
-            },
-            Ok(None) => {}
-            Err(e) => log::warn!("history {g} of {root} unreadable: {e}"),
-        }
-    }
+    let prior_docs = load_prior_docs(store, &root, base_gen)?;
 
     // Step 6: merge.
     let mcfg = MergeConfig {
@@ -831,6 +809,106 @@ fn prepare(
         deferred,
         pending,
     })))
+}
+
+/// §9.1 guard 1: the base of a file's merge (outside a CAS rerun) given its `gen`: the
+/// checkpoint if `gen` is the checkpoint's, that history entry if `gen` names one,
+/// otherwise the checkpoint in safe mode. Also returns a warning for the report.
+fn base_for_gen(
+    store: &StateStore,
+    root: &NodeId,
+    generation: Option<u64>,
+    cp: &Checkpoint,
+) -> (BaseKind, String, Tree, Option<String>) {
+    let safe = || (BaseKind::Safe, cp.base_md.clone(), cp.base_wf.clone());
+    match generation {
+        Some(g) if g == cp.generation => (
+            BaseKind::Checkpoint,
+            cp.base_md.clone(),
+            cp.base_wf.clone(),
+            None,
+        ),
+        Some(g) => match store.get_history(root, g) {
+            Ok(Some(h)) => (BaseKind::History(g), h.md, h.tree, None),
+            Ok(None) => {
+                let (k, md, wf) = safe();
+                (k, md, wf, None)
+            }
+            Err(e) => {
+                let (k, md, wf) = safe();
+                let w = format!("history entry {g} unreadable ({e}); safe mode");
+                (k, md, wf, Some(w))
+            }
+        },
+        None => {
+            let (k, md, wf) = safe();
+            (k, md, wf, None)
+        }
+    }
+}
+
+/// Guard 3 material: the [`PRIOR_DOCS_MAX`] newest kept renders other than the base's.
+fn load_prior_docs(
+    store: &StateStore,
+    root: &NodeId,
+    base_gen: Option<u64>,
+) -> Result<Vec<LocalDoc>, Error> {
+    let mut prior_docs = Vec::new();
+    let gens: Vec<u64> = store
+        .history_gens(root)?
+        .into_iter()
+        .filter(|g| Some(*g) != base_gen)
+        .collect();
+    for g in gens.iter().rev().take(PRIOR_DOCS_MAX) {
+        match store.get_history(root, *g) {
+            Ok(Some(h)) => match mdblock::parse(&h.md) {
+                Ok(d) => prior_docs.push(d),
+                Err(e) => log::warn!("history {g} of {root} does not parse: {e}"),
+            },
+            Ok(None) => {}
+            Err(e) => log::warn!("history {g} of {root} unreadable: {e}"),
+        }
+    }
+    Ok(prior_docs)
+}
+
+/// §6.4: this file's base for the nodes of its root that other files of the run paste
+/// (`wanted`): the base its own merge would choose (guard 1) and its older renders
+/// (guard 3). Problems only cost the entries (those fields are then not pushed).
+fn source_bases(
+    store: &StateStore,
+    a: &Active,
+    ids: &IdMap,
+    wanted: &BTreeSet<NodeId>,
+) -> BTreeMap<NodeId, CrossBase> {
+    if wanted.is_empty() {
+        return BTreeMap::new();
+    }
+    let cp = match store.load_checkpoint(&a.root) {
+        Ok(Some(cp)) => cp,
+        Ok(None) => return BTreeMap::new(),
+        Err(e) => {
+            log::warn!("{}: checkpoint unreadable ({e})", a.file.display());
+            return BTreeMap::new();
+        }
+    };
+    let (kind, md, wf, _) = base_for_gen(store, &a.root, a.doc.frontmatter.generation, &cp);
+    let base_doc = match mdblock::parse(&md) {
+        Ok(d) => d,
+        Err(e) => {
+            log::warn!("{}: base does not parse ({e})", a.file.display());
+            return BTreeMap::new();
+        }
+    };
+    let base_gen = match kind {
+        BaseKind::History(g) => g,
+        _ => cp.generation,
+    };
+    let priors = load_prior_docs(store, &a.root, Some(base_gen)).unwrap_or_else(|e| {
+        log::warn!("{}: history unreadable ({e})", a.file.display());
+        Vec::new()
+    });
+    merge::cross_bases(&wf, &base_doc, &priors, ids, wanted)
 }
 
 fn describe_events(events: &[ReportEvent], tree: &Tree) -> Vec<String> {
@@ -1491,6 +1569,28 @@ pub fn sync_all(
         let roots: BTreeSet<NodeId> = active.iter().map(|a| a.root.clone()).collect();
         let tagged: Vec<BTreeSet<NodeId>> =
             active.iter().map(|a| tagged_nodes(&a.doc, &ids)).collect();
+        let claimed_elsewhere = |k: usize| -> BTreeSet<NodeId> {
+            tagged
+                .iter()
+                .enumerate()
+                .filter(|(j, _)| *j != k)
+                .flat_map(|(_, s)| s.iter().cloned())
+                .collect()
+        };
+        // §6.4: each file's base for its nodes that another file pastes (a cut and
+        // paste between files), so the move merges the pasted line against what the
+        // user cut, not against the current remote value.
+        let sources: Vec<BTreeMap<NodeId, CrossBase>> = active
+            .iter()
+            .enumerate()
+            .map(|(k, a)| {
+                let wanted: BTreeSet<NodeId> = claimed_elsewhere(k)
+                    .into_iter()
+                    .filter(|n| remote.is_descendant(n, &a.root))
+                    .collect();
+                source_bases(&store, a, &ids, &wanted)
+            })
+            .collect();
         let crosses: Vec<CrossFile> = (0..active.len())
             .map(|k| CrossFile {
                 other_roots: roots
@@ -1498,11 +1598,12 @@ pub fn sync_all(
                     .filter(|r| **r != active[k].root)
                     .cloned()
                     .collect(),
-                claimed_elsewhere: tagged
+                claimed_elsewhere: claimed_elsewhere(k),
+                bases: sources
                     .iter()
                     .enumerate()
                     .filter(|(j, _)| *j != k)
-                    .flat_map(|(_, s)| s.iter().cloned())
+                    .flat_map(|(_, b)| b.iter().map(|(n, c)| (n.clone(), c.clone())))
                     .collect(),
             })
             .collect();

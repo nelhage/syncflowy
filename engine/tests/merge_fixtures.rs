@@ -9,7 +9,7 @@
 #[path = "merge_support.rs"]
 mod merge_support;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use merge_support::{
@@ -18,7 +18,9 @@ use merge_support::{
 use serde::Deserialize;
 use serde_json::Value;
 use syncflowy::apply::Adoption;
-use syncflowy::merge::{CrossFile, MergeConfig};
+use syncflowy::mdblock::{DocConfig, LocalDoc};
+use syncflowy::merge::{CrossBase, CrossFile, MergeConfig, cross_bases};
+use syncflowy::tree::{IdMap, NodeId};
 
 /// A fixture. The remote tree is `remote` if given, else `base` plus `remote_extra`
 /// top-level trees with `remote_edits` applied. The local doc is `local` if given, else
@@ -107,6 +109,39 @@ struct CrossSpec {
     other_roots: Vec<String>,
     #[serde(default)]
     claimed_elsewhere: Vec<String>,
+    /// The base of the file a pasted line was cut from (`CrossFile::bases`).
+    #[serde(default)]
+    source: Option<SourceSpec>,
+}
+
+/// Another file's merge base: its root's subtree at base time, its base render
+/// (defaults to the render of `base`) and older renders.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceSpec {
+    base: NodeSpec,
+    #[serde(default)]
+    base_doc: Option<DocSpec>,
+    #[serde(default)]
+    prior_docs: Vec<DocSpec>,
+}
+
+/// `CrossFile::bases` from the fixture's source file, as `sync` computes it.
+fn cross_bases_of(spec: &CrossSpec, doc: &DocConfig) -> BTreeMap<NodeId, CrossBase> {
+    let Some(src) = &spec.source else {
+        return BTreeMap::new();
+    };
+    let root = id(&src.base.id);
+    let base = build_tree(std::slice::from_ref(&src.base));
+    let base_doc = src
+        .base_doc
+        .clone()
+        .unwrap_or_else(|| render_spec(&base, &root, doc, &BTreeSet::new()));
+    let base_doc = build_doc(&root, &base_doc);
+    let priors: Vec<LocalDoc> = src.prior_docs.iter().map(|d| build_doc(&root, d)).collect();
+    let ids = IdMap::from_tree(&base);
+    let wanted: BTreeSet<NodeId> = base.ids().cloned().collect();
+    cross_bases(&base, &base_doc, &priors, &ids, &wanted)
 }
 
 /// Remove the object whose `key` is `id` anywhere in `list` (recursing into
@@ -265,6 +300,7 @@ fn case_of(f: &Fixture) -> Case {
     case.cross = CrossFile {
         other_roots: f.cross.other_roots.iter().map(|r| id(r)).collect(),
         claimed_elsewhere: f.cross.claimed_elsewhere.iter().map(|r| id(r)).collect(),
+        bases: cross_bases_of(&f.cross, &case.cfg.doc),
     };
     case
 }

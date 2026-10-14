@@ -1,0 +1,149 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "cross": {
+    "other_roots": [
+      "other"
+    ]
+  },
+  "description": "§6.4: a pasted line with no base from its source file (the source file is not in the run or has no checkpoint) never pushes fields: the text may be any older render (like a node hidden in the base, guard 3).",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\"",
+      "    o1 \"From other\"",
+      "      o11 \"Its child, edited remotely\""
+    ],
+    "moves": [
+      [
+        "o1",
+        "other",
+        "c"
+      ]
+    ],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "c": [
+        "o1"
+      ],
+      "o1": [
+        "o11"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "MovedIn": {
+          "from_file_root": "other",
+          "node": "o1"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 8,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 0,
+      "item": {
+        "children": [
+          {
+            "name": "Its child, edited",
+            "tag": "o11"
+          }
+        ],
+        "name": "From other, edited",
+        "tag": "o1"
+      },
+      "op": "insert",
+      "parent": "c"
+    }
+  ],
+  "remote_edits": [
+    {
+      "id": "o11",
+      "name": "Its child, edited remotely",
+      "op": "set"
+    }
+  ],
+  "remote_extra": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "id": "o11",
+              "name": "Its child"
+            }
+          ],
+          "id": "o1",
+          "name": "From other"
+        }
+      ],
+      "id": "other",
+      "name": "Other file"
+    }
+  ]
+}

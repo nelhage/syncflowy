@@ -122,6 +122,85 @@ fn tag_moved_between_files_is_a_move() {
     assert_eq!(t.env.snapshot(), before);
 }
 
+/// Cut X (and its child) from alpha.md and paste them under "Destination" in beta.md,
+/// with `edit` applied to the pasted text.
+fn cut_and_paste(t: &Two, edit_pasted: impl Fn(&str) -> String) {
+    let a_text = read(&t.a);
+    let x_line = line_of(&a_text, &t.x).to_owned();
+    let child_line = line_of(&a_text, &t.x_child).to_owned();
+    edit(&t.a, &format!("{x_line}\n{child_line}\n"), "");
+    let b_text = read(&t.b);
+    let dest = line_of(&b_text, &t.target).to_owned();
+    let pasted = edit_pasted(&format!("\t{x_line}\n\t{child_line}\n"));
+    edit(&t.b, &format!("{dest}\n"), &format!("{dest}\n{pasted}"));
+}
+
+fn settled(t: &Two) {
+    let before = t.env.snapshot();
+    let rs = reports(&t.env, &t.env.client, &[t.a.clone(), t.b.clone()]);
+    assert!(
+        rs.iter().all(|r| r.outcome == SyncOutcome::Unchanged),
+        "{rs:#?}"
+    );
+    assert_eq!(t.env.snapshot(), before);
+}
+
+#[test]
+fn pasted_line_does_not_revert_a_remote_rename() {
+    let t = two_files();
+    // A collaborator renames X after the last render; the user moves X's unchanged
+    // line to the other file (§6.4). The pasted text is the old render: no local edit.
+    t.env.ui(
+        "edit",
+        serde_json::json!({"id": t.x.as_str(), "text": "Renamed by a collaborator"}),
+    );
+    cut_and_paste(&t, str::to_owned);
+    let rs = reports(&t.env, &t.env.client, &[t.a.clone(), t.b.clone()]);
+    for r in &rs {
+        assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+        assert!(r.conflicts.is_empty(), "{r:#?}");
+    }
+    let tree = t.env.export();
+    assert_eq!(tree.parent(&t.x), Some(&t.target));
+    assert_eq!(tree.get(&t.x).unwrap().name, "Renamed by a collaborator");
+    assert_eq!(tree.get(&t.x_child).unwrap().name, "with its child");
+    let b_text = read(&t.b);
+    assert!(
+        line_of(&b_text, &t.x).contains("Renamed by a collaborator"),
+        "{b_text}"
+    );
+    settled(&t);
+}
+
+#[test]
+fn pasted_line_edited_in_the_move_is_pushed_or_marked() {
+    let t = two_files();
+    t.env.ui(
+        "edit",
+        serde_json::json!({"id": t.x_child.as_str(), "text": "with its child (remote)"}),
+    );
+    // Edited while moving: X only here (pushed), the child on both sides (conflict).
+    cut_and_paste(&t, |p| {
+        p.replace("Wanders off", "Wanders far off")
+            .replace("with its child", "with its child (local)")
+    });
+    let rs = reports(&t.env, &t.env.client, &[t.a.clone(), t.b.clone()]);
+    let tree = t.env.export();
+    assert_eq!(tree.parent(&t.x), Some(&t.target));
+    assert_eq!(tree.get(&t.x).unwrap().name, "Wanders far off");
+    assert_eq!(
+        tree.get(&t.x_child).unwrap().name,
+        "with its child (remote)",
+        "{rs:#?}"
+    );
+    let b_text = read(&t.b);
+    assert!(
+        b_text.contains("with its child (local)"),
+        "a marker keeps it:\n{b_text}"
+    );
+    settled(&t);
+}
+
 #[test]
 fn edits_in_both_files_in_one_run() {
     let t = two_files();
