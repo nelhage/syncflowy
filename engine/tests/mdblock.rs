@@ -275,6 +275,44 @@ fn frontmatter_line_endings_and_bom() {
     assert_eq!(d.items[0].note_md, vec!["note"]);
     // A closing `...` is accepted too (YAML document end).
     assert!(parse("---\nworkflowy: 000000000001\n...\n").is_ok());
+    // A lone `\r` ends a line too (CommonMark, and mdinline reads it so).
+    let d = parse("---\rworkflowy: 000000000001\r---\r- a\r\tnote\r- b").unwrap();
+    assert_eq!(d.items.len(), 2);
+    assert_eq!(d.items[0].note_md, vec!["note"]);
+    assert_eq!((d.items[1].name_md.as_str(), d.items[1].line), ("b", 6));
+}
+
+#[test]
+fn unicode_whitespace_lines_are_blank() {
+    // md_to_wf trims Unicode White_Space, so a line of NBSPs is blank, not a stray line.
+    let d = doc("- a\n\tone\n\u{a0}\n\ttwo\n\u{2003}\n- b\n");
+    assert_eq!(d.items[0].note_md, vec!["one", "", "two"]);
+    assert!(d.warnings.is_empty());
+}
+
+#[test]
+fn unsafe_verbatim_notes_are_canonicalised() {
+    let cfg = InlineConfig::default();
+    // A read-only heading's note line `# x` (indented in the source, so not a heading)
+    // would be a heading at column 0: normalize writes the canonical form instead.
+    let d = doc("# t %%wf:000000000002-ro%%\n\t# x\n");
+    assert_eq!(d.items[0].note_md, vec!["# x"]);
+    let n = normalize(&d);
+    assert!(n.ends_with("# 🔒 t %%wf:000000000002-ro%%\n\\# x\n"), "{n}");
+    assert!(equivalent(&parse(&n).unwrap(), &d, &cfg));
+    // A read-only item's note opening a fence it never closes: a later code item's
+    // closing fence must not swallow the child.
+    let d = doc("- ^wf-000000000002-ro\n```\n\t- ```\n");
+    let n = normalize(&d);
+    assert!(equivalent(&parse(&n).unwrap(), &d, &cfg), "{n}");
+    // A closed fence in a verbatim note is kept as written.
+    let d = doc("- t ^wf-000000000002-ro\n\t```\n\t- x\n\t```\n");
+    assert_eq!(d.items[0].note_md, vec!["```", "- x", "```"]);
+    let n = normalize(&d);
+    assert!(
+        n.ends_with("- 🔒 t ^wf-000000000002-ro\n\t```\n\t- x\n\t```\n"),
+        "{n}"
+    );
 }
 
 // ---------------------------------------------------------------------------------------
@@ -730,6 +768,39 @@ fn misplaced_markers_warn() {
             WarningKind::MisplacedMarker
         ]
     );
+}
+
+#[test]
+fn name_markers_that_would_misread_are_fenced() {
+    // A code block's name is never escaped, so a one-line code name can look like a tag
+    // or a fence; on the marker line it would be read as one. Such markers are fenced.
+    let t = tree(&[(2, 1, "x", None, "code-block", false)]);
+    for local in [
+        "^wf-8e1f00aa2b3c",
+        "a %%wf-conflict:note%% b",
+        "```py",
+        "~~~",
+        "x\ny",
+    ] {
+        let extras = ViewExtras {
+            conflicts: vec![ConflictMarker {
+                node: id(2),
+                field: ConflictField::Name,
+                local_md: local.to_owned(),
+            }],
+            ..ViewExtras::default()
+        };
+        let md = render_tree(&t, &DocConfig::default(), &extras);
+        let d = parse(&md).unwrap();
+        let m = &d.items[0].children[0];
+        assert_eq!(
+            m.kind,
+            ItemKind::ConflictMarker(ConflictField::Name),
+            "{md}"
+        );
+        assert_eq!(m.name_md, local, "{md}");
+        assert!(m.extra_tags.is_empty());
+    }
 }
 
 // ---------------------------------------------------------------------------------------

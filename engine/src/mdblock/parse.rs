@@ -13,7 +13,7 @@ use super::{
     CONFLICT_PREFIX, Checkbox, ItemKind, LocalDoc, LocalItem, PLACEHOLDER_TEXT, ParseError,
     ParseWarning, READ_ONLY_PREFIX, WarningKind,
 };
-use crate::mdinline::{ConflictField, IdTag, LineTag, TagFlag, find_tags};
+use crate::mdinline::{ConflictField, IdTag, LineTag, TagFlag, find_tags, trim_line};
 
 /// Indentation of `s`: (bytes of leading spaces/tabs, width in columns).
 pub(super) fn indent_of(s: &str) -> (usize, usize) {
@@ -100,7 +100,7 @@ pub(super) fn opening_fence(s: &str) -> Option<(char, usize, &str)> {
 }
 
 /// True if `s` (indentation removed) closes a fence of `c` × `len`.
-fn is_closing_fence(s: &str, c: char, len: usize) -> bool {
+pub(super) fn is_closing_fence(s: &str, c: char, len: usize) -> bool {
     let n = s.chars().take_while(|&x| x == c).count();
     n >= len && trim_ws(&s[n * c.len_utf8()..]).is_empty()
 }
@@ -181,7 +181,9 @@ pub(super) fn parse(text: &str) -> Result<LocalDoc, ParseError> {
                 raw,
                 rest,
                 width,
-                blank: rest.trim_matches([' ', '\t']).is_empty(),
+                // Blank as `md_to_wf` sees it (Unicode White_Space only), so a line of NBSPs
+                // is a blank line and not a stray line.
+                blank: trim_line(rest).is_empty(),
             }
         })
         .collect();

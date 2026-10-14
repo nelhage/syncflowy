@@ -9,15 +9,34 @@ use super::{
 };
 use crate::tree::{IdMap, NodeId, ShortId};
 
-/// The lines of a text with their 1-based numbers; a trailing `\r` is removed from each.
+/// The lines of a text (a leading byte-order mark dropped). Line endings are `\n`,
+/// `\r\n` or a lone `\r`, as in CommonMark (and as `mdinline` reads them); a final line
+/// ending does not start another line.
 pub(super) fn split_lines(text: &str) -> Vec<&str> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let mut lines: Vec<&str> = text
-        .split('\n')
-        .map(|l| l.strip_suffix('\r').unwrap_or(l))
-        .collect();
-    if text.ends_with('\n') {
-        lines.pop();
+    let mut lines = Vec::new();
+    let b = text.as_bytes();
+    let mut start = 0;
+    let mut i = 0;
+    while i < b.len() {
+        match b[i] {
+            b'\n' => {
+                lines.push(&text[start..i]);
+                start = i + 1;
+            }
+            b'\r' => {
+                lines.push(&text[start..i]);
+                if b.get(i + 1) == Some(&b'\n') {
+                    i += 1;
+                }
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    if start < text.len() {
+        lines.push(&text[start..]);
     }
     lines
 }

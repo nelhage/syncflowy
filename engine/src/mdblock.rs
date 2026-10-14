@@ -148,12 +148,21 @@
 //!   root note, which cannot carry a flag) is rendered as its own normal form
 //!   `wf_to_md(md_to_wf(text))`, so re-rendering the parsed file gives the same bytes.
 //! * **Read-only items** carry the `ro` flag and the `🔒 ` prefix when any of their
-//!   fields is `ReadOnly`; their texts are kept verbatim by [`normalize`].
+//!   fields is `ReadOnly`; their texts are kept verbatim by [`normalize`], except a note
+//!   that cannot be written back as it is (a line that would be structure at column 0
+//!   under a heading, a fence it never closes under a list item): that note is written in
+//!   its canonical form, which means the same (mdinline EC 3). Marker notes likewise.
 //! * **Conflict markers** of a code block's name (several lines) are written as a fenced
-//!   block: `- ⚠ ``` %%wf-conflict:name%%`, the local code, the closing fence. Markers
-//!   with children, or written as headings, are kept with
+//!   block: `- ⚠ ``` %%wf-conflict:name%%`, the local code, the closing fence; so is a
+//!   one-line local name that would read as a fence or holds tag-shaped text (code is
+//!   never escaped). Markers with children, or written as headings, are kept with
 //!   [`WarningKind::MisplacedMarker`]; an id tag on a marker line is moved to
 //!   `extra_tags` with [`WarningKind::MultipleTags`].
+//! * **Lines**: line endings are `\n`, `\r\n` or a lone `\r` (as CommonMark and mdinline
+//!   read them); a leading byte-order mark is ignored; a line is blank when only Unicode
+//!   `White_Space` remains (what `md_to_wf` trims), so a line of NBSPs is a blank line.
+//! * **Equivalence** compares the root note and heading notes without their edge empty
+//!   lines, which column-0 notes cannot show.
 //!
 //! # Invariants (§5.4); implementers must property-test them
 //!
@@ -561,15 +570,18 @@ fn canonical_note(lines: &[String], cfg: &InlineConfig) -> Vec<String> {
 fn local_ritem(it: &LocalItem, cfg: &InlineConfig) -> RItem {
     let ro = has_ro(it) || it.kind == ItemKind::Placeholder;
     let verbatim = ro || it.is_marker();
-    let name = if verbatim {
+    let name = if it.kind == ItemKind::ConflictMarker(ConflictField::Name) {
+        emit::marker_name(&it.name_md)
+    } else if verbatim {
         it.name_md.clone()
     } else {
         let kind = name_kind(it.kind);
         view::md_text(&md_to_wf(&it.name_md, kind, cfg), kind, cfg, false).text
     };
-    let note = if verbatim {
+    let note = if verbatim && emit::verbatim_note_ok(&it.note_md, it.heading.is_some()) {
         it.note_md.clone()
     } else {
+        // Canonical text means the same (mdinline EC 3) and is always safe to write.
         canonical_note(&it.note_md, cfg)
     };
     RItem {
@@ -590,7 +602,10 @@ fn local_ritem(it: &LocalItem, cfg: &InlineConfig) -> RItem {
 /// winning tag's short id and flags, kind, heading level, checkbox *class* (`Ticked` vs
 /// not ticked: `Open` ≡ `None`), ordered flag, and the WF values `md_to_wf(name_md)` /
 /// `md_to_wf(note_md)` (so escaping variants are equal). Line numbers and warnings are
-/// ignored.
+/// ignored. Notes written at column 0 (the root note and heading notes) are compared
+/// without their leading and trailing empty WF lines, which the file cannot show there
+/// (a line that `md_to_wf` reduces to nothing, such as one of characters XML forbids, is
+/// such an edge line).
 pub fn equivalent(a: &LocalDoc, b: &LocalDoc, cfg: &InlineConfig) -> bool {
     let (fa, fb) = (&a.frontmatter, &b.frontmatter);
     let same_fm = fa.root.short == fb.root.short
@@ -600,8 +615,23 @@ pub fn equivalent(a: &LocalDoc, b: &LocalDoc, cfg: &InlineConfig) -> bool {
         && fa.paused == fb.paused
         && fa.force == fb.force
         && fa.other == fb.other;
-    let note = |l: &[String]| md_to_wf(&l.join("\n"), FieldKind::Note, cfg);
+    let note = |l: &[String]| column0_note_wf(l, cfg);
     same_fm && note(&a.root_note) == note(&b.root_note) && items_equivalent(&a.items, &b.items, cfg)
+}
+
+/// The WF value of a note shown at column 0, without its edge empty lines.
+fn column0_note_wf(lines: &[String], cfg: &InlineConfig) -> String {
+    let wf = md_to_wf(&lines.join("\n"), FieldKind::Note, cfg);
+    let lines: Vec<&str> = wf.split('\n').collect();
+    let start = lines
+        .iter()
+        .position(|l| !l.is_empty())
+        .unwrap_or(lines.len());
+    let end = lines
+        .iter()
+        .rposition(|l| !l.is_empty())
+        .map_or(start, |e| e + 1);
+    lines[start..end].join("\n")
 }
 
 fn items_equivalent(a: &[LocalItem], b: &[LocalItem], cfg: &InlineConfig) -> bool {
@@ -612,7 +642,13 @@ fn item_equivalent(a: &LocalItem, b: &LocalItem, cfg: &InlineConfig) -> bool {
     let tag = |i: &LocalItem| i.tag.as_ref().map(|t| (t.short.clone(), t.flags.clone()));
     let ticked = |i: &LocalItem| i.checkbox == Checkbox::Ticked;
     let name = |i: &LocalItem| md_to_wf(&i.name_md, name_kind(i.kind), cfg);
-    let note = |i: &LocalItem| md_to_wf(&i.note_md.join("\n"), FieldKind::Note, cfg);
+    let note = |i: &LocalItem| {
+        if i.heading.is_some() {
+            column0_note_wf(&i.note_md, cfg)
+        } else {
+            md_to_wf(&i.note_md.join("\n"), FieldKind::Note, cfg)
+        }
+    };
     tag(a) == tag(b)
         && a.kind == b.kind
         && a.heading == b.heading
@@ -774,28 +810,36 @@ pub fn render(view: &View, frontmatter: &Frontmatter) -> String {
         .as_ref()
         .map(|n| n.text.split('\n').map(str::to_owned).collect())
         .unwrap_or_default();
-    let mut items: Vec<RItem> = view.root_conflicts.iter().map(marker_ritem).collect();
-    items.extend(view.items.iter().map(view_ritem));
+    let cfg = &frontmatter.config.inline;
+    let mut items: Vec<RItem> = view
+        .root_conflicts
+        .iter()
+        .map(|m| marker_ritem(m, cfg))
+        .collect();
+    items.extend(view.items.iter().map(|v| view_ritem(v, cfg)));
     emit::emit(frontmatter, &root_note, &items)
 }
 
 /// The writer's form of a conflict marker (§6.1). Texts are trimmed the way the parser
-/// trims them, so that the marker reads back exactly.
-fn marker_ritem(m: &ConflictMarker) -> RItem {
-    let trimmed = m.local_md.trim_matches([' ', '\t']);
+/// trims them, so that the marker reads back exactly; a local note that cannot be written
+/// as it is (a fence it never closes) is written in its canonical form, which means the
+/// same.
+fn marker_ritem(m: &ConflictMarker, cfg: &InlineConfig) -> RItem {
     let (name, note) = match m.field {
-        ConflictField::Name if emit::marker_needs_fence(trimmed) => {
-            (m.local_md.clone(), Vec::new())
-        }
-        ConflictField::Name => (trimmed.to_owned(), Vec::new()),
+        ConflictField::Name => (emit::marker_name(&m.local_md), Vec::new()),
         ConflictField::Note if m.local_md.is_empty() => (String::new(), Vec::new()),
-        ConflictField::Note => (
-            String::new(),
-            m.local_md
+        ConflictField::Note => {
+            let lines: Vec<String> = m
+                .local_md
                 .split('\n')
                 .map(|l| l.trim_matches([' ', '\t']).to_owned())
-                .collect(),
-        ),
+                .collect();
+            if emit::verbatim_note_ok(&lines, false) {
+                (String::new(), lines)
+            } else {
+                (String::new(), canonical_note(&lines, cfg))
+            }
+        }
     };
     RItem {
         tag: None,
@@ -810,14 +854,14 @@ fn marker_ritem(m: &ConflictMarker) -> RItem {
     }
 }
 
-fn view_ritem(v: &ViewItem) -> RItem {
+fn view_ritem(v: &ViewItem, cfg: &InlineConfig) -> RItem {
     let flags = if v.read_only {
         BTreeSet::from([TagFlag::ReadOnly])
     } else {
         BTreeSet::new()
     };
-    let mut children: Vec<RItem> = v.conflicts.iter().map(marker_ritem).collect();
-    children.extend(v.children.iter().map(view_ritem));
+    let mut children: Vec<RItem> = v.conflicts.iter().map(|m| marker_ritem(m, cfg)).collect();
+    children.extend(v.children.iter().map(|c| view_ritem(c, cfg)));
     RItem {
         tag: v.tag.clone().map(|t| (t, flags)),
         kind: v.kind,

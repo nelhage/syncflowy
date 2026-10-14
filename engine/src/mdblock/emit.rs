@@ -21,11 +21,14 @@
 use std::collections::BTreeSet;
 
 use super::frontmatter;
-use super::parse::opening_fence;
+use super::parse::{is_closing_fence, opening_fence};
 use super::{
     CONFLICT_PREFIX, Checkbox, Frontmatter, ItemKind, PLACEHOLDER_TEXT, READ_ONLY_PREFIX, TagStyle,
 };
-use crate::mdinline::{ConflictField, TagFlag, TagForm, format_conflict_tag, format_tag};
+use crate::mdinline::{
+    ConflictField, TagFlag, TagForm, escape_line_start, find_tags, format_conflict_tag, format_tag,
+    line_start_escape_at,
+};
 use crate::tree::ShortId;
 
 /// The label of a note conflict marker (the local note follows as its note lines).
@@ -78,9 +81,23 @@ fn fence_for(code: &str) -> String {
 }
 
 /// True if a name conflict marker's text must be written as a fenced block: it has
-/// several lines (a code block's name) or would itself read as a fence.
-pub(super) fn marker_needs_fence(name: &str) -> bool {
-    name.contains('\n') || opening_fence(name).is_some()
+/// several lines (a code block's name), would itself read as a fence, or holds something
+/// [`find_tags`] recognises (code is never escaped, so a code block's one-line name can
+/// contain a tag-shaped string, which on the marker line would read as a tag).
+fn marker_needs_fence(name: &str) -> bool {
+    name.contains('\n') || opening_fence(name).is_some() || !find_tags(name).is_empty()
+}
+
+/// The text a name conflict marker is written with: verbatim if it must be fenced (see
+/// [`marker_needs_fence`]), else trimmed the way the parser trims a first line, so that
+/// it reads back exactly.
+pub(super) fn marker_name(local: &str) -> String {
+    let trimmed = local.trim_matches([' ', '\t']);
+    if marker_needs_fence(trimmed) {
+        local.to_owned()
+    } else {
+        trimmed.to_owned()
+    }
 }
 
 /// The first line's text after the marker (or `#`s), and the code block, if any, as
@@ -149,6 +166,64 @@ fn trim_blank_edges(lines: &[String]) -> &[String] {
     &lines[start..end]
 }
 
+/// Note lines written at column 0 (the root's and headings' notes), with edge empty lines
+/// dropped. A line that would read as structure there (`# x`, `- x`, a fence, …) gets
+/// mdinline's line-start escape. Canonical text never needs it (EC 4); verbatim text of a
+/// read-only item or a marker may (an indented `\t# x` under a heading is a note line, but
+/// `# x` at column 0 is a heading), and the escape does not change what `md_to_wf` reads.
+fn column0_note(lines: &[String]) -> impl Iterator<Item = String> + '_ {
+    trim_blank_edges(lines)
+        .iter()
+        .map(|l| escape_line_start(l).into_owned())
+}
+
+/// True if note lines can be written as they are and read back the same: at column 0
+/// (`column0`: the root's and headings' notes) no line may start with something a block
+/// parser reads as structure; under a list item every fence a line opens must close
+/// within the note. Canonical text always passes (EC 4); text kept verbatim (read-only
+/// items, conflict markers) is canonicalised by the caller when it does not.
+pub(super) fn verbatim_note_ok(lines: &[String], column0: bool) -> bool {
+    if column0 {
+        return lines.iter().all(|l| line_start_escape_at(l).is_none());
+    }
+    let mut i = 0;
+    while i < lines.len() {
+        if let Some((c, len, _)) = opening_fence(&lines[i]) {
+            match (i + 1..lines.len()).find(|&j| is_closing_fence(&lines[j], c, len)) {
+                Some(j) => i = j,
+                None => return false,
+            }
+        }
+        i += 1;
+    }
+    true
+}
+
+/// Note lines written under a list item. A line that opens a fence keeps the following
+/// note lines as text when read back, but only up to a closing fence found before the
+/// item ends; so a fence that is not closed *within the note* is escaped, or a later
+/// item's code fence could close it and swallow the items in between. Canonical text
+/// never starts with a fence (EC 4); verbatim text of a read-only item or a marker may.
+fn indented_note(lines: &[String]) -> Vec<String> {
+    let mut out = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let l = &lines[i];
+        if let Some((c, len, _)) = opening_fence(l) {
+            if let Some(j) = (i + 1..lines.len()).find(|&j| is_closing_fence(&lines[j], c, len)) {
+                out.extend(lines[i..=j].iter().cloned());
+                i = j + 1;
+                continue;
+            }
+            out.push(escape_line_start(l).into_owned());
+        } else {
+            out.push(l.clone());
+        }
+        i += 1;
+    }
+    out
+}
+
 fn push_line(out: &mut Vec<String>, line: String) {
     let t = line.trim_end_matches([' ', '\t']).len();
     let mut line = line;
@@ -177,8 +252,9 @@ fn list_item(it: &RItem, depth: usize, ord: &mut usize, style: TagStyle, out: &m
         }
         out.push(format!("{cind}{fence}"));
     }
-    let last = it.note.iter().rposition(|l| !l.is_empty());
-    for (k, l) in it.note.iter().enumerate() {
+    let note = indented_note(&it.note);
+    let last = note.iter().rposition(|l| !l.is_empty());
+    for (k, l) in note.iter().enumerate() {
         if !l.is_empty() {
             out.push(format!("{cind}{l}"));
         } else if last.is_some_and(|last| k < last) {
@@ -205,7 +281,7 @@ fn heading(it: &RItem, style: TagStyle, blocks: &mut Vec<Vec<String>>) {
         block.extend(code.split('\n').map(str::to_owned));
         block.push(fence);
     }
-    block.extend(trim_blank_edges(&it.note).iter().cloned());
+    block.extend(column0_note(&it.note));
     blocks.push(block);
     section(&it.children, style, blocks);
 }
@@ -233,9 +309,9 @@ fn section(children: &[RItem], style: TagStyle, blocks: &mut Vec<Vec<String>>) {
 pub(super) fn emit(fm: &Frontmatter, root_note: &[String], items: &[RItem]) -> String {
     let style = fm.config.tags;
     let mut blocks: Vec<Vec<String>> = Vec::new();
-    let note = trim_blank_edges(root_note);
+    let note: Vec<String> = column0_note(root_note).collect();
     if !note.is_empty() {
-        blocks.push(note.to_vec());
+        blocks.push(note);
     }
     section(items, style, &mut blocks);
     let mut out = frontmatter::render(fm);
