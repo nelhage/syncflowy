@@ -1719,6 +1719,7 @@ mod tests {
         let plan = Plan {
             root: id(1),
             ops: vec![Op::Complete { node: id(2) }],
+            outside: Default::default(),
             summary: PlanSummary::default(),
         };
         let begin = JournalEntry::new_begin(&plan, Vec::new());
