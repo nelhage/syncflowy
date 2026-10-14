@@ -901,7 +901,7 @@ fn view_kinds_and_layouts() {
             ItemKind::Divider,
             ItemKind::Bullet,
             ItemKind::Bullet,
-            ItemKind::Placeholder,
+            ItemKind::Code,
             ItemKind::Bullet
         ]
     );
@@ -910,7 +910,66 @@ fn view_kinds_and_layouts() {
     let md = render_tree(&t, &DocConfig::default(), &ViewExtras::default());
     assert_eq!(
         body(&md),
-        "- ``` ^wf-000000000002\n\tc<1\n\t```\n\tn\n- > q ^wf-000000000003\n- --- ^wf-000000000004\n- [ ] named divider ^wf-000000000005\n- nums ^wf-000000000006\n\t1. [ ] one ^wf-000000000007\n\t2. [ ] two ^wf-000000000008\n- ⧉ (empty or mirror) ^wf-000000000009-ro\n- [ ] ^wf-00000000000a\n\ta note\n"
+        "- ``` ^wf-000000000002\n\tc<1\n\t```\n\tn\n- > q ^wf-000000000003\n- --- ^wf-000000000004\n- [ ] named divider ^wf-000000000005\n- nums ^wf-000000000006\n\t1. [ ] one ^wf-000000000007\n\t2. [ ] two ^wf-000000000008\n- ``` ^wf-000000000009\n\n\t```\n- [ ] ^wf-00000000000a\n\ta note\n"
+    );
+}
+
+#[test]
+fn view_empty_items_other_than_bullets_are_not_placeholders() {
+    // §10 heuristic: shells always have layout `bullets` (UI:H2, DM§10.1). An empty todo,
+    // numbered, code or quote node is an ordinary item: editable, its children shown.
+    let t = tree(&[
+        (2, 1, "", None, "todo", false),
+        (3, 2, "todo child", None, "bullets", false),
+        (4, 1, "", None, "numbered", false),
+        (5, 4, "first", None, "bullets", false),
+        (6, 4, "second", None, "bullets", false),
+        (7, 1, "", Some(""), "code-block", false),
+        (8, 7, "code child", None, "bullets", false),
+        (9, 1, "", None, "quote-block", false),
+        (10, 9, "quote child", None, "bullets", false),
+        (11, 1, "", None, "bullets", false),
+        (12, 11, "shell child", None, "bullets", false),
+    ]);
+    let cfg = DocConfig::default();
+    let v = View::build(&t, &id(1), &cfg, &ViewExtras::default()).unwrap();
+    let got: Vec<(ItemKind, bool, usize)> = v
+        .items
+        .iter()
+        .map(|i| (i.kind, i.read_only, i.children.len()))
+        .collect();
+    assert_eq!(
+        got,
+        vec![
+            (ItemKind::Bullet, false, 1),
+            (ItemKind::Bullet, false, 2),
+            (ItemKind::Code, false, 1),
+            (ItemKind::Quote, false, 1),
+            (ItemKind::Placeholder, true, 0),
+        ]
+    );
+    assert_eq!(v.items[0].checkbox, Checkbox::Open);
+    assert!(v.items[1].children.iter().all(|c| c.ordered));
+    let md = render_tree(&t, &cfg, &ViewExtras::default());
+    assert_eq!(
+        body(&md),
+        "- [ ] ^wf-000000000002\n\t- [ ] todo child ^wf-000000000003\n- ^wf-000000000004\n\t1. [ ] first ^wf-000000000005\n\t2. [ ] second ^wf-000000000006\n- ``` ^wf-000000000007\n\n\t```\n\t- [ ] code child ^wf-000000000008\n- > ^wf-000000000009\n\t- [ ] quote child ^wf-00000000000a\n- ⧉ (empty or mirror) ^wf-00000000000b-ro\n"
+    );
+    let d = parse(&md).unwrap();
+    let parsed: Vec<(ItemKind, &str, usize)> = d
+        .items
+        .iter()
+        .map(|i| (i.kind, i.name_md.as_str(), i.children.len()))
+        .collect();
+    assert_eq!(
+        parsed,
+        vec![
+            (ItemKind::Bullet, "", 1),
+            (ItemKind::Bullet, "", 2),
+            (ItemKind::Code, "", 1),
+            (ItemKind::Quote, "", 1),
+            (ItemKind::Placeholder, "", 0),
+        ]
     );
 }
 

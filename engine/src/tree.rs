@@ -355,10 +355,19 @@ impl Node {
     }
 
     /// The mirror-shell heuristic of §10 (UI:H2): `name == ""` and `note` is `None` or
-    /// `""`. Genuinely empty bullets match too; callers treat both as read-only
-    /// placeholders and never render their children.
+    /// `""`, on a node with layout `bullets`. Shells always get that layout and do not copy
+    /// their origin's (UI:H2, DM§10.1), so an empty todo, numbered list, code block, quote,
+    /// divider or heading is an ordinary empty node, never a shell. Genuinely empty
+    /// bullets still match; callers treat both as read-only placeholders and never render
+    /// their children.
+    // UNVERIFIED: a shell's layout can be changed through the API (DM§10.1: nothing
+    // propagates), and whether a layout change made in the UI through a mirror is stored
+    // on the shell or on its origin was not observed (UI:H3 covers name and note only);
+    // such a shell would render as an ordinary empty item with its own children.
     pub fn looks_like_mirror_shell(&self) -> bool {
-        self.name.is_empty() && self.note.as_deref().is_none_or(str::is_empty)
+        self.layout == DEFAULT_LAYOUT
+            && self.name.is_empty()
+            && self.note.as_deref().is_none_or(str::is_empty)
     }
 }
 
@@ -1423,6 +1432,19 @@ mod tests {
         n.note = Some("x".into());
         assert!(!n.looks_like_mirror_shell());
         assert!(!Node::new(uid(1), None, "x").looks_like_mirror_shell());
+        // Shells always have layout `bullets` (UI:H2, DM§10.1).
+        n.note = None;
+        for layout in [
+            "todo",
+            "numbered",
+            "code-block",
+            "quote-block",
+            "divider",
+            "h1",
+        ] {
+            n.layout = layout.to_owned();
+            assert!(!n.looks_like_mirror_shell(), "{layout}");
+        }
     }
 
     #[test]

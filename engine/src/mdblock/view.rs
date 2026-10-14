@@ -44,12 +44,13 @@ struct Builder<'a> {
 }
 
 fn kind_of(node: &Node) -> ItemKind {
-    // A divider has an empty name by design (UI:G2 sets its note to ""), so it would match
-    // the shell heuristic; shells get layout `bullets` (UI:H2: a mirror does not copy its
-    // origin's layout), so a divider is never taken for a shell.
+    // A divider has an empty name by design (UI:G2 sets its note to "").
     if node.layout == LAYOUT_DIVIDER && node.name.is_empty() {
         return ItemKind::Divider;
     }
+    // The heuristic only matches layout `bullets` (UI:H2: a mirror does not copy its
+    // origin's layout), so an empty todo, numbered, code or quote node is an ordinary
+    // item with its children shown.
     if node.looks_like_mirror_shell() {
         // §10: rendered as a read-only placeholder, children never rendered.
         return ItemKind::Placeholder;
