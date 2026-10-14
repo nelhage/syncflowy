@@ -1061,7 +1061,11 @@ impl<'a, 'c> Engine<'a, 'c> {
             if let Fate::Existing(nd) = self.items[i].fate.clone()
                 && self.items[i].item.checkbox == Checkbox::Ticked
             {
-                self.tick(&nd);
+                if self.tick_refused(i, &nd) {
+                    self.refuse(&nd, self.items[i].item.line);
+                } else {
+                    self.tick(&nd);
+                }
             }
         }
         self.apply_deletes();
@@ -1580,6 +1584,24 @@ impl<'a, 'c> Engine<'a, 'c> {
             node: nd.clone(),
             from_file_root: Some(other_root.clone()),
         });
+    }
+
+    /// §10: a tick of a suspected mirror shell is a write to it like any other, refused
+    /// without `force` (whether completing a shell completes its origin is unknown,
+    /// §13 Q8). The line is a placeholder (now or in the base), or the node looks like a
+    /// shell remotely. Read-only text (§5.3 tier 3) does not stop a tick: completing
+    /// does not touch the text that could not be represented.
+    fn tick_refused(&self, i: usize, nd: &NodeId) -> bool {
+        if self.force {
+            return false;
+        }
+        let li = &self.items[i];
+        li.item.kind == ItemKind::Placeholder
+            || li
+                .ident
+                .base_node()
+                .is_some_and(|b| self.base_items[b].item.kind == ItemKind::Placeholder)
+            || self.is_existing_placeholder(self.inp.remote, nd)
     }
 
     /// §4.3 a tick; never re-complete (DM§4.5).

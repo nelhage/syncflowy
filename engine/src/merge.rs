@@ -99,7 +99,9 @@
 //! other edits to it and its subtree are still pushed (planned before the completion).
 //! A field of a ticked node that was also changed remotely keeps the remote value with
 //! no conflict marker (the node leaves the file). A new item typed as `[x]` is created
-//! and then completed. Ticks are never brakes.
+//! and then completed. Ticks are never brakes. A tick of a placeholder (§10: the line
+//! is or was a placeholder, or the node looks like a mirror shell remotely) is a write
+//! to a suspected shell: refused without `force` ([`ReportEvent::ReadOnlyEditRefused`]).
 //! Remote completion of a locally edited node or ancestor: push the edits anyway, report
 //! [`ReportEvent::VanishedWork`]. Local delete vs remote completion: the delete loses.
 //! Local move vs remote completion of the node or of the destination: apply the move.
