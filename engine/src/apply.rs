@@ -1152,8 +1152,11 @@ fn update_latest(op: &Op, latest: &mut Tree) {
     }
 }
 
-/// §7.1 verification: `expected` (temp ids mapped with `created`) against the export.
-fn verify(
+/// §7.1 verification: `expected` (temp ids mapped with `created`) against the export
+/// `actual`, over the nodes visible from `root`. A `None`/`Some("")` note difference on a
+/// node created in this apply is not reported. Public so that `sync` can verify several
+/// files' applies against one shared re-export (§6.4) instead of one export per file.
+pub fn verify(
     expected: &Tree,
     actual: &Tree,
     root: &NodeId,
