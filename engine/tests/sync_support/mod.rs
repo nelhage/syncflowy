@@ -142,15 +142,19 @@ pub fn norm(text: &str) -> String {
 }
 
 type Hook<'a> = Box<dyn FnMut(usize) + 'a>;
+type CallHook<'a> = Box<dyn FnMut(&str) + 'a>;
 
-/// An `Api` over the real client that counts mutating requests and runs `on_export(n)`
-/// at the start of the n-th export (0-based).
+/// An `Api` over the real client that counts mutating requests, runs `on_export(n)`
+/// at the start of the n-th export (0-based), and `on_call(kind)` before every `get`
+/// and mutating request (`kind` is "get", "create", "update", "move", "complete",
+/// "uncomplete" or "delete"), to race the applier's pre-write checks.
 pub struct TestApi<'a> {
     pub inner: &'a Client,
     pub mutations: AtomicUsize,
     pub exports: AtomicUsize,
     pub calls: Mutex<Vec<String>>,
     on_export: RefCell<Option<Hook<'a>>>,
+    on_call: RefCell<Option<CallHook<'a>>>,
 }
 
 impl<'a> TestApi<'a> {
@@ -161,6 +165,19 @@ impl<'a> TestApi<'a> {
             exports: AtomicUsize::new(0),
             calls: Mutex::new(Vec::new()),
             on_export: RefCell::new(None),
+            on_call: RefCell::new(None),
+        }
+    }
+
+    pub fn with_call_hook(inner: &'a Client, hook: impl FnMut(&str) + 'a) -> TestApi<'a> {
+        let t = TestApi::new(inner);
+        *t.on_call.borrow_mut() = Some(Box::new(hook));
+        t
+    }
+
+    fn before(&self, kind: &str) {
+        if let Some(h) = self.on_call.borrow_mut().as_mut() {
+            h(kind);
         }
     }
 
@@ -194,6 +211,7 @@ impl Api for TestApi<'_> {
         self.inner.export()
     }
     fn get(&self, id: &NodeId) -> Result<Node, ApiError> {
+        self.before("get");
         self.inner.get(id)
     }
     fn get_short(&self, id: &ShortId) -> Result<Node, ApiError> {
@@ -203,26 +221,32 @@ impl Api for TestApi<'_> {
         self.inner.list(parent)
     }
     fn create(&self, req: &CreateRequest) -> Result<NodeId, ApiError> {
+        self.before("create");
         self.mutate(format!("create under {}", req.parent_id));
         self.inner.create(req)
     }
     fn update(&self, id: &NodeId, req: &UpdateRequest) -> Result<(), ApiError> {
+        self.before("update");
         self.mutate(format!("update {id}"));
         self.inner.update(id, req)
     }
     fn move_node(&self, id: &NodeId, parent: &NodeId, position: Position) -> Result<(), ApiError> {
+        self.before("move");
         self.mutate(format!("move {id} to {} of {parent}", position.as_str()));
         self.inner.move_node(id, parent, position)
     }
     fn complete(&self, id: &NodeId) -> Result<(), ApiError> {
+        self.before("complete");
         self.mutate(format!("complete {id}"));
         self.inner.complete(id)
     }
     fn uncomplete(&self, id: &NodeId) -> Result<(), ApiError> {
+        self.before("uncomplete");
         self.mutate(format!("uncomplete {id}"));
         self.inner.uncomplete(id)
     }
     fn delete(&self, id: &NodeId) -> Result<(), ApiError> {
+        self.before("delete");
         self.mutate(format!("delete {id}"));
         self.inner.delete(id)
     }

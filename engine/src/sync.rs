@@ -56,7 +56,17 @@
 //!     export. An error returns `Error::Apply` and leaves the journal for the next run's
 //!     recovery.
 //! 11. **Re-export and verify** once for the run (`apply::verify` per file against the
-//!     shared export, §7.1), then **re-render** from it: `View::build` on the new remote
+//!     shared export, §7.1). If the applier skipped local changes because a
+//!     collaborator changed or deleted their nodes after our export (a name, note or
+//!     layout edit failing the pre-write GET, a create whose parent is gone, …:
+//!     `unpushed_local_changes`), the render below would drop them from the file with no
+//!     marker. Instead the cycle reruns from step 4 exactly as after a CAS conflict
+//!     (step 12): the base keeps only the ops that were applied, so the next merge sees
+//!     the skipped edit as a local change against a remote one (§6.1 conflict marker)
+//!     or a local edit of a remotely deleted node (§6.2 resurrection). When the retries
+//!     run out, nothing is committed ([`SyncOutcome::Skipped`]; the next run recovers
+//!     the journal and merges again), so a `base_md` never drops unpushed local
+//!     content. Otherwise **re-render** from the new export: `View::build` on the new remote
 //!     tree with the merge's conflicts, pending deletes hidden, and `Sticky` checkboxes
 //!     from the current file; the frontmatter is the file's own with `force` cleared.
 //! 12. **Write** unless guard 4 says not to: if the base is the checkpoint, the file has
@@ -1067,6 +1077,70 @@ fn rebase_after(p: &Planned, applied: Option<&ApplyOutcome>) -> Base {
     }
 }
 
+/// The ops of `plan` that the applier skipped because a collaborator changed or deleted
+/// their nodes between our export and the write (§7.1 pre-write check, §9), and whose
+/// local content a render of the new export would therefore drop from the file without
+/// a trace: a name, note or layout edit (`ChangedRemotely`: §6.1 makes that a conflict
+/// whose local side stays in the Markdown; `Gone`: §6.2 resurrects the edited node), a
+/// create (`Gone`: its parent was deleted, §6.2 resurrects the parent with the new
+/// item; `MissingDependency`: a child of such a create) and a re-parenting move whose
+/// node or destination vanished (§6.2 "move vs. delete: the move wins").
+///
+/// Not listed: completions and deletes (nothing local is lost when their node changed
+/// or vanished: a tick of a deleted node is a no-op, a skipped delete loses to the
+/// edit, §6.2), moves skipped because the node moved remotely (§6.2 "move vs. move:
+/// remote wins"), and §8.2 guard refusals, which are decided on the plan's own
+/// snapshot and would only repeat on a rerun.
+fn unpushed_local_changes(plan: &Plan, outcome: &ApplyOutcome) -> Vec<usize> {
+    use apply::{OpOutcome, SkipReason};
+    plan.ops
+        .iter()
+        .zip(&outcome.results)
+        .enumerate()
+        .filter(|(_, (op, result))| {
+            let OpOutcome::Skipped(reason) = result else {
+                return false;
+            };
+            match (op, reason) {
+                (_, SkipReason::AlreadyCompleted | SkipReason::Guard(_)) => false,
+                (Op::Complete { .. } | Op::Delete { .. }, _) => false,
+                (Op::Move { .. }, SkipReason::ChangedRemotely) => false,
+                (
+                    Op::Create { .. }
+                    | Op::UpdateName { .. }
+                    | Op::UpdateNote { .. }
+                    | Op::UpdateLayout { .. }
+                    | Op::Move { .. },
+                    SkipReason::ChangedRemotely
+                    | SkipReason::Gone
+                    | SkipReason::MissingDependency(_),
+                ) => true,
+            }
+        })
+        .map(|(i, _)| i)
+        .collect()
+}
+
+/// After an apply: if local changes could not be pushed ([`unpushed_local_changes`]),
+/// note it in the report and return the reason to merge again instead of rendering.
+fn needs_remerge(a: &mut Active, p: &Planned, applied: Option<&ApplyOutcome>) -> Option<String> {
+    let outcome = applied?;
+    let skipped = unpushed_local_changes(&p.plan, outcome);
+    if skipped.is_empty() {
+        return None;
+    }
+    let reason = format!(
+        "{} local change(s) could not be pushed because their nodes changed in \
+         Workflowy during the sync (ops {skipped:?})",
+        skipped.len()
+    );
+    log::info!("{}: {reason}; merging again", a.file.display());
+    a.report
+        .messages
+        .push(format!("{reason}; merged again so that they are kept"));
+    Some(reason)
+}
+
 /// Re-read the file for a CAS rerun. `Err(outcome)` ends the cycle.
 fn reread(a: &mut Active) -> Result<Result<(), SyncOutcome>, Error> {
     let text = match read_text(&a.file) {
@@ -1102,8 +1176,10 @@ fn reread(a: &mut Active) -> Result<Result<(), SyncOutcome>, Error> {
     Ok(Ok(()))
 }
 
-/// The §9 CAS loop after a conflict: merge the new text against the latest remote,
-/// apply, re-export, render and try the write again.
+/// The §9 CAS loop after a conflict (or after local changes that could not be pushed,
+/// [`needs_remerge`]): merge the current text against the latest remote, apply,
+/// re-export, render and try the write again. `reason` says why the first pass did not
+/// finish.
 #[allow(clippy::too_many_arguments)]
 fn rerun(
     api: &dyn Api,
@@ -1114,6 +1190,7 @@ fn rerun(
     global_ids: &IdMap,
     cross: &CrossFile,
     roots: &BTreeSet<NodeId>,
+    mut reason: String,
 ) -> Result<(), Error> {
     for attempt in 1..=cfg.cas_retries {
         log::info!("{}: CAS rerun {attempt}", a.file.display());
@@ -1144,14 +1221,23 @@ fn rerun(
                 ));
             }
         }
-        if let Finished::Done = finish(store, cfg, a, &planned, &remote)? {
-            return Ok(());
+        match needs_remerge(a, &planned, applied.as_ref()) {
+            Some(r) => reason = r,
+            None => {
+                if let Finished::Done = finish(store, cfg, a, &planned, &remote)? {
+                    return Ok(());
+                }
+                reason = "the file kept changing during the sync".to_owned();
+            }
         }
         a.rebase = Some(rebase_after(&planned, applied.as_ref()));
     }
+    // Nothing is committed: the file keeps the local text, the checkpoint its base, and
+    // the journal (if any) is recovered by the next run, whose merge sees the remote
+    // changes as such.
     a.report.outcome = SyncOutcome::Skipped {
         reason: format!(
-            "the file kept changing during the sync ({} retries); the next run continues",
+            "{reason} ({} retries); the next run continues",
             cfg.cas_retries
         ),
     };
@@ -1387,9 +1473,20 @@ pub fn sync_all(
                     log::warn!("{}: verification: {d:?}", a.file.display());
                 }
             }
-            let r = match finish(&store, cfg, a, p, &after) {
-                Ok(Finished::Done) => Ok(()),
-                Ok(Finished::CasConflict) => {
+            // Local changes the applier had to skip are merged again against the new
+            // export (§6.1 conflict, §6.2 resurrection) instead of being rendered away.
+            let first = match needs_remerge(a, p, applied[k].as_ref()) {
+                Some(reason) => Ok(Err(reason)),
+                None => finish(&store, cfg, a, p, &after).map(|f| match f {
+                    Finished::Done => Ok(()),
+                    Finished::CasConflict => {
+                        Err("the file kept changing during the sync".to_owned())
+                    }
+                }),
+            };
+            let r = match first {
+                Ok(Ok(())) => Ok(()),
+                Ok(Err(reason)) => {
                     a.rebase = Some(rebase_after(p, applied[k].as_ref()));
                     rerun(
                         api,
@@ -1400,6 +1497,7 @@ pub fn sync_all(
                         &ids,
                         &crosses[k],
                         &roots,
+                        reason,
                     )
                 }
                 Err(e) => Err(e),

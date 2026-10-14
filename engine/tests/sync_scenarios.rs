@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use serde_json::json;
 use syncflowy::merge::ReportEvent;
+use syncflowy::state::StateStore;
 use syncflowy::sync::{self, SyncOutcome};
 use syncflowy::tree::NodeId;
 
@@ -260,4 +261,150 @@ fn cas_rerun_after_a_push_does_not_conflict_with_itself() {
     assert!(!text.contains('⚠'), "{text}");
     assert!(text.contains("Alpha 12") && text.contains("Beta (remote)"));
     settle(&env, &file);
+}
+
+// ---------------------------------------------------------------------------------------
+// Ops skipped by the applier (a collaborator raced the pre-write check, §7.1, §9)
+// ---------------------------------------------------------------------------------------
+
+#[test]
+fn local_edit_skipped_by_the_pre_write_check_becomes_a_conflict() {
+    let (env, _root, a, _b, file) = setup();
+    edit(&file, "Alpha", "Alpha LOCAL");
+    // A collaborator renames Alpha after our export, just before the pre-write GET.
+    let mut fired = false;
+    let api = TestApi::with_call_hook(&env.client, |kind| {
+        if kind == "get" && !fired {
+            fired = true;
+            env.ui("edit", json!({"id": a.as_str(), "text": "Alpha REMOTE"}));
+        }
+    });
+    let r = sync::sync_once(&api, &file, &env.cfg).unwrap();
+    drop(api);
+    assert!(fired);
+    assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    // §6.1: remote wins in Workflowy, the local version survives in the Markdown.
+    assert_eq!(env.export().get(&a).unwrap().name, "Alpha REMOTE");
+    let text = read(&file);
+    assert!(line_of(&text, &a).contains("Alpha REMOTE"), "{text}");
+    assert!(text.contains("⚠ Alpha LOCAL"), "{text}");
+    assert_eq!(r.conflicts.len(), 1, "{r:#?}");
+    settle(&env, &file);
+}
+
+#[test]
+fn local_note_edit_skipped_by_the_pre_write_check_becomes_a_conflict() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Root");
+    let a = env.ui_create_with(
+        Some(&root),
+        json!({"text": "Alpha", "note_text": "old note"}),
+    );
+    let file = env.path("root.md");
+    env.render(&root, &file);
+    edit(&file, "old note", "local note");
+    let mut fired = false;
+    let api = TestApi::with_call_hook(&env.client, |kind| {
+        if kind == "get" && !fired {
+            fired = true;
+            env.ui(
+                "edit",
+                json!({"id": a.as_str(), "note_text": "remote note"}),
+            );
+        }
+    });
+    let r = sync::sync_once(&api, &file, &env.cfg).unwrap();
+    drop(api);
+    assert!(fired);
+    assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    assert_eq!(
+        env.export().get(&a).unwrap().note.as_deref(),
+        Some("remote note")
+    );
+    let text = read(&file);
+    assert!(text.contains("remote note"), "{text}");
+    assert!(text.contains("local note"), "{text}");
+    assert_eq!(r.conflicts.len(), 1, "{r:#?}");
+    settle(&env, &file);
+}
+
+#[test]
+fn new_item_whose_parent_vanished_before_the_create_is_resurrected() {
+    let (env, root, a, _b, file) = setup();
+    let text = read(&file);
+    let al = line_of(&text, &a).to_owned();
+    edit(
+        &file,
+        &format!("{al}\n"),
+        &format!("{al}\n\t- My important new child\n"),
+    );
+    // A collaborator deletes Alpha after our export, just before the create.
+    let mut fired = false;
+    let api = TestApi::with_call_hook(&env.client, |kind| {
+        if kind == "create" && !fired {
+            fired = true;
+            env.ui("delete", json!({"id": a.as_str()}));
+        }
+    });
+    let r = sync::sync_once(&api, &file, &env.cfg).unwrap();
+    drop(api);
+    assert!(fired);
+    assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    // §6.2 delete vs. added descendants: the node is resurrected with the new child.
+    let tree = env.export();
+    assert!(!tree.contains(&a));
+    let alpha = by_name(&tree, "Alpha").id.clone();
+    assert_eq!(tree.parent(&alpha), Some(&root));
+    assert_eq!(child_names(&tree, &alpha), ["My important new child"]);
+    let text = read(&file);
+    assert!(text.contains("My important new child"), "{text}");
+    assert!(line_of(&text, &alpha).contains("Alpha"), "{text}");
+    no_nonces(&env);
+    settle(&env, &file);
+}
+
+#[test]
+fn skipped_local_content_is_not_committed_when_no_retry_is_left() {
+    let (env, _root, a, _b, file) = setup();
+    edit(&file, "Alpha", "Alpha LOCAL");
+    let edited = read(&file);
+    let cp_before = StateStore::open(&env.cfg.state_dir)
+        .unwrap()
+        .load_checkpoint(&root_of(&env, &file))
+        .unwrap()
+        .unwrap();
+    let mut fired = false;
+    let api = TestApi::with_call_hook(&env.client, |kind| {
+        if kind == "get" && !fired {
+            fired = true;
+            env.ui("edit", json!({"id": a.as_str(), "text": "Alpha REMOTE"}));
+        }
+    });
+    let mut cfg = env.cfg.clone();
+    cfg.cas_retries = 0;
+    let r = sync::sync_once(&api, &file, &cfg).unwrap();
+    drop(api);
+    assert!(fired);
+    // Nothing that drops the local text is committed: the file and checkpoint stay.
+    assert!(matches!(r.outcome, SyncOutcome::Skipped { .. }), "{r:#?}");
+    assert_eq!(read(&file), edited);
+    let cp_after = StateStore::open(&env.cfg.state_dir)
+        .unwrap()
+        .load_checkpoint(&cp_before.root)
+        .unwrap()
+        .unwrap();
+    assert_eq!(cp_after.generation, cp_before.generation);
+    assert_eq!(cp_after.base_md, cp_before.base_md);
+    // The next, quiet cycle keeps the local text as a conflict.
+    let r = env.sync(&file);
+    assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    let text = read(&file);
+    assert!(text.contains("⚠ Alpha LOCAL"), "{text}");
+    assert!(line_of(&text, &a).contains("Alpha REMOTE"), "{text}");
+    settle(&env, &file);
+}
+
+fn root_of(env: &Env, file: &std::path::Path) -> NodeId {
+    let st = sync::status(&env.cfg, &[file.to_path_buf()]).unwrap();
+    st[0].root.clone()
 }
