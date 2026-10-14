@@ -23,7 +23,9 @@
 //!    destination must not be the node or its descendant, and must lie inside one of the
 //!    applier's `sync_roots` (plus the plan's root); the moved node must lie strictly
 //!    inside one; a create's parent must lie inside one; updates, completions and
-//!    deletes must target nodes inside one, and a root is never deleted. A failure skips
+//!    deletes must target nodes inside one (updates and completions may also target the
+//!    plan's [`Plan::outside`] nodes, moved out remotely, §6.2), and a root is never
+//!    deleted. A failure skips
 //!    the op ([`SkipReason::Guard`]); a refused op is never sent.
 //! 2. With [`ApplyOptions::pre_write_check`] (default on), `GET` the node first and skip
 //!    the op if it no longer matches: `Update*` when the current value differs from
@@ -761,7 +763,7 @@ impl<'a> Applier<'a> {
         for (index, op) in plan.ops.iter().enumerate() {
             let step = match map_op(op, &run.created) {
                 Err(missing) => Step::Skip(SkipReason::MissingDependency(missing)),
-                Ok(mapped) => self.run_op(index, &mapped, &roots, &mut run)?,
+                Ok(mapped) => self.run_op(index, &mapped, &roots, &plan.outside, &mut run)?,
             };
             match step {
                 Step::Done => {
@@ -835,10 +837,11 @@ impl<'a> Applier<'a> {
         index: usize,
         op: &Op,
         roots: &BTreeSet<NodeId>,
+        outside: &BTreeSet<NodeId>,
         run: &mut Run<'_>,
     ) -> Result<Step, ApplyError> {
         // 1. §8.2 guards against the latest known tree.
-        if let Some(reason) = guard(op, &run.latest, roots) {
+        if let Some(reason) = guard(op, &run.latest, roots, outside) {
             return Ok(Step::Skip(SkipReason::Guard(reason)));
         }
         // 2.–3. Pre-write GET and the live cycle check.
@@ -1117,8 +1120,15 @@ impl<'a> Applier<'a> {
     }
 }
 
-/// §8.2 guards of one (mapped) op against the latest known tree.
-fn guard(op: &Op, latest: &Tree, roots: &BTreeSet<NodeId>) -> Option<GuardReason> {
+/// §8.2 guards of one (mapped) op against the latest known tree. `outside`
+/// ([`Plan::outside`]) are the nodes moved out of the root remotely that updates and
+/// completions may still target (§6.2).
+fn guard(
+    op: &Op,
+    latest: &Tree,
+    roots: &BTreeSet<NodeId>,
+    outside: &BTreeSet<NodeId>,
+) -> Option<GuardReason> {
     match op {
         Op::Create { parent, .. } => {
             if !latest.contains(parent) {
@@ -1149,7 +1159,7 @@ fn guard(op: &Op, latest: &Tree, roots: &BTreeSet<NodeId>) -> Option<GuardReason
         | Op::Complete { node } => {
             if !latest.contains(node) {
                 Some(GuardReason::UnknownNode)
-            } else if !within_roots(latest, node, roots) {
+            } else if !within_roots(latest, node, roots) && !outside.contains(node) {
                 Some(GuardReason::OutsideRoot)
             } else {
                 None
@@ -1549,36 +1559,52 @@ mod tests {
             (8, None),
         ]);
         let roots = BTreeSet::from([id(1)]);
+        let none = BTreeSet::new();
         let mv = |n, p| Op::Move {
             node: id(n),
             parent: id(p),
             position: Position::Bottom,
             expected_parent: None,
         };
-        assert_eq!(guard(&mv(3, 4), &t, &roots), Some(GuardReason::Cycle));
-        assert_eq!(guard(&mv(3, 3), &t, &roots), Some(GuardReason::Cycle));
         assert_eq!(
-            guard(&mv(2, 8), &t, &roots),
+            guard(&mv(3, 4), &t, &roots, &none),
+            Some(GuardReason::Cycle)
+        );
+        assert_eq!(
+            guard(&mv(3, 3), &t, &roots, &none),
+            Some(GuardReason::Cycle)
+        );
+        assert_eq!(
+            guard(&mv(2, 8), &t, &roots, &none),
             Some(GuardReason::OutsideSyncRoots)
         );
-        assert_eq!(guard(&mv(1, 2), &t, &roots), Some(GuardReason::Cycle));
         assert_eq!(
-            guard(&mv(8, 2), &t, &roots),
+            guard(&mv(1, 2), &t, &roots, &none),
+            Some(GuardReason::Cycle)
+        );
+        assert_eq!(
+            guard(&mv(8, 2), &t, &roots, &none),
             Some(GuardReason::OutsideSyncRoots)
         );
-        assert_eq!(guard(&mv(4, 2), &t, &roots), None);
-        assert_eq!(guard(&mv(4, 1), &t, &roots), None);
+        assert_eq!(guard(&mv(4, 2), &t, &roots, &none), None);
+        assert_eq!(guard(&mv(4, 1), &t, &roots, &none), None);
         assert_eq!(
-            guard(&mv(4, 99), &t, &roots),
+            guard(&mv(4, 99), &t, &roots, &none),
             Some(GuardReason::UnknownNode)
         );
         let del = |n| Op::Delete {
             node: id(n),
             hidden_descendants: 0,
         };
-        assert_eq!(guard(&del(1), &t, &roots), Some(GuardReason::OutsideRoot));
-        assert_eq!(guard(&del(8), &t, &roots), Some(GuardReason::OutsideRoot));
-        assert_eq!(guard(&del(4), &t, &roots), None);
+        assert_eq!(
+            guard(&del(1), &t, &roots, &none),
+            Some(GuardReason::OutsideRoot)
+        );
+        assert_eq!(
+            guard(&del(8), &t, &roots, &none),
+            Some(GuardReason::OutsideRoot)
+        );
+        assert_eq!(guard(&del(4), &t, &roots, &none), None);
         let create = |p| Op::Create {
             temp: NodeId::temp(1),
             parent: id(p),
@@ -1586,9 +1612,32 @@ mod tests {
             note: None,
             layout: String::new(),
         };
-        assert_eq!(guard(&create(1), &t, &roots), None);
+        assert_eq!(guard(&create(1), &t, &roots, &none), None);
         assert_eq!(
-            guard(&create(8), &t, &roots),
+            guard(&create(8), &t, &roots, &none),
+            Some(GuardReason::OutsideSyncRoots)
+        );
+        // Updates and completions outside the roots: only for the plan's `outside`
+        // nodes (moved out remotely, §6.2); never moves or deletes.
+        let complete = Op::Complete { node: id(8) };
+        assert_eq!(
+            guard(&complete, &t, &roots, &none),
+            Some(GuardReason::OutsideRoot)
+        );
+        let outside = BTreeSet::from([id(8)]);
+        assert_eq!(guard(&complete, &t, &roots, &outside), None);
+        let rename = Op::UpdateName {
+            node: id(8),
+            expected: String::new(),
+            name: "x".into(),
+        };
+        assert_eq!(guard(&rename, &t, &roots, &outside), None);
+        assert_eq!(
+            guard(&del(8), &t, &roots, &outside),
+            Some(GuardReason::OutsideRoot)
+        );
+        assert_eq!(
+            guard(&mv(8, 2), &t, &roots, &outside),
             Some(GuardReason::OutsideSyncRoots)
         );
     }
@@ -1625,6 +1674,7 @@ mod tests {
             root: id(1),
             ops: vec![Op::Complete { node: id(2) }],
             summary: PlanSummary::default(),
+            outside: Default::default(),
         };
         let begin = JournalEntry::new_begin(&plan, Vec::new());
         let mut j = Journal::begin(&path, &begin).unwrap();

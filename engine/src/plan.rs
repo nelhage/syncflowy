@@ -37,7 +37,9 @@
 //! * A move's destination must be inside one of [`PlanConfig::sync_roots`]
 //!   ([`GuardReason::OutsideSyncRoots`]). Updates, completions and deletes must target
 //!   nodes inside `merge.root`'s subtree, except moves' sources (cross-file moves come
-//!   from another root).
+//!   from another root) and the updates and completions of `merge.outside` (nodes moved
+//!   out of the root remotely whose local edits follow them, §6.2), which
+//!   [`Plan::outside`] passes on to `apply`.
 //! * Every parent sent to the API is explicit (create and move always carry a parent).
 //!
 //! A guard violation is a bug or a race; the whole plan is refused
@@ -272,6 +274,10 @@ pub struct Plan {
     pub ops: Vec<Op>,
     /// Counts.
     pub summary: PlanSummary,
+    /// Nodes outside the root that `Update*` and `Complete` ops may target
+    /// (`MergeResult::outside`: moved out remotely, edited or ticked locally, §6.2).
+    #[serde(default)]
+    pub outside: BTreeSet<NodeId>,
 }
 
 impl Plan {
@@ -438,6 +444,7 @@ pub fn plan(merge: &MergeResult, remote: &Tree, cfg: &PlanConfig) -> Result<Plan
         root: merge.root.clone(),
         ops: b.ops,
         summary,
+        outside: merge.outside.clone(),
     })
 }
 
@@ -706,7 +713,7 @@ impl Builder<'_> {
                 }
             }
             for op in ops {
-                if !self.in_root(id) {
+                if !self.in_root(id) && !merge.outside.contains(id) {
                     return Err(Self::guard(&op, GuardReason::OutsideRoot));
                 }
                 self.emit(op)?;
@@ -804,7 +811,7 @@ impl Builder<'_> {
                 // The API never re-completes (DM§4.5); nothing to do.
                 continue;
             }
-            if !self.in_root(id) {
+            if !self.in_root(id) && !merge.outside.contains(id) {
                 return Err(Self::guard(&op, GuardReason::OutsideRoot));
             }
             self.emit(op)?;
@@ -1384,6 +1391,7 @@ mod tests {
             root: p.clone(),
             ops: vec![Op::Complete { node: x.clone() }],
             summary: PlanSummary::default(),
+            outside: Default::default(),
         };
         assert_eq!(
             simulate(&plan, &t),

@@ -426,7 +426,7 @@ pub fn summarize(r: &MergeResult) -> Value {
             (lbl(k), Value::Object(o))
         })
         .collect();
-    let v = json!({
+    let mut v = json!({
         "pushes": pushes,
         "creates": r.creates.iter().map(|c| json!({
             "temp": c.temp, "parent": c.parent, "name": c.name, "note": c.note,
@@ -445,6 +445,10 @@ pub fn summarize(r: &MergeResult) -> Value {
         "stats": r.stats,
         "merged": outline(&r.merged, &r.root),
     });
+    // Only when set, so that the other fixtures keep their expectations.
+    if !r.outside.is_empty() {
+        v["outside"] = json!(r.outside);
+    }
     relabel(v)
 }
 

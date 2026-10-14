@@ -184,6 +184,9 @@ struct Engine<'a, 'c> {
     report: Vec<ReportEvent>,
     refused: BTreeSet<NodeId>,
     cancelled: BTreeSet<NodeId>,
+    /// Base nodes moved out of the subtree remotely whose local edits or tick are pushed
+    /// where they are now (§6.2); they are not in `M`.
+    outside: BTreeSet<NodeId>,
     suppressed: usize,
     stats: MergeStats,
 }
@@ -376,6 +379,7 @@ impl<'a, 'c> Engine<'a, 'c> {
             report: Vec::new(),
             refused: BTreeSet::new(),
             cancelled: BTreeSet::new(),
+            outside: BTreeSet::new(),
             suppressed: 0,
             stats: MergeStats::default(),
         };
@@ -435,6 +439,15 @@ impl<'a, 'c> Engine<'a, 'c> {
         };
         let bp = &self.base_items[n].parent;
         self.parent_node(i).as_ref() != Some(bp)
+    }
+
+    /// §6.2: the base item's node was moved out of the subtree remotely (it still
+    /// exists), and the item carries a local edit or a tick that must follow it.
+    fn moved_out(&self, i: usize, nd: &NodeId) -> bool {
+        !self.remote_sub.contains(nd)
+            && self.inp.remote.contains(nd)
+            && (self.items[i].item.checkbox == Checkbox::Ticked
+                || self.detected[i].as_ref().is_some_and(Detected::any))
     }
 
     fn is_existing_placeholder(&self, tree: &Tree, id: &NodeId) -> bool {
@@ -1088,6 +1101,12 @@ impl<'a, 'c> Engine<'a, 'c> {
                 }
                 (Ident::Cross(nd, _), Fate::Existing(_)) => self.merge_nobase_fields(i, &nd),
                 (Ident::Adopted(nd, k), Fate::Existing(_)) => self.merge_adopted_fields(i, &nd, k),
+                (Ident::Base(nd) | Ident::Rematched(nd), Fate::Gone) if self.moved_out(i, &nd) => {
+                    // §6.2: moved out of the subtree remotely, but the node exists: the
+                    // local edits are pushed where it is now (module docs).
+                    self.outside.insert(nd.clone());
+                    self.merge_base_fields(i, &nd);
+                }
                 _ => {}
             }
         }
@@ -1107,9 +1126,15 @@ impl<'a, 'c> Engine<'a, 'c> {
             }
         }
         for i in 0..self.items.len() {
-            if let Fate::Existing(nd) = self.items[i].fate.clone()
-                && self.items[i].item.checkbox == Checkbox::Ticked
-            {
+            let nd = match (&self.items[i].fate, &self.items[i].ident) {
+                (Fate::Existing(nd), _) => nd.clone(),
+                (Fate::Gone, Ident::Base(nd) | Ident::Rematched(nd)) if self.moved_out(i, nd) => {
+                    self.outside.insert(nd.clone());
+                    nd.clone()
+                }
+                _ => continue,
+            };
+            if self.items[i].item.checkbox == Checkbox::Ticked {
                 if self.tick_refused(i, &nd) {
                     self.refuse(&nd, self.items[i].item.line);
                 } else {
@@ -1121,6 +1146,15 @@ impl<'a, 'c> Engine<'a, 'c> {
     }
 
     fn add_conflict(&mut self, n: &NodeId, field: ConflictField, local_md: String) {
+        if self.outside.contains(n) {
+            // The line leaves the file, so no marker can hold the local text (§6.2).
+            self.report.push(ReportEvent::MovedOutConflict {
+                node: n.clone(),
+                field,
+                local_md,
+            });
+            return;
+        }
         self.conflicts.insert(
             (n.clone(), field),
             ConflictMarker {
@@ -1179,7 +1213,9 @@ impl<'a, 'c> Engine<'a, 'c> {
                 field: ConflictField::Name,
             });
         }
-        self.m.set_name(n, new.clone()).expect("node in M");
+        if !self.outside.contains(n) {
+            self.m.set_name(n, new.clone()).expect("node in M");
+        }
         push.name = Some(Change {
             expected: expected.to_owned(),
             new,
@@ -1200,7 +1236,9 @@ impl<'a, 'c> Engine<'a, 'c> {
                 field: ConflictField::Note,
             });
         }
-        self.m.set_note(n, Some(new.clone())).expect("node in M");
+        if !self.outside.contains(n) {
+            self.m.set_note(n, Some(new.clone())).expect("node in M");
+        }
         push.note = Some(Change {
             expected: expected.map(str::to_owned),
             new: Some(new),
@@ -1208,7 +1246,9 @@ impl<'a, 'c> Engine<'a, 'c> {
     }
 
     fn set_layout(&mut self, n: &NodeId, expected: &str, new: &str, push: &mut FieldPush) {
-        self.m.set_layout(n, new).expect("node in M");
+        if !self.outside.contains(n) {
+            self.m.set_layout(n, new).expect("node in M");
+        }
         push.layout = Some(Change {
             expected: expected.to_owned(),
             new: new.to_owned(),
@@ -1335,8 +1375,11 @@ impl<'a, 'c> Engine<'a, 'c> {
         // divider. If the node does not end up a divider (the remote changed the layout
         // too and won), pushing the empty name would blank the node and turn it into a
         // suspected mirror shell (§10), so the name is left alone.
-        let divider_lost = self.items[i].item.kind == ItemKind::Divider
-            && self.m.get(nd).is_some_and(|x| x.layout != "divider");
+        let layout_now = match &push.layout {
+            Some(c) => c.new.as_str(),
+            None => r.layout.as_str(),
+        };
+        let divider_lost = self.items[i].item.kind == ItemKind::Divider && layout_now != "divider";
         if let Some(md) = &d.name
             && !divider_lost
         {
@@ -1665,7 +1708,9 @@ impl<'a, 'c> Engine<'a, 'c> {
             return;
         }
         self.ticks.push(nd.clone());
-        self.m.set_completed(nd, true, None).expect("node in M");
+        if !self.outside.contains(nd) {
+            self.m.set_completed(nd, true, None).expect("node in M");
+        }
     }
 
     /// Whether a locally deleted (or pending) node must stay: deletes lose to remote
@@ -1943,6 +1988,7 @@ impl<'a, 'c> Engine<'a, 'c> {
             report: self.report,
             stats,
             cancelled_pending: self.cancelled,
+            outside: self.outside,
         }
     }
 

@@ -117,9 +117,17 @@
 //! temp id together with its whole local subtree: [`ReportEvent::Resurrected`]; its
 //! remotely deleted ancestors are resurrected with it). Move vs move: remote wins
 //! ([`ReportEvent::DroppedMove`]). Move vs delete: the move wins. A remote move out of
-//! the subtree removes the node from the file ([`ReportEvent::MovedOut`]); local edits
-//! of it are not pushed (it is outside the root) and local creates under it go to its
-//! nearest surviving local ancestor. A remote move in adds it. A local move that would
+//! the subtree removes the node from the file ([`ReportEvent::MovedOut`]), but the node
+//! still exists, so its local field edits and its tick are merged and pushed where it is
+//! now, exactly as for a node inside the root (§6.1; like the "edited vs completed" row
+//! of §6.2: the nodes exist). Such nodes are listed in [`MergeResult::outside`], the only
+//! nodes outside the root that `pushes` and `ticks` may name. A conflict on one cannot
+//! be kept as a marker (the line leaves the file): remote wins and the local text is
+//! reported ([`ReportEvent::MovedOutConflict`]). UNVERIFIED design choice: the design does
+//! not say whether edits follow a node moved out; pushing them is the only choice that
+//! loses no typed text. Local moves of it are dropped (move vs move: remote wins) and
+//! local creates under it go to its nearest surviving local ancestor. A remote move in
+//! adds it. A local move that would
 //! create a cycle with a remote move is dropped (remote wins, [`ReportEvent::DroppedMove`]
 //! with `cycle: true`). Hidden nodes are never moved, edited or deleted except as a side
 //! effect the user asked for (a tick, or the delete of a visible ancestor, which
@@ -179,7 +187,8 @@
 //!   in target order, and `M`'s sibling order agrees with it.
 //! * `pushes`, `creates`, `moves`, `ticks`, `deletes` are exactly the differences between
 //!   `M` and the remote tree that the planner must realise (nothing else differs except
-//!   sibling order, given by `orders`). Every pushed name/note is canonical WF-HTML.
+//!   sibling order, given by `orders`), plus the pushes and ticks of the nodes in
+//!   `outside`, which are not in `M`. Every pushed name/note is canonical WF-HTML.
 //! * With `local_doc == base_doc` there are no pushes, creates, moves, ticks or deletes,
 //!   and `M` equals the remote subtree up to priorities.
 //! * Determinism: same inputs, same output (including temp id numbering).
@@ -392,6 +401,14 @@ pub enum ReportEvent {
         node: NodeId,
         new_parent: Option<NodeId>,
     },
+    /// A field of a node moved out of the subtree remotely was edited on both sides:
+    /// Workflowy's value is kept and, since the line leaves the file and cannot carry a
+    /// conflict marker, the local text is kept here (§6.1, §6.2).
+    MovedOutConflict {
+        node: NodeId,
+        field: ConflictField,
+        local_md: String,
+    },
     /// A node moved into the subtree remotely, or from another file (§6.2, §6.4).
     MovedIn {
         node: NodeId,
@@ -476,6 +493,15 @@ impl ReportEvent {
                     n(node)
                 ),
             },
+            ReportEvent::MovedOutConflict {
+                node,
+                field,
+                local_md,
+            } => format!(
+                "conflict on the {} of {}, which was moved out of this file in Workflowy: Workflowy's version kept; yours was {local_md:?}",
+                f(field),
+                n(node)
+            ),
             ReportEvent::MovedIn {
                 node,
                 from_file_root,
@@ -609,6 +635,10 @@ pub struct MergeResult {
     /// Pending deletes that are no longer pending: the node reappeared in the file,
     /// changed remotely (the delete lost), or left the subtree.
     pub cancelled_pending: BTreeSet<NodeId>,
+    /// Nodes outside the root (moved out remotely, §6.2) whose local edits or tick are
+    /// pushed where they are now: the only nodes outside `merged` that `pushes` and
+    /// `ticks` may name.
+    pub outside: BTreeSet<NodeId>,
 }
 
 impl MergeResult {
@@ -744,6 +774,11 @@ mod tests {
             ReportEvent::MovedOut {
                 node: a.clone(),
                 new_parent: None,
+            },
+            ReportEvent::MovedOutConflict {
+                node: a.clone(),
+                field: ConflictField::Name,
+                local_md: "typed".to_owned(),
             },
             ReportEvent::MovedIn {
                 node: a.clone(),

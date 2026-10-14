@@ -74,6 +74,7 @@ fn plan_of(root: &NodeId, ops: Vec<Op>) -> Plan {
         root: root.clone(),
         ops,
         summary: PlanSummary::default(),
+        outside: Default::default(),
     }
 }
 

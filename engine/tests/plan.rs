@@ -371,6 +371,7 @@ fn derive_merge(remote: &Tree, m: &Tree, root: &NodeId) -> MergeResult {
         report: Vec::new(),
         stats,
         cancelled_pending: BTreeSet::new(),
+        outside: BTreeSet::new(),
     }
 }
 
@@ -1075,6 +1076,35 @@ fn guards_keep_writes_inside_the_root() {
 
     let mut sc = scenario(NESTED, NESTED_M, &[]);
     sc.merge.ticks.push(x.clone());
+    let (reason, _) = guard_reason(plan::plan(&sc.merge, &sc.remote, &sc.cfg));
+    assert_eq!(reason, GuardReason::OutsideRoot);
+
+    // A node moved out remotely whose local edits follow it (§6.2, `merge.outside`):
+    // its update and completion are planned and handed to apply; a delete is not.
+    let mut sc = scenario(NESTED, NESTED_M, &[]);
+    sc.merge.pushes.insert(
+        x.clone(),
+        FieldPush {
+            name: Some(Change {
+                expected: "X".into(),
+                new: "Y".into(),
+            }),
+            ..FieldPush::default()
+        },
+    );
+    sc.merge.ticks.push(x.clone());
+    sc.merge.outside.insert(x.clone());
+    let p = plan::plan(&sc.merge, &sc.remote, &sc.cfg).expect("plan");
+    assert!(
+        matches!(&p.ops[..], [Op::UpdateName { node: a, .. }, Op::Complete { node: b }] if a == &x && b == &x)
+    );
+    assert!(p.outside.contains(&x));
+    sc.merge.deletes.push(DeleteIntent {
+        node: x.clone(),
+        visible_descendants: 0,
+        hidden_descendants: 0,
+        label: String::new(),
+    });
     let (reason, _) = guard_reason(plan::plan(&sc.merge, &sc.remote, &sc.cfg));
     assert_eq!(reason, GuardReason::OutsideRoot);
 

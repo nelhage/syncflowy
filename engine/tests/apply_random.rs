@@ -221,6 +221,7 @@ fn random_plans_apply_as_simulated() {
             root: root.clone(),
             ops,
             summary: PlanSummary::default(),
+            outside: Default::default(),
         };
         let expected = plan::simulate(&plan, &remote).unwrap();
         assert_eq!(expected, s);

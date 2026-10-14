@@ -592,6 +592,7 @@ fn event_kind(e: &ReportEvent) -> Option<EventKind> {
         | ReportEvent::ReadOnlyEditRefused { .. }
         | ReportEvent::PlaceholderDeleteRefused { .. }
         | ReportEvent::Conflict { .. }
+        | ReportEvent::MovedOutConflict { .. }
         | ReportEvent::ConflictLost { .. }
         | ReportEvent::LossyWrite { .. }
         | ReportEvent::PendingDeleteCancelled { .. } => Some(EventKind::Info),

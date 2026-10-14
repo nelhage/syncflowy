@@ -34,7 +34,7 @@
     "id": "root",
     "name": "Root"
   },
-  "description": "§6.2: a remote move out of the subtree removes the node from the file (not a delete); local edits to it are not pushed and a create under it goes to the nearest surviving ancestor.",
+  "description": "§6.2: a remote move out of the subtree removes the node from the file (not a delete); the node still exists, so a local edit of it (here of b1, moved out with b) is pushed where it is now (§6.1), and a create under it goes to the nearest surviving ancestor.",
   "expected": {
     "cancelled_pending": [],
     "conflicts": [],
@@ -71,7 +71,17 @@
         "c"
       ]
     },
-    "pushes": {},
+    "outside": [
+      "b1"
+    ],
+    "pushes": {
+      "b1": {
+        "name": [
+          "Beta one",
+          "Beta one edited"
+        ]
+      }
+    },
     "report": [
       {
         "MovedOut": {
@@ -87,7 +97,7 @@
       "deleted_hidden": 0,
       "deleted_visible": 0,
       "local_items": 7,
-      "pushed_fields": 0,
+      "pushed_fields": 1,
       "ticked": 0
     },
     "ticks": []

@@ -168,7 +168,61 @@ fn remote_move_out_of_the_root_leaves_the_file() {
         "{r:#?}"
     );
     assert!(!read(&file).contains("Alpha"));
-    assert_eq!(env.export().parent(&a), Some(&elsewhere));
+    let tree = env.export();
+    assert_eq!(tree.parent(&a), Some(&elsewhere));
+    // §6.1/§6.2: the node exists, so the text typed on its line follows it.
+    assert_eq!(tree.get(&a).unwrap().name, "Alpha edited here");
+    settle(&env, &file);
+}
+
+#[test]
+fn tick_of_a_node_moved_out_of_the_root_completes_it() {
+    let (env, _root, a, b, file) = setup();
+    let elsewhere = env.ui_create(None, "Elsewhere");
+    let child = env.ui_create(Some(&b), "Beta child");
+    env.sync(&file);
+    env.ui(
+        "move",
+        json!({"id": b.as_str(), "parent_id": elsewhere.as_str()}),
+    );
+    edit(&file, "- [ ] Beta child", "- [x] Beta child");
+    edit(&file, "Alpha", "Alpha too");
+    let r = env.sync(&file);
+    assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    let tree = env.export();
+    assert_eq!(tree.parent(&child), Some(&b));
+    assert!(tree.get(&child).unwrap().completed, "{r:#?}");
+    assert!(!tree.get(&b).unwrap().completed);
+    assert_eq!(tree.get(&a).unwrap().name, "Alpha too");
+    assert!(!read(&file).contains("Beta"));
+    settle(&env, &file);
+}
+
+#[test]
+fn conflict_on_a_node_moved_out_of_the_root_is_reported() {
+    let (env, _root, a, _b, file) = setup();
+    let elsewhere = env.ui_create(None, "Elsewhere");
+    env.ui(
+        "move",
+        json!({"id": a.as_str(), "parent_id": elsewhere.as_str()}),
+    );
+    env.ui("edit", json!({"id": a.as_str(), "text": "Alpha (remote)"}));
+    edit(&file, "Alpha", "Alpha (local)");
+    let r = env.sync(&file);
+    // Remote wins in Workflowy; the line left the file, so the report keeps the text.
+    assert_eq!(env.export().get(&a).unwrap().name, "Alpha (remote)");
+    assert!(
+        r.events.iter().any(|e| matches!(
+            e,
+            ReportEvent::MovedOutConflict { node, local_md, .. }
+                if *node == a && local_md == "Alpha (local)"
+        )),
+        "{r:#?}"
+    );
+    assert!(
+        r.messages.iter().any(|m| m.contains("Alpha (local)")),
+        "{r:#?}"
+    );
     settle(&env, &file);
 }
 
