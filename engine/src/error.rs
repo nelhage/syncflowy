@@ -78,6 +78,9 @@ pub enum Error {
         /// The inner root.
         inner: NodeId,
     },
+    /// `render` was asked for a root that already has a checkpoint (use `--force`).
+    #[error("root {0} already has a checkpoint; sync its file instead, or use --force")]
+    CheckpointExists(NodeId),
     /// The output file of `render` exists (use `--force`).
     #[error("{0} exists (use --force)")]
     FileExists(PathBuf),

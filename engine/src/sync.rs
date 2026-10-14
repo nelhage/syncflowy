@@ -7,90 +7,113 @@
 //! store and the journal, and calls the API.
 //!
 //! Consumes: every other module: `wfclient::Api` (export), `mdblock` (parse, `View`,
-//! render), `merge`, `plan`, `apply` (`Applier`, `Journal`, `recover`), `state`
+//! render), `merge`, `plan`, `apply` (`Applier`, `Journal`, `recover`, `verify`), `state`
 //! (`StateStore`, `Checkpoint`, history, pending deletes), `tree`.
 //! Consumed by: `main` (the `render`, `sync` and `status` commands) and `daemon`.
 //!
 //! # The cycle for one file (`sync_once` = `sync_all` with one file)
 //!
 //! 1. **Read** the file. Missing: [`SyncOutcome::Paused`] with
-//!    [`PauseReason::FileMissing`] (never delete anything, §8.3, §9.1 guard 5). Frontmatter
-//!    unparseable: [`SyncOutcome::Skipped`] (retry later; never "everything deleted").
+//!    [`PauseReason::FileMissing`] (never delete anything, §8.3, §9.1 guard 5), before
+//!    any API call. Not UTF-8, or frontmatter unparseable (guard 4 "parse by content"):
+//!    [`SyncOutcome::Skipped`] (retry later; never "everything deleted").
 //!    `paused: true`: [`SyncOutcome::Paused`].
 //! 2. **Export** once (shared by all files of the run) and resolve the root
 //!    (`RootRef::resolve` against the export's `IdMap`; unknown: `Error::RootNotFound`).
-//!    Take the root's lock (`StateStore::lock`).
+//!    Take the root's lock (`StateStore::lock`; held elsewhere: `Skipped`).
 //! 3. **Recover** if the root has a journal (`apply::recover`): its adoptions feed the
-//!    merge and are carried into this cycle's journal.
+//!    merge and are carried into this cycle's journal. After any recovery the export is
+//!    taken again (recovery may have written names).
 //! 4. **Choose the base** (§9.1 guard 1): if the file's `gen` equals the checkpoint's,
-//!    base = checkpoint (`base_md`, `base_wf`); if it names an older generation still in
-//!    the history, base = that history entry (a rebase); otherwise (missing, unknown)
-//!    base = checkpoint and `MergeConfig::safe_mode`. `prior_docs` = the other kept
-//!    generations (at most the 20 newest). No checkpoint at all: `Error::NoCheckpoint`,
+//!    base = checkpoint (`base_md`, `base_wf`); if it names another generation still in
+//!    the history, base = that history entry (a rebase; this also covers a crash between
+//!    the file write and the checkpoint, when the file is one generation ahead);
+//!    otherwise (missing, unknown) base = checkpoint and `MergeConfig::safe_mode`.
+//!    `prior_docs` = the other kept generations (at most [`PRIOR_DOCS_MAX`] newest). The
+//!    merge uses the base file's config (visibility must agree with the base); the
+//!    render uses the current file's. No checkpoint at all: `Error::NoCheckpoint`,
 //!    unless `force`, which bootstraps with base_wf = remote subtree, base_md = a fresh
 //!    render of it, and safe mode (UNVERIFIED design choice: local edits made since a
 //!    lost checkpoint may overwrite remote edits; hence the `--force`).
-//! 5. **Fast path** (§5.1): if the file text equals the base text and the remote subtree
-//!    has no outline difference from base_wf (`tree::outline_diff`, `DiffScope::All`),
-//!    return [`SyncOutcome::Unchanged`] without writing anything.
-//! 6. **Merge** (`merge::merge`) with `CrossFile` built from the other files of the run.
+//! 5. **Fast path** (§5.1): if the base is the checkpoint, the file text equals
+//!    `base_md`, the remote subtree has no outline difference from base_wf
+//!    (`tree::outline_diff`, `DiffScope::All`), and there is no journal, no pending
+//!    delete and no force: return [`SyncOutcome::Unchanged`] without writing anything.
+//! 6. **Merge** (`merge::merge`) with `CrossFile` built from the other files of the run,
+//!    `force = cfg.force || frontmatter.force`.
 //! 7. **Deferred deletes** (§9.1 guard 2, only when [`SyncConfig::delete_grace`] is set,
 //!    i.e. in the daemon): record `merge.deletes` in the checkpoint's `PendingDeletes`;
 //!    deletes not yet due go into `PlanConfig::deferred_deletes` and into
-//!    `ViewExtras::hidden`; cancelled ones are removed.
-//! 8. **Plan** (`plan::plan`) with `force = cfg.force || frontmatter.force`. A brake gives
-//!    [`SyncOutcome::Braked`]: nothing is written anywhere.
+//!    `ViewExtras::hidden`; cancelled ones are removed. Without a grace period every
+//!    delete (including ones a daemon left pending) is sent now.
+//! 8. **Plan** (`plan::plan`) with the same `force`. A brake gives
+//!    [`SyncOutcome::Braked`]: nothing is written anywhere (§8.3).
 //! 9. **Dry run** ([`SyncConfig::dry_run`]): return [`SyncOutcome::DryRun`] with the plan.
 //! 10. **Apply** if the plan is not empty: `Journal::begin` (with the carried adoptions)
-//!     at `StateStore::journal_path`, then `Applier::apply`. An error returns
-//!     `Error::Apply` and leaves the journal for the next run's recovery.
-//! 11. **Re-render** from the verification export (or a fresh one): `View::build` on the
-//!     new remote tree with the merge's conflicts, pending deletes hidden, and `Sticky`
-//!     checkboxes from the current file; the frontmatter is the file's own with `force`
-//!     cleared and `gen = checkpoint gen + 1`.
-//! 12. **Write** unless guard 4 says not to: if the merge had no local changes and the
-//!     new render is `mdblock::equivalent` to the current file (pure normalisation),
-//!     write nothing. Otherwise: save the history entry of the new generation, then
-//!     **compare-and-swap** the file (§9): re-read it; if it changed since step 1, do not
-//!     write, keep the journal, and rerun from step 4 with the new text and this cycle's
-//!     creates as adoptions (at most [`SyncConfig::cas_retries`] times, then
-//!     [`SyncOutcome::Skipped`]; the next run recovers). Otherwise write it atomically
-//!     (`state::atomic_write`).
-//! 13. **Commit**: save the checkpoint (new gen, base_wf = new remote subtree, base_md =
-//!     the text written, ids extended with the export, config echo, pending deletes),
-//!     prune the history, then `Journal::commit`.
+//!     at `StateStore::journal_path`, then `Applier::apply` without its own verification
+//!     export. An error returns `Error::Apply` and leaves the journal for the next run's
+//!     recovery.
+//! 11. **Re-export and verify** once for the run (`apply::verify` per file against the
+//!     shared export, §7.1), then **re-render** from it: `View::build` on the new remote
+//!     tree with the merge's conflicts, pending deletes hidden, and `Sticky` checkboxes
+//!     from the current file; the frontmatter is the file's own with `force` cleared.
+//! 12. **Write** unless guard 4 says not to: if the base is the checkpoint, the file has
+//!     no `force: true`, and the new render (with the current `gen`) is byte-identical or
+//!     `mdblock::equivalent` to the current file, nothing the user needs to see changed
+//!     (pure normalisation is deferred): the file is not written and `gen` stays.
+//!     Otherwise: `gen` = one more than both the checkpoint's and every kept history
+//!     generation; **compare-and-swap** (§9): re-read the file; if it changed since step
+//!     1, do not write, keep the journal, and rerun from step 4 with the new text, the
+//!     latest export and this cycle's creates as adoptions (at most
+//!     [`SyncConfig::cas_retries`] times, then [`SyncOutcome::Skipped`]; the next run
+//!     recovers). Otherwise save the history entry of the new generation and write the
+//!     file atomically (`state::atomic_write`).
+//! 13. **Commit**: save the checkpoint (gen, base_wf = new remote subtree, base_md = the
+//!     text now in the file (written or kept), ids extended, config echo, pending
+//!     deletes) and, when the file was not written, the history entry of the unchanged
+//!     generation (so that history[gen] always matches the checkpoint); prune the
+//!     history; then `Journal::commit` (or remove a recovered journal).
 //!
-//! Deviation from §9 (recorded here deliberately): the design updates the checkpoint
-//! before rerunning a merge after a failed CAS. Here the checkpoint changes only when the
-//! file is written, and the uncommitted journal (via adoptions) protects the creates
-//! already pushed; that keeps "the file names its own base" (guard 1) true at all times.
+//! Deviation from §9 (recorded here deliberately): the design saves the checkpoint
+//! before rerunning a merge after a failed CAS. Here the checkpoint is saved only at the
+//! end of a cycle, together with the file it describes, so "the file names its own
+//! base" (guard 1) holds at all times. The rerun instead keeps an in-memory base: the
+//! pass's `base_md` with a `base_wf` updated by the field writes and re-parentings that
+//! were applied (so a user's further edit of a line we just pushed is a plain local
+//! edit, not a conflict with our own push), and this cycle's creates as adoptions; the
+//! uncommitted journal protects those creates if the process dies before the commit.
 //!
 //! # Several files (§6.4)
 //!
-//! `sync_all` parses every file first. Two files naming the same root: both are
-//! [`SyncOutcome::Paused`] with [`PauseReason::DuplicateRoot`] (guard 5). A root inside
-//! another root of the run: the inner file is skipped (`Error::NestedRoots`). Then one
-//! export; then every merge (with `CrossFile.other_roots` = the other roots and
-//! `claimed_elsewhere` = nodes tagged in the other files); then every plan and apply in
-//! file order (cross-file moves are planned by the destination file); then one
-//! re-export; then each file's render, write and commit. A file whose apply failed is
-//! not rendered; the other files continue.
+//! `sync_all` parses every file first, takes one export for the run, merges, plans and
+//! applies each file in order, re-exports once, and then renders, writes and commits
+//! each file. A file whose apply failed is not rendered; the other files continue.
 
-#![allow(unused_variables, dead_code)] // stubs; remove when implemented
-
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use crate::apply::{ApplyOptions, Recovery};
+use crate::apply::{
+    self, Adoption, ApplyError, ApplyOptions, ApplyOutcome, Journal, JournalEntry, Recovery,
+};
 use crate::error::Error;
-use crate::mdblock::{ConflictMarker, DocConfig};
-use crate::merge::ReportEvent;
-use crate::plan::{Brake, BrakeConfig, Plan, PlanSummary};
-use crate::state::HistoryLimits;
-use crate::tree::{NodeId, OutlineDiff};
+use crate::mdblock::{
+    self, Checkbox, ConflictMarker, DocConfig, Frontmatter, LocalDoc, RootRef, Sticky, View,
+    ViewExtras,
+};
+use crate::merge::{self, CrossFile, MergeConfig, MergeInput, MergeResult, ReportEvent};
+use crate::plan::{self, Brake, BrakeConfig, Op, Plan, PlanConfig, PlanError, PlanSummary};
+use crate::state::{
+    self, Checkpoint, HistoryEntry, HistoryLimits, PendingDeletes, RootLock, StateError,
+    StateStore, fingerprint,
+};
+use crate::tree::{DiffScope, IdMap, NodeId, OutlineDiff, Tree, outline_diff};
 use crate::wfclient::Api;
+
+/// The number of older generations parsed as `prior_docs` for guard 3.
+pub const PRIOR_DOCS_MAX: usize = 20;
 
 /// Options of a sync run.
 #[derive(Debug, Clone)]
@@ -213,6 +236,26 @@ pub struct SyncReport {
     pub warnings: Vec<String>,
     /// What crash recovery did at the start of this cycle.
     pub recovered: Option<Recovery>,
+    /// Human-readable log: the merge events described with node names, and one line
+    /// per applied op (for the CLI and the status note).
+    #[serde(default)]
+    pub messages: Vec<String>,
+}
+
+impl SyncReport {
+    fn new(file: &Path, root: Option<NodeId>, outcome: SyncOutcome) -> SyncReport {
+        SyncReport {
+            file: file.to_path_buf(),
+            root,
+            outcome,
+            events: Vec::new(),
+            conflicts: Vec::new(),
+            discrepancies: Vec::new(),
+            warnings: Vec::new(),
+            recovered: None,
+            messages: Vec::new(),
+        }
+    }
 }
 
 /// One file's result in a multi-file run.
@@ -244,10 +287,88 @@ pub struct RootStatus {
     pub locally_modified: Option<bool>,
 }
 
+// ---------------------------------------------------------------------------------------
+// Small I/O helpers
+// ---------------------------------------------------------------------------------------
+
+/// Read a Markdown file: `Ok(None)` if it does not exist.
+fn read_text(path: &Path) -> std::io::Result<Option<String>> {
+    match std::fs::read(path) {
+        Ok(bytes) => String::from_utf8(bytes)
+            .map(Some)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+fn io_error(path: &Path) -> impl FnOnce(std::io::Error) -> Error + '_ {
+    move |source| Error::Io {
+        path: path.to_path_buf(),
+        source,
+    }
+}
+
+fn export_tree(api: &dyn Api) -> Result<Tree, Error> {
+    Ok(Tree::from_nodes(api.export()?)?)
+}
+
+/// The path recorded in the checkpoint (absolute when possible; informational only,
+/// files are found by root, §9.1 guard 5).
+fn recorded_path(file: &Path) -> PathBuf {
+    std::fs::canonicalize(file).unwrap_or_else(|_| file.to_path_buf())
+}
+
+/// The generation after `current`, also above every kept history entry, so that a
+/// generation a file might already carry (a crash after the history entry) is never
+/// reused for different text.
+fn next_generation(store: &StateStore, root: &NodeId, current: Option<u64>) -> Result<u64, Error> {
+    let newest = store.history_gens(root)?.last().copied();
+    Ok(current.max(newest).unwrap_or(0) + 1)
+}
+
+fn parse_warnings(doc: &LocalDoc) -> Vec<String> {
+    doc.warnings
+        .iter()
+        .map(|w| format!("line {}: {}", w.line, w.message))
+        .collect()
+}
+
+fn add_summary(acc: &mut PlanSummary, s: &PlanSummary) {
+    acc.creates += s.creates;
+    acc.updates += s.updates;
+    acc.moves += s.moves;
+    acc.reorders += s.reorders;
+    acc.completes += s.completes;
+    acc.deletes += s.deletes;
+    acc.hidden_deleted += s.hidden_deleted;
+    acc.requests += s.requests;
+}
+
+/// Sticky checkboxes (§9.1 guard 4): the box each tagged item has in the current file.
+fn sticky_from(doc: &LocalDoc, ids: &IdMap) -> Sticky {
+    let mut sticky = Sticky::default();
+    for (_, item) in doc.walk() {
+        if item.is_marker() || item.checkbox == Checkbox::Ticked {
+            continue;
+        }
+        if let Some(id) = item.tag.as_ref().and_then(|t| ids.get(&t.short)) {
+            sticky.checkbox.insert(id.clone(), item.checkbox);
+        }
+    }
+    sticky
+}
+
+// ---------------------------------------------------------------------------------------
+// render
+// ---------------------------------------------------------------------------------------
+
 /// `syncflowy render <root> <out.md>` (§14 step 3): export, resolve `root` (short id,
 /// UUID or URL), refuse if `out` exists or the root has a checkpoint (unless `force`),
-/// build the view with `doc`, render with `gen: 1`, save history entry 1, write the file,
-/// save the checkpoint.
+/// build the view with `doc`, render with `gen: 1` (or one past the generations a
+/// forced re-render finds), save the history entry, write the file, save the
+/// checkpoint. A leftover journal of the root is recovered first (so half-created nodes
+/// get their names) and then removed.
 pub fn render_once(
     api: &dyn Api,
     root: &str,
@@ -255,25 +376,1002 @@ pub fn render_once(
     doc: &DocConfig,
     cfg: &SyncConfig,
 ) -> Result<SyncReport, Error> {
-    todo!()
+    if !cfg.force && std::fs::symlink_metadata(out).is_ok() {
+        return Err(Error::FileExists(out.to_path_buf()));
+    }
+    let store = StateStore::open(&cfg.state_dir)?;
+    let root_ref = RootRef::parse(root)?;
+    let mut remote = export_tree(api)?;
+    let root_id = root_ref
+        .resolve(&IdMap::from_tree(&remote))
+        .filter(|r| remote.contains(r))
+        .ok_or_else(|| Error::RootNotFound(root.to_owned()))?;
+    let _lock = store.lock(&root_id)?;
+
+    let existing = match store.load_checkpoint(&root_id) {
+        Ok(cp) => cp,
+        Err(e) if cfg.force => {
+            log::warn!("ignoring the unreadable checkpoint of {root_id}: {e}");
+            None
+        }
+        Err(e) => return Err(e.into()),
+    };
+    if existing.is_some() && !cfg.force {
+        return Err(Error::CheckpointExists(root_id));
+    }
+
+    let mut report = SyncReport::new(out, Some(root_id.clone()), SyncOutcome::Unchanged);
+    let journal = store.journal_path(&root_id);
+    if journal.exists() {
+        report.recovered = apply::recover(&journal, api)?;
+        remote = export_tree(api)?;
+    }
+
+    let now = (cfg.clock)();
+    let generation = next_generation(&store, &root_id, existing.as_ref().map(|c| c.generation))?;
+    let view = View::build(&remote, &root_id, doc, &ViewExtras::default())?;
+    if view.root_completed {
+        report
+            .warnings
+            .push("the sync root is completed in Workflowy".to_owned());
+    }
+    let mut fm = Frontmatter::new(root_ref);
+    fm.config = doc.clone();
+    fm.generation = Some(generation);
+    let md = mdblock::render(&view, &fm);
+    let subtree = remote
+        .subtree(&root_id)
+        .ok_or_else(|| Error::RootNotFound(root.to_owned()))?;
+
+    store.put_history(
+        &root_id,
+        &HistoryEntry {
+            generation,
+            md: md.clone(),
+            tree: subtree.clone(),
+            at: now,
+        },
+    )?;
+    if let Some(dir) = out.parent()
+        && !dir.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(dir).map_err(io_error(dir))?;
+    }
+    state::atomic_write(out, md.as_bytes()).map_err(io_error(out))?;
+
+    let mut cp = Checkpoint::new(root_id.clone(), generation, subtree, md, doc.clone(), now);
+    if let Some(old) = &existing {
+        cp.created_at = old.created_at;
+        for (_, id) in old.ids.iter() {
+            cp.ids.insert(id);
+        }
+    }
+    cp.file = Some(recorded_path(out));
+    store.save_checkpoint(&cp)?;
+    store.prune_history(&root_id, &cfg.history, now)?;
+    if journal.exists() {
+        std::fs::remove_file(&journal).map_err(io_error(&journal))?;
+    }
+    report.outcome = SyncOutcome::Rendered { generation };
+    Ok(report)
 }
+
+// ---------------------------------------------------------------------------------------
+// The cycle
+// ---------------------------------------------------------------------------------------
 
 /// One cycle for one file (module docs).
 pub fn sync_once(api: &dyn Api, file: &Path, cfg: &SyncConfig) -> Result<SyncReport, Error> {
-    todo!()
+    let mut results = sync_all(api, &[file.to_path_buf()], cfg)?;
+    match results.pop() {
+        Some(r) => r.result,
+        None => unreachable!("sync_all returns one result per file"),
+    }
+}
+
+/// A file being synced in this run.
+struct Active {
+    /// Index into the run's files.
+    index: usize,
+    file: PathBuf,
+    /// The text the current pass is based on (re-read on a CAS rerun).
+    text: String,
+    doc: LocalDoc,
+    root: NodeId,
+    _lock: RootLock,
+    report: SyncReport,
+    /// Adoptions for the merge, carried into the journal: from recovery and from the
+    /// creates of earlier passes of this cycle (CAS reruns).
+    carried: Vec<Adoption>,
+    /// This cycle's journal, once begun.
+    journal: Option<Journal>,
+    /// A journal existed at the start (recovered); it must be cleared at commit.
+    had_journal: bool,
+    /// Plan summaries summed over the passes.
+    pushed: PlanSummary,
+    /// The base of a CAS rerun (§9): the pass's base with the pushes it applied.
+    rebase: Option<Base>,
+}
+
+/// The base of a merge: `base_md` and `base_wf` (§5.1) and where they came from.
+#[derive(Debug, Clone)]
+struct Base {
+    kind: BaseKind,
+    md: String,
+    wf: Tree,
+}
+
+/// Which base the merge used (§9.1 guard 1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BaseKind {
+    /// The file's gen is the checkpoint's.
+    Checkpoint,
+    /// The file names an older (or crashed-ahead) generation kept in the history.
+    History(u64),
+    /// gen missing or unknown: checkpoint base, safe mode.
+    Safe,
+    /// No checkpoint (`--force`): base = the remote, safe mode.
+    Bootstrap,
+}
+
+/// A file whose merge produced a plan.
+struct Planned {
+    base: Base,
+    checkpoint: Option<Checkpoint>,
+    merge: MergeResult,
+    plan: Plan,
+    ids: IdMap,
+    /// Deletes deferred this cycle (hidden from the render).
+    deferred: BTreeSet<NodeId>,
+    /// Pending deletes to save with the checkpoint (sent ones removed after apply).
+    pending: PendingDeletes,
+}
+
+enum Prepared {
+    /// The cycle ends here for this file.
+    Done(SyncOutcome),
+    /// Merge and plan done; apply and render follow.
+    Ready(Box<Planned>),
+}
+
+enum Finished {
+    Done,
+    /// The file changed while we synced (§9): rerun.
+    CasConflict,
+}
+
+/// Steps 4–9 of the cycle for one file.
+#[allow(clippy::too_many_arguments)]
+fn prepare(
+    store: &StateStore,
+    cfg: &SyncConfig,
+    a: &mut Active,
+    remote: &Tree,
+    global_ids: &IdMap,
+    cross: &CrossFile,
+    roots: &BTreeSet<NodeId>,
+) -> Result<Prepared, Error> {
+    let now = (cfg.clock)();
+    let root = a.root.clone();
+    let force = cfg.force || a.doc.frontmatter.force;
+    let checkpoint = store.load_checkpoint(&root)?;
+
+    // Step 4: the base (§9.1 guard 1); a CAS rerun keeps its pass's base.
+    let (kind, base_md, base_wf) = match (&a.rebase, &checkpoint) {
+        (Some(b), _) => (b.kind, b.md.clone(), b.wf.clone()),
+        (None, None) if !force => return Err(Error::NoCheckpoint(root)),
+        (None, None) => {
+            // UNVERIFIED: bootstrapping without a checkpoint takes the remote as the base
+            // (module docs); safe mode limits the damage.
+            let mut fm = a.doc.frontmatter.clone();
+            fm.force = false;
+            fm.generation = None;
+            let view = View::build(remote, &root, &fm.config, &ViewExtras::default())?;
+            let tree = remote
+                .subtree(&root)
+                .ok_or_else(|| Error::RootNotFound(root.to_string()))?;
+            (BaseKind::Bootstrap, mdblock::render(&view, &fm), tree)
+        }
+        (None, Some(cp)) => match a.doc.frontmatter.generation {
+            Some(g) if g == cp.generation => {
+                (BaseKind::Checkpoint, cp.base_md.clone(), cp.base_wf.clone())
+            }
+            Some(g) => match store.get_history(&root, g) {
+                Ok(Some(h)) => (BaseKind::History(g), h.md, h.tree),
+                Ok(None) => (BaseKind::Safe, cp.base_md.clone(), cp.base_wf.clone()),
+                Err(e) => {
+                    a.report
+                        .warnings
+                        .push(format!("history entry {g} unreadable ({e}); safe mode"));
+                    (BaseKind::Safe, cp.base_md.clone(), cp.base_wf.clone())
+                }
+            },
+            None => (BaseKind::Safe, cp.base_md.clone(), cp.base_wf.clone()),
+        },
+    };
+    match kind {
+        _ if a.rebase.is_some() => {}
+        BaseKind::Safe => a.report.warnings.push(format!(
+            "the file's gen ({}) is unknown: safe mode (no deletes, moves or reorders)",
+            a.doc
+                .frontmatter
+                .generation
+                .map_or_else(|| "missing".to_owned(), |g| g.to_string())
+        )),
+        BaseKind::Bootstrap => a
+            .report
+            .warnings
+            .push("no checkpoint: bootstrapped from Workflowy in safe mode (--force)".to_owned()),
+        BaseKind::History(g) => {
+            log::info!("{}: rebasing onto generation {g}", a.file.display());
+        }
+        BaseKind::Checkpoint => {}
+    }
+    let base_doc = mdblock::parse(&base_md)?;
+    if base_doc.frontmatter.root.short != a.doc.frontmatter.root.short {
+        return Err(Error::RootMismatch {
+            file: a.file.clone(),
+            expected: root,
+            found: a.doc.frontmatter.root.raw.clone(),
+        });
+    }
+
+    let mut pending = checkpoint
+        .as_ref()
+        .map(|c| c.pending_deletes.clone())
+        .unwrap_or_default();
+
+    // Step 5: the fast path (§5.1).
+    if kind == BaseKind::Checkpoint
+        && !force
+        && !a.had_journal
+        && a.carried.is_empty()
+        && pending.is_empty()
+        && a.text == base_md
+        && outline_diff(&base_wf, remote, &root, DiffScope::All).is_empty()
+    {
+        return Ok(Prepared::Done(SyncOutcome::Unchanged));
+    }
+
+    // The id map: the whole export, the base, and every id the checkpoint remembers.
+    let mut ids = global_ids.clone();
+    ids.extend_from_tree(&base_wf);
+    if let Some(cp) = &checkpoint {
+        for (_, id) in cp.ids.iter() {
+            ids.insert(id);
+        }
+    }
+
+    // Guard 3 material: older renders.
+    let base_gen = match kind {
+        BaseKind::History(g) => Some(g),
+        _ => checkpoint.as_ref().map(|c| c.generation),
+    };
+    let mut prior_docs = Vec::new();
+    let gens: Vec<u64> = store
+        .history_gens(&root)?
+        .into_iter()
+        .filter(|g| Some(*g) != base_gen)
+        .collect();
+    for g in gens.iter().rev().take(PRIOR_DOCS_MAX) {
+        match store.get_history(&root, *g) {
+            Ok(Some(h)) => match mdblock::parse(&h.md) {
+                Ok(d) => prior_docs.push(d),
+                Err(e) => log::warn!("history {g} of {root} does not parse: {e}"),
+            },
+            Ok(None) => {}
+            Err(e) => log::warn!("history {g} of {root} unreadable: {e}"),
+        }
+    }
+
+    // Step 6: merge.
+    let mcfg = MergeConfig {
+        doc: base_doc.frontmatter.config.clone(),
+        force,
+        safe_mode: matches!(kind, BaseKind::Safe | BaseKind::Bootstrap),
+        todo_from_checkbox: cfg.todo_from_checkbox,
+    };
+    let pending_set: BTreeSet<NodeId> = pending.entries.keys().cloned().collect();
+    let merged = merge::merge(&MergeInput {
+        root: &root,
+        base: &base_wf,
+        remote,
+        base_doc: &base_doc,
+        local_doc: &a.doc,
+        ids: &ids,
+        cfg: &mcfg,
+        cross,
+        pending_deletes: &pending_set,
+        adoptions: &a.carried,
+        prior_docs: &prior_docs,
+    })?;
+    a.report.events.extend(merged.report.iter().cloned());
+
+    // Step 7: deferred deletes (§9.1 guard 2).
+    for n in &merged.cancelled_pending {
+        pending.remove(n);
+    }
+    let mut deferred = BTreeSet::new();
+    match cfg.delete_grace {
+        Some(grace) => {
+            let deletes: Vec<(NodeId, usize, String)> = merged
+                .deletes
+                .iter()
+                .map(|d| (d.node.clone(), d.hidden_descendants, d.label.clone()))
+                .collect();
+            let listed: BTreeSet<NodeId> = deletes.iter().map(|d| d.0.clone()).collect();
+            pending.retain_only(&listed);
+            pending.observe(&deletes, &fingerprint(&a.text), now);
+            let grace = i64::try_from(grace.as_secs()).unwrap_or(i64::MAX);
+            let due: BTreeSet<NodeId> = pending.due(now, grace).into_iter().collect();
+            deferred = listed.difference(&due).cloned().collect();
+        }
+        None => pending = PendingDeletes::default(),
+    }
+
+    // Step 8: plan, with the brakes (§8.3).
+    let pcfg = PlanConfig {
+        sync_roots: roots.clone(),
+        brakes: cfg.brakes.clone(),
+        force,
+        fast_path_creates: cfg.fast_path_creates,
+        deferred_deletes: deferred.clone(),
+    };
+    let plan = match plan::plan(&merged, remote, &pcfg) {
+        Ok(p) => p,
+        Err(PlanError::Brake(b)) => {
+            a.report.warnings.push(format!("brake: {b}"));
+            return Ok(Prepared::Done(SyncOutcome::Braked(b)));
+        }
+        Err(e) => return Err(e.into()),
+    };
+
+    // Step 9: dry run.
+    if cfg.dry_run {
+        a.report.conflicts = merged.conflicts.clone();
+        a.report
+            .messages
+            .extend(describe_events(&merged.report, remote));
+        return Ok(Prepared::Done(SyncOutcome::DryRun { plan }));
+    }
+    Ok(Prepared::Ready(Box::new(Planned {
+        base: Base {
+            kind,
+            md: base_md,
+            wf: base_wf,
+        },
+        checkpoint,
+        merge: merged,
+        plan,
+        ids,
+        deferred,
+        pending,
+    })))
+}
+
+fn describe_events(events: &[ReportEvent], tree: &Tree) -> Vec<String> {
+    events.iter().map(|e| e.describe(tree)).collect()
+}
+
+/// Step 10: apply the plan with a journal. `Ok(None)` for an empty plan.
+fn apply_planned(
+    api: &dyn Api,
+    store: &StateStore,
+    cfg: &SyncConfig,
+    a: &mut Active,
+    p: &mut Planned,
+    remote: &Tree,
+    roots: &BTreeSet<NodeId>,
+) -> Result<Option<ApplyOutcome>, Error> {
+    if p.plan.is_empty() {
+        return Ok(None);
+    }
+    let path = store.journal_path(&a.root);
+    let begin = JournalEntry::new_begin(&p.plan, a.carried.clone());
+    let journal = Journal::begin(&path, &begin).map_err(ApplyError::Journal)?;
+    let journal = a.journal.insert(journal);
+    let opts = ApplyOptions {
+        verify: false,
+        ..cfg.apply.clone()
+    };
+    let outcome = apply::Applier::new(api, opts, roots.clone()).apply(
+        &p.plan,
+        remote,
+        &p.merge.merged,
+        journal,
+    );
+    let outcome = match outcome {
+        Ok(o) => o,
+        Err(e) => {
+            // The journal stays on disk for the next run's recovery.
+            a.journal = None;
+            return Err(e.into());
+        }
+    };
+    a.report.messages.extend(outcome.log_lines(&p.plan));
+    add_summary(&mut a.pushed, &p.plan.summary);
+    // Sent deletes are no longer pending (a skipped one comes back, or is cancelled, at
+    // the next merge).
+    for op in &p.plan.ops {
+        if let Op::Delete { node, .. } = op {
+            p.pending.remove(node);
+        }
+    }
+    a.carried.extend(outcome.adoptions(&p.plan));
+    Ok(Some(outcome))
+}
+
+/// Steps 11–13 for one file: render from `remote` (the export after the applies),
+/// guard 4, compare-and-swap, commit.
+fn finish(
+    store: &StateStore,
+    cfg: &SyncConfig,
+    a: &mut Active,
+    p: &Planned,
+    remote: &Tree,
+) -> Result<Finished, Error> {
+    let now = (cfg.clock)();
+    let root = a.root.clone();
+    let mut fm = a.doc.frontmatter.clone();
+    fm.force = false;
+    let extras = ViewExtras {
+        conflicts: p.merge.conflicts.clone(),
+        hidden: p.deferred.clone(),
+        sticky: sticky_from(&a.doc, &p.ids),
+    };
+    let view = View::build(remote, &root, &fm.config, &extras)?;
+    let subtree = remote
+        .subtree(&root)
+        .ok_or_else(|| Error::RootNotFound(root.to_string()))?;
+    let current_gen = p.checkpoint.as_ref().map(|c| c.generation);
+
+    // Guard 4: write only when the user needs to see something.
+    let keep_file = p.base.kind == BaseKind::Checkpoint && !a.doc.frontmatter.force && {
+        let mut same = fm.clone();
+        same.generation = current_gen;
+        let text = mdblock::render(&view, &same);
+        text == a.text
+            || mdblock::parse(&text)
+                .is_ok_and(|d| mdblock::equivalent(&d, &a.doc, &fm.config.inline))
+    };
+
+    let (md, generation, wrote) = match (keep_file, current_gen) {
+        (true, Some(g)) => (a.text.clone(), g, false),
+        _ => {
+            let generation = next_generation(store, &root, current_gen)?;
+            fm.generation = Some(generation);
+            let md = mdblock::render(&view, &fm);
+            // §9 compare-and-swap: re-read just before writing.
+            let now_text = read_text(&a.file).map_err(io_error(&a.file))?;
+            if now_text.as_deref() != Some(a.text.as_str()) {
+                log::info!(
+                    "{}: changed during the sync; merging again",
+                    a.file.display()
+                );
+                return Ok(Finished::CasConflict);
+            }
+            store.put_history(
+                &root,
+                &HistoryEntry {
+                    generation,
+                    md: md.clone(),
+                    tree: subtree.clone(),
+                    at: now,
+                },
+            )?;
+            state::atomic_write(&a.file, md.as_bytes()).map_err(io_error(&a.file))?;
+            (md, generation, true)
+        }
+    };
+    if !wrote {
+        // Keep history[gen] equal to the checkpoint it names.
+        store.put_history(
+            &root,
+            &HistoryEntry {
+                generation,
+                md: md.clone(),
+                tree: subtree.clone(),
+                at: now,
+            },
+        )?;
+    }
+
+    // Step 13: commit.
+    let mut cp = match &p.checkpoint {
+        Some(c) => c.clone(),
+        None => Checkpoint::new(
+            root.clone(),
+            generation,
+            subtree.clone(),
+            md.clone(),
+            fm.config.clone(),
+            now,
+        ),
+    };
+    cp.generation = generation;
+    cp.ids.extend_from_tree(&subtree);
+    cp.base_wf = subtree;
+    cp.set_base_md(md);
+    cp.config = fm.config.clone();
+    cp.file = Some(recorded_path(&a.file));
+    cp.synced_at = now;
+    cp.pending_deletes = p.pending.clone();
+    // Guard 2 counts cycles "in which that file is unchanged": unchanged from the text
+    // that is in the file now (written or kept), not from the text the deletes were seen
+    // in, which our own write replaces.
+    let written = fingerprint(&cp.base_md);
+    for e in cp.pending_deletes.entries.values_mut() {
+        e.fingerprint = written.clone();
+    }
+    store.save_checkpoint(&cp)?;
+    store.prune_history(&root, &cfg.history, now)?;
+    commit_journal(store, a)?;
+
+    if view.root_completed {
+        a.report
+            .warnings
+            .push("the sync root is completed in Workflowy".to_owned());
+    }
+    let shown: BTreeSet<&ConflictMarker> = view.dropped_conflicts.iter().collect();
+    a.report.conflicts = p
+        .merge
+        .conflicts
+        .iter()
+        .filter(|c| !shown.contains(c))
+        .cloned()
+        .collect();
+    a.report
+        .messages
+        .extend(describe_events(&p.merge.report, remote));
+    a.report.outcome = SyncOutcome::Synced {
+        pushed: a.pushed,
+        wrote_file: wrote,
+        generation,
+    };
+    Ok(Finished::Done)
+}
+
+/// The cycle is durable: delete the journal (begun this cycle or recovered).
+fn commit_journal(store: &StateStore, a: &mut Active) -> Result<(), Error> {
+    if let Some(j) = a.journal.take() {
+        j.commit().map_err(ApplyError::Journal)?;
+    } else if a.had_journal {
+        let path = store.journal_path(&a.root);
+        match std::fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(io_error(&path)(e)),
+        }
+    }
+    a.had_journal = false;
+    Ok(())
+}
+
+/// The base for a CAS rerun (§9 "the checkpoint is updated"): the pass's base with the
+/// field updates and re-parentings it applied, so that the rerun sees them as neither a
+/// local nor a remote change. Without this, a user's further edit of a line we just
+/// pushed would conflict with our own push. Creates are matched through adoptions,
+/// deletes and ticks show up on both sides as before; reorders are left to the order
+/// merge.
+fn rebase_after(p: &Planned, applied: Option<&ApplyOutcome>) -> Base {
+    let mut wf = p.base.wf.clone();
+    if let Some(outcome) = applied {
+        for (op, result) in p.plan.ops.iter().zip(&outcome.results) {
+            if *result != apply::OpOutcome::Done {
+                continue;
+            }
+            let r = match op {
+                Op::UpdateName { node, name, .. } if wf.contains(node) => {
+                    wf.set_name(node, name.clone())
+                }
+                Op::UpdateNote { node, note, .. } if wf.contains(node) => {
+                    wf.set_note(node, Some(note.clone()))
+                }
+                Op::UpdateLayout { node, layout, .. } if wf.contains(node) => {
+                    wf.set_layout(node, layout.clone())
+                }
+                Op::Move {
+                    node,
+                    parent,
+                    position,
+                    ..
+                } if wf.contains(node)
+                    && wf.contains(parent)
+                    && wf.parent(node) != Some(parent) =>
+                {
+                    wf.move_node(node, Some(parent), *position)
+                }
+                _ => Ok(()),
+            };
+            if let Err(e) = r {
+                log::warn!("rebase after a CAS conflict: {op:?}: {e}");
+            }
+        }
+    }
+    Base {
+        kind: p.base.kind,
+        md: p.base.md.clone(),
+        wf,
+    }
+}
+
+/// Re-read the file for a CAS rerun. `Err(outcome)` ends the cycle.
+fn reread(a: &mut Active) -> Result<Result<(), SyncOutcome>, Error> {
+    let text = match read_text(&a.file) {
+        Ok(Some(t)) => t,
+        Ok(None) => return Ok(Err(SyncOutcome::Paused(PauseReason::FileMissing))),
+        Err(e) => {
+            return Ok(Err(SyncOutcome::Skipped {
+                reason: format!("cannot read the file: {e}"),
+            }));
+        }
+    };
+    let doc = match mdblock::parse(&text) {
+        Ok(d) => d,
+        Err(e) => {
+            return Ok(Err(SyncOutcome::Skipped {
+                reason: format!("the file does not parse: {e}"),
+            }));
+        }
+    };
+    if doc.frontmatter.root.short != a.doc.frontmatter.root.short {
+        return Err(Error::RootMismatch {
+            file: a.file.clone(),
+            expected: a.root.clone(),
+            found: doc.frontmatter.root.raw.clone(),
+        });
+    }
+    if doc.frontmatter.paused {
+        return Ok(Err(SyncOutcome::Paused(PauseReason::Frontmatter)));
+    }
+    a.text = text;
+    a.doc = doc;
+    a.report.warnings = parse_warnings(&a.doc);
+    Ok(Ok(()))
+}
+
+/// The §9 CAS loop after a conflict: merge the new text against the latest remote,
+/// apply, re-export, render and try the write again.
+#[allow(clippy::too_many_arguments)]
+fn rerun(
+    api: &dyn Api,
+    store: &StateStore,
+    cfg: &SyncConfig,
+    a: &mut Active,
+    mut remote: Tree,
+    global_ids: &IdMap,
+    cross: &CrossFile,
+    roots: &BTreeSet<NodeId>,
+) -> Result<(), Error> {
+    for attempt in 1..=cfg.cas_retries {
+        log::info!("{}: CAS rerun {attempt}", a.file.display());
+        if let Err(outcome) = reread(a)? {
+            a.report.outcome = outcome;
+            return Ok(());
+        }
+        let mut ids = global_ids.clone();
+        ids.extend_from_tree(&remote);
+        let mut planned = match prepare(store, cfg, a, &remote, &ids, cross, roots)? {
+            Prepared::Done(outcome) => {
+                a.report.outcome = outcome;
+                return Ok(());
+            }
+            Prepared::Ready(p) => p,
+        };
+        let applied = apply_planned(api, store, cfg, a, &mut planned, &remote, roots)?;
+        if applied.is_some() {
+            remote = export_tree(api)?;
+            if cfg.apply.verify
+                && let Some(outcome) = &applied
+            {
+                a.report.discrepancies.extend(apply::verify(
+                    &planned.merge.merged,
+                    &remote,
+                    &a.root,
+                    &outcome.created,
+                ));
+            }
+        }
+        if let Finished::Done = finish(store, cfg, a, &planned, &remote)? {
+            return Ok(());
+        }
+        a.rebase = Some(rebase_after(&planned, applied.as_ref()));
+    }
+    a.report.outcome = SyncOutcome::Skipped {
+        reason: format!(
+            "the file kept changing during the sync ({} retries); the next run continues",
+            cfg.cas_retries
+        ),
+    };
+    Ok(())
 }
 
 /// One cycle for several files sharing one export (§6.4). `Err` only for run-wide
-/// failures (the export); per-file failures are in the `FileResult`s, in input order.
+/// failures (the state directory, the export); per-file failures are in the
+/// `FileResult`s, in input order.
 pub fn sync_all(
     api: &dyn Api,
     files: &[PathBuf],
     cfg: &SyncConfig,
 ) -> Result<Vec<FileResult>, Error> {
-    todo!()
+    let store = StateStore::open(&cfg.state_dir)?;
+    let mut results: Vec<Option<Result<SyncReport, Error>>> = files.iter().map(|_| None).collect();
+
+    // Step 1: read and parse every file (no API call yet).
+    let mut parsed: Vec<(usize, String, LocalDoc)> = Vec::new();
+    for (i, file) in files.iter().enumerate() {
+        let done = |outcome| Some(Ok(SyncReport::new(file, None, outcome)));
+        match read_text(file) {
+            Ok(None) => {
+                log::warn!(
+                    "{}: missing; root paused (nothing is deleted)",
+                    file.display()
+                );
+                results[i] = done(SyncOutcome::Paused(PauseReason::FileMissing));
+            }
+            Err(e) => {
+                results[i] = done(SyncOutcome::Skipped {
+                    reason: format!("cannot read the file: {e}"),
+                });
+            }
+            Ok(Some(text)) => match mdblock::parse(&text) {
+                Err(e) => {
+                    results[i] = done(SyncOutcome::Skipped {
+                        reason: format!("the file does not parse: {e}"),
+                    });
+                }
+                Ok(doc) if doc.frontmatter.paused => {
+                    results[i] = done(SyncOutcome::Paused(PauseReason::Frontmatter));
+                }
+                Ok(doc) => parsed.push((i, text, doc)),
+            },
+        }
+    }
+
+    let mut active: Vec<Active> = Vec::new();
+    if !parsed.is_empty() {
+        // Step 2: one export, roots resolved with it.
+        let mut remote = export_tree(api)?;
+        let mut ids = IdMap::from_tree(&remote);
+        let mut resolved: Vec<(usize, String, LocalDoc, NodeId)> = Vec::new();
+        for (i, text, doc) in parsed {
+            match doc.frontmatter.root.resolve(&ids) {
+                Some(r) if remote.contains(&r) => resolved.push((i, text, doc, r)),
+                _ => {
+                    results[i] = Some(Err(Error::RootNotFound(doc.frontmatter.root.raw.clone())));
+                }
+            }
+        }
+        // Locks and recovery (step 3).
+        let mut recovered_any = false;
+        for (i, text, doc, root) in resolved {
+            let file = &files[i];
+            let lock = match store.lock(&root) {
+                Ok(l) => l,
+                Err(StateError::Locked(_)) => {
+                    results[i] = Some(Ok(SyncReport::new(
+                        file,
+                        Some(root.clone()),
+                        SyncOutcome::Skipped {
+                            reason: "another sync holds the root's lock".to_owned(),
+                        },
+                    )));
+                    continue;
+                }
+                Err(e) => {
+                    results[i] = Some(Err(e.into()));
+                    continue;
+                }
+            };
+            let mut report = SyncReport::new(file, Some(root.clone()), SyncOutcome::Unchanged);
+            report.warnings = parse_warnings(&doc);
+            let journal = store.journal_path(&root);
+            let had_journal = journal.exists();
+            let mut carried = Vec::new();
+            if had_journal {
+                match apply::recover(&journal, api) {
+                    Ok(rec) => {
+                        if let Some(rec) = &rec {
+                            if rec.root.as_ref().is_some_and(|r| r != &root) {
+                                report.warnings.push(format!(
+                                    "the journal of {root} names root {:?}",
+                                    rec.root
+                                ));
+                            }
+                            carried = rec.adoptions.clone();
+                            report.messages.extend(rec.notes.iter().cloned());
+                        }
+                        report.recovered = rec;
+                        recovered_any = true;
+                    }
+                    Err(e) => {
+                        results[i] = Some(Err(e.into()));
+                        continue;
+                    }
+                }
+            }
+            active.push(Active {
+                index: i,
+                file: file.clone(),
+                text,
+                doc,
+                root,
+                _lock: lock,
+                report,
+                carried,
+                journal: None,
+                had_journal,
+                pushed: PlanSummary::default(),
+                rebase: None,
+            });
+        }
+        if recovered_any {
+            remote = export_tree(api)?;
+            ids = IdMap::from_tree(&remote);
+        }
+
+        // Steps 4–9: every merge and plan against the one export.
+        let roots: BTreeSet<NodeId> = active.iter().map(|a| a.root.clone()).collect();
+        // Cross-file moves (§6.4) are not handled yet: every file merges on its own.
+        let crosses: Vec<CrossFile> = active.iter().map(|_| CrossFile::default()).collect();
+        let mut planned: Vec<Option<Box<Planned>>> = Vec::new();
+        for (k, a) in active.iter_mut().enumerate() {
+            match prepare(&store, cfg, a, &remote, &ids, &crosses[k], &roots) {
+                Ok(Prepared::Ready(p)) => planned.push(Some(p)),
+                Ok(Prepared::Done(outcome)) => {
+                    a.report.outcome = outcome;
+                    planned.push(None);
+                }
+                Err(e) => {
+                    results[a.index] = Some(Err(e));
+                    planned.push(None);
+                }
+            }
+        }
+
+        // Step 10: every apply, in file order.
+        let mut any_applied = false;
+        let mut applied: Vec<Option<ApplyOutcome>> = Vec::new();
+        for (a, p) in active.iter_mut().zip(planned.iter_mut()) {
+            let Some(p) = p else {
+                applied.push(None);
+                continue;
+            };
+            match apply_planned(api, &store, cfg, a, p, &remote, &roots) {
+                Ok(o) => {
+                    any_applied |= o.is_some();
+                    applied.push(o);
+                }
+                Err(e) => {
+                    results[a.index] = Some(Err(e));
+                    applied.push(None);
+                }
+            }
+        }
+
+        // Step 11: one re-export, verification, then each file's render and write.
+        let after = if any_applied {
+            export_tree(api)?
+        } else {
+            remote.clone()
+        };
+        for (k, a) in active.iter_mut().enumerate() {
+            if results[a.index].is_some() {
+                continue;
+            }
+            let Some(p) = &planned[k] else { continue };
+            if cfg.apply.verify
+                && let Some(outcome) = &applied[k]
+            {
+                a.report.discrepancies =
+                    apply::verify(&p.merge.merged, &after, &a.root, &outcome.created);
+                for d in &a.report.discrepancies {
+                    log::warn!("{}: verification: {d:?}", a.file.display());
+                }
+            }
+            let r = match finish(&store, cfg, a, p, &after) {
+                Ok(Finished::Done) => Ok(()),
+                Ok(Finished::CasConflict) => {
+                    a.rebase = Some(rebase_after(p, applied[k].as_ref()));
+                    rerun(
+                        api,
+                        &store,
+                        cfg,
+                        a,
+                        after.clone(),
+                        &ids,
+                        &crosses[k],
+                        &roots,
+                    )
+                }
+                Err(e) => Err(e),
+            };
+            if let Err(e) = r {
+                results[a.index] = Some(Err(e));
+            }
+        }
+    }
+
+    for a in active {
+        if results[a.index].is_none() {
+            results[a.index] = Some(Ok(a.report));
+        }
+    }
+    Ok(files
+        .iter()
+        .zip(results)
+        .map(|(file, r)| FileResult {
+            file: file.clone(),
+            result: r.unwrap_or_else(|| {
+                Ok(SyncReport::new(
+                    file,
+                    None,
+                    SyncOutcome::Skipped {
+                        reason: "not processed".to_owned(),
+                    },
+                ))
+            }),
+        })
+        .collect())
 }
 
+// ---------------------------------------------------------------------------------------
+// status
+// ---------------------------------------------------------------------------------------
+
 /// Status of every root in the state directory, or of the roots of `files` if given.
+/// Reads local state only (no API call). A file whose root has no checkpoint is
+/// `Error::RootNotFound` (its root is unknown locally).
 pub fn status(cfg: &SyncConfig, files: &[PathBuf]) -> Result<Vec<RootStatus>, Error> {
-    todo!()
+    let store = StateStore::open(&cfg.state_dir)?;
+    let known = store.roots()?;
+    let mut targets: Vec<(NodeId, Option<PathBuf>)> = Vec::new();
+    if files.is_empty() {
+        targets.extend(known.into_iter().map(|r| (r, None)));
+    } else {
+        let mut ids = IdMap::new();
+        for r in &known {
+            ids.insert(r);
+        }
+        for file in files {
+            let text = read_text(file)
+                .map_err(io_error(file))?
+                .ok_or_else(|| Error::Io {
+                    path: file.clone(),
+                    source: std::io::Error::from(std::io::ErrorKind::NotFound),
+                })?;
+            let fm = mdblock::parse_frontmatter(&text)?;
+            let root = fm
+                .root
+                .resolve(&ids)
+                .filter(|r| known.contains(r))
+                .ok_or_else(|| Error::RootNotFound(fm.root.raw.clone()))?;
+            targets.push((root, Some(file.clone())));
+        }
+    }
+    let mut out = Vec::new();
+    for (root, file) in targets {
+        let cp = store
+            .load_checkpoint(&root)?
+            .ok_or_else(|| Error::NoCheckpoint(root.clone()))?;
+        let file = file.or_else(|| cp.file.clone());
+        let locally_modified = file
+            .as_ref()
+            .and_then(|f| read_text(f).ok().flatten())
+            .map(|t| !cp.md_unchanged(&t));
+        out.push(RootStatus {
+            root: root.clone(),
+            file,
+            generation: cp.generation,
+            synced_at: cp.synced_at,
+            pending_deletes: cp
+                .pending_deletes
+                .iter()
+                .map(|p| (p.node.clone(), p.label.clone(), p.first_seen))
+                .collect(),
+            journal_pending: store.journal_path(&root).exists(),
+            locally_modified,
+        });
+    }
+    Ok(out)
 }
