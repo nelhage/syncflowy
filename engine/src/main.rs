@@ -21,7 +21,7 @@ use clap::{Parser, Subcommand};
 
 use syncflowy::daemon::{self, DaemonConfig};
 use syncflowy::mdblock::DocConfig;
-use syncflowy::sync::{self, SyncConfig, SyncOutcome};
+use syncflowy::sync::{self, PauseReason, SyncConfig, SyncOutcome, SyncReport};
 use syncflowy::wfclient::{Client, ClientConfig, DEFAULT_BASE_URL};
 
 #[derive(Debug, Parser)]
@@ -124,6 +124,87 @@ fn client(cli: &Cli) -> anyhow::Result<Client> {
     Ok(Client::new(cfg))
 }
 
+/// One line for an outcome.
+fn describe_outcome(outcome: &SyncOutcome) -> String {
+    match outcome {
+        SyncOutcome::Unchanged => "unchanged".to_owned(),
+        SyncOutcome::Synced {
+            pushed,
+            wrote_file,
+            generation,
+        } => format!(
+            "synced: {} created, {} updated, {} moved, {} reordered, {} completed, {} deleted \
+             (+{} hidden); {} (gen {generation})",
+            pushed.creates,
+            pushed.updates,
+            pushed.moves,
+            pushed.reorders,
+            pushed.completes,
+            pushed.deletes,
+            pushed.hidden_deleted,
+            if *wrote_file {
+                "file rewritten"
+            } else {
+                "file unchanged"
+            },
+        ),
+        SyncOutcome::Rendered { generation } => format!("rendered (gen {generation})"),
+        SyncOutcome::DryRun { plan } => {
+            let mut s = format!("dry run: {} op(s)", plan.ops.len());
+            for op in &plan.ops {
+                s.push_str(&format!("\n  would {op:?}"));
+            }
+            s
+        }
+        SyncOutcome::Paused(PauseReason::Frontmatter) => {
+            "paused (paused: true in the frontmatter)".to_owned()
+        }
+        SyncOutcome::Paused(PauseReason::FileMissing) => {
+            "paused: the file is missing; nothing was changed in Workflowy".to_owned()
+        }
+        SyncOutcome::Paused(PauseReason::DuplicateRoot(paths)) => format!(
+            "paused: several files claim this root: {}",
+            paths
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        SyncOutcome::Braked(b) => format!("refused: {b}"),
+        SyncOutcome::Skipped { reason } => format!("skipped: {reason}"),
+    }
+}
+
+/// Print a report; false if the outcome needs the user's attention.
+fn print_report(report: &SyncReport) -> bool {
+    println!(
+        "{}: {}",
+        report.file.display(),
+        describe_outcome(&report.outcome)
+    );
+    for w in &report.warnings {
+        println!("  warning: {w}");
+    }
+    for m in &report.messages {
+        println!("  {m}");
+    }
+    for c in &report.conflicts {
+        println!(
+            "  conflict on the {:?} of {}: resolve the marker in the file",
+            c.field, c.node
+        );
+    }
+    for d in &report.discrepancies {
+        println!("  verification: {d:?}");
+    }
+    !matches!(
+        report.outcome,
+        SyncOutcome::Braked(_)
+            | SyncOutcome::Skipped { .. }
+            | SyncOutcome::Paused(PauseReason::FileMissing | PauseReason::DuplicateRoot(_))
+    )
+}
+
 fn run(cli: Cli) -> anyhow::Result<bool> {
     let state_dir = cli.state_dir.clone().unwrap_or_else(default_state_dir);
     let mut cfg = SyncConfig::new(state_dir);
@@ -141,8 +222,7 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
                 ..DocConfig::default()
             };
             let report = sync::render_once(&api, root, out, &doc, &cfg)?;
-            println!("{}: {:?}", report.file.display(), report.outcome);
-            Ok(true)
+            Ok(print_report(&report))
         }
         Command::Sync {
             files,
@@ -156,18 +236,7 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
             let mut ok = true;
             for r in results {
                 match r.result {
-                    Ok(report) => {
-                        if matches!(
-                            report.outcome,
-                            SyncOutcome::Braked(_) | SyncOutcome::Skipped { .. }
-                        ) {
-                            ok = false;
-                        }
-                        println!("{}: {:?}", r.file.display(), report.outcome);
-                        for w in &report.warnings {
-                            println!("  warning: {w}");
-                        }
-                    }
+                    Ok(report) => ok &= print_report(&report),
                     Err(e) => {
                         ok = false;
                         eprintln!("{}: error: {e}", r.file.display());
@@ -191,9 +260,13 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
             Ok(true)
         }
         Command::Status { files } => {
-            for s in sync::status(&cfg, files)? {
+            let roots = sync::status(&cfg, files)?;
+            if roots.is_empty() {
+                println!("no synced roots in {}", cfg.state_dir.display());
+            }
+            for s in roots {
                 println!(
-                    "{} gen {} synced_at {} file {} pending deletes {}{}",
+                    "{}: gen {}, last synced at {} (unix), file {}",
                     s.root,
                     s.generation,
                     s.synced_at,
@@ -201,13 +274,18 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
                         .as_ref()
                         .map(|p| p.display().to_string())
                         .unwrap_or_else(|| "-".into()),
-                    s.pending_deletes.len(),
-                    if s.journal_pending {
-                        " (unfinished cycle: next run recovers)"
-                    } else {
-                        ""
-                    },
                 );
+                match s.locally_modified {
+                    Some(true) => println!("  the file has local changes not yet synced"),
+                    Some(false) => println!("  the file is as last written"),
+                    None => println!("  the file cannot be read"),
+                }
+                if s.journal_pending {
+                    println!("  an unfinished cycle was interrupted: the next sync recovers it");
+                }
+                for (node, label, first_seen) in &s.pending_deletes {
+                    println!("  pending delete: {label:?} ({node}), first seen at {first_seen}");
+                }
             }
             Ok(true)
         }
