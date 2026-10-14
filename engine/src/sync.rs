@@ -40,7 +40,9 @@
 //!    (`tree::outline_diff`, `DiffScope::All`), and there is no journal, no pending
 //!    delete and no force: return [`SyncOutcome::Unchanged`] without writing anything.
 //! 6. **Merge** (`merge::merge`) with `CrossFile` built from the other files of the run,
-//!    `force = cfg.force || frontmatter.force`.
+//!    `force = cfg.force || frontmatter.force`. With [`SyncConfig::strip_tasks_fields`]
+//!    (the daemon), the local doc first loses the Tasks-plugin done dates that are new
+//!    on ticked lines (§9.1 guard 6, `daemon::strip_tasks_fields`).
 //! 7. **Deferred deletes** (§9.1 guard 2, only when [`SyncConfig::delete_grace`] is set,
 //!    i.e. in the daemon): record `merge.deletes` in the checkpoint's `PendingDeletes`;
 //!    deletes not yet due go into `PlanConfig::deferred_deletes` and into
@@ -148,6 +150,10 @@ pub struct SyncConfig {
     pub cas_retries: u32,
     /// The clock (unix seconds); tests and the daemon inject their own.
     pub clock: Clock,
+    /// §9.1 guard 6: strip known Tasks-plugin fields (`✅ YYYY-MM-DD`) that are new on
+    /// ticked lines before the merge sees them (`daemon::strip_tasks_fields`). The
+    /// daemon sets it; the CLI default is off.
+    pub strip_tasks_fields: bool,
 }
 
 /// The system clock in unix seconds.
@@ -206,6 +212,7 @@ impl SyncConfig {
             todo_from_checkbox: false,
             cas_retries: 3,
             clock: Clock::system(),
+            strip_tasks_fields: false,
         }
     }
 }
@@ -664,6 +671,23 @@ fn prepare(
         });
     }
 
+    // §9.1 guard 6: Tasks-plugin fields added to ticked lines are not the user's text.
+    let stripped = if cfg.strip_tasks_fields {
+        crate::daemon::strip_tasks_fields(&a.doc, &base_doc)
+    } else {
+        None
+    };
+    let local_doc = match &stripped {
+        Some((doc, notes)) => {
+            for n in notes {
+                log::info!("{}: {n}", a.file.display());
+            }
+            a.report.messages.extend(notes.iter().cloned());
+            doc
+        }
+        None => &a.doc,
+    };
+
     let mut pending = checkpoint
         .as_ref()
         .map(|c| c.pending_deletes.clone())
@@ -725,7 +749,7 @@ fn prepare(
         base: &base_wf,
         remote,
         base_doc: &base_doc,
-        local_doc: &a.doc,
+        local_doc,
         ids: &ids,
         cfg: &mcfg,
         cross,

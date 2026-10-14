@@ -39,11 +39,13 @@ use crate::sync::SyncConfig;
 use crate::wfclient::Api;
 
 mod status;
+mod tasks;
 
 pub use status::{
     ConflictLine, Event, EventKind, PendingLine, RootLine, RootState, StatusReport, format_time,
     render_status,
 };
+pub use tasks::{strip_done_fields, strip_tasks_fields};
 
 /// The default status note's file name (engine-owned, overwritten every cycle).
 pub const STATUS_NOTE: &str = "Workflowy Sync Status.md";
