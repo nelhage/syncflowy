@@ -58,8 +58,10 @@
 //!   [`map_error`]).
 //! * **Request log**: if [`ClientConfig::request_log`] is set, append one JSON object per
 //!   attempt (`ts`, `elapsed`, `method`, `path`, `query`, `request_json`, `status`,
-//!   `response` (parsed JSON or text truncated to 5000 chars), `error` (transport error
-//!   text or null), `attempt`); never the `Authorization` header.
+//!   `response` (parsed JSON or text for a body of at most 5000 bytes, else a summary:
+//!   `{"bytes", "nodes"}` for an export or a list, `{"bytes", "head"}` otherwise, so that
+//!   polling exports does not fill the disk), `error` (transport error text or null),
+//!   `attempt`); never the `Authorization` header.
 //! * [`Client::request_raw`] sends an arbitrary (even malformed) body through the same
 //!   machinery, for diagnostics and error-mapping tests.
 
@@ -521,12 +523,7 @@ impl Client {
                 .unwrap_or_else(|_| Value::String(truncate(&String::from_utf8_lossy(b))))
         });
         let (status, response, error) = match result {
-            Ok(r) => (
-                Some(r.status),
-                serde_json::from_str::<Value>(&r.text)
-                    .unwrap_or_else(|_| Value::String(truncate(&r.text))),
-                None,
-            ),
+            Ok(r) => (Some(r.status), log_response(&r.text), None),
             Err(e) => (None, Value::Null, Some(e.to_string())),
         };
         // The Authorization header is never logged.
@@ -561,6 +558,25 @@ impl Client {
             retry: Retry::Idempotent,
         })?;
         Ok(())
+    }
+}
+
+/// What the request log records of a response body: the parsed JSON (or the text, if it
+/// is not JSON) when the body is at most [`BODY_TRUNCATE`] bytes long, otherwise a
+/// summary `{"bytes": n, "nodes": count}` for a `{"nodes": [...]}` body (an export is
+/// ~4.4 MB for 13k nodes, §2, and the daemon polls it), or `{"bytes": n, "head":
+/// "<the first BODY_TRUNCATE chars>"}` for anything else. Keeps the log bounded.
+fn log_response(text: &str) -> Value {
+    if text.len() <= BODY_TRUNCATE {
+        return serde_json::from_str::<Value>(text).unwrap_or_else(|_| Value::String(text.into()));
+    }
+    #[derive(Deserialize)]
+    struct Nodes {
+        nodes: Vec<serde::de::IgnoredAny>,
+    }
+    match serde_json::from_str::<Nodes>(text) {
+        Ok(n) => json!({"bytes": text.len(), "nodes": n.nodes.len()}),
+        Err(_) => json!({"bytes": text.len(), "head": truncate(text)}),
     }
 }
 
@@ -981,6 +997,28 @@ mod tests {
             map_error(418, ""),
             ApiError::Unexpected { status: 418, .. }
         ));
+    }
+
+    #[test]
+    fn logged_responses_are_bounded() {
+        assert_eq!(log_response(r#"{"status": "ok"}"#), json!({"status": "ok"}));
+        assert_eq!(log_response("<html>"), json!("<html>"));
+        let node = json!({"id": "x", "name": "n".repeat(100)});
+        let export = json!({"nodes": vec![node; 100]}).to_string();
+        assert_eq!(
+            log_response(&export),
+            json!({"bytes": export.len(), "nodes": 100})
+        );
+        let big = "é".repeat(BODY_TRUNCATE);
+        let logged = log_response(&big);
+        assert_eq!(logged["bytes"], big.len());
+        assert_eq!(
+            logged["head"].as_str().unwrap().chars().count(),
+            BODY_TRUNCATE
+        );
+        // Large JSON that is not a node list is not logged in full either.
+        let other = json!({"node": {"note": "x".repeat(2 * BODY_TRUNCATE)}}).to_string();
+        assert!(log_response(&other).to_string().len() < BODY_TRUNCATE + 100);
     }
 
     #[test]

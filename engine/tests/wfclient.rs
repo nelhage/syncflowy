@@ -405,6 +405,13 @@ fn request_log_is_written_without_the_key(mock: &MockServer) {
     let id = create(&c, &root, "logged", Some("n"), None);
     let _ = c.list(Some(&root)).unwrap();
     let _ = c.get(&NodeId::parse("00000000-0000-4000-8000-000000000000").unwrap());
+    // A large export is summarised, not logged in full (the daemon polls it).
+    let (status, body) = mock.post(
+        "/api/v1/nodes",
+        &json!({"parent_id": root.as_str(), "name": "big", "note": "x".repeat(20_000), "position": "bottom"}),
+    );
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(c.export().unwrap().len(), 3);
     let text = std::fs::read_to_string(&log).unwrap();
     std::fs::remove_file(&log).ok();
     assert!(!text.contains("test-key"), "the key is never logged");
@@ -412,7 +419,12 @@ fn request_log_is_written_without_the_key(mock: &MockServer) {
         .lines()
         .map(|l| serde_json::from_str(l).unwrap())
         .collect();
-    assert_eq!(recs.len(), 3);
+    assert_eq!(recs.len(), 4);
+    assert_eq!(recs[3]["path"], "/api/v1/nodes-export");
+    assert_eq!(recs[3]["status"], 200);
+    assert_eq!(recs[3]["response"]["nodes"], 3);
+    assert!(recs[3]["response"]["bytes"].as_u64().unwrap() > 20_000);
+    assert!(text.lines().nth(3).unwrap().len() < 1000, "{text}");
     assert_eq!(recs[0]["method"], "POST");
     assert_eq!(recs[0]["path"], "/api/v1/nodes");
     assert_eq!(
