@@ -31,7 +31,11 @@
 //! `<a href="u">u</a>` with the UI quirk: raw `&` in `href`, `&amp;` in the text), and
 //! `📅 YYYY-MM-DD[ HH:MM]` (only when [`InlineConfig::dates`]). Markdown with no WF meaning
 //! (`[[wikilinks]]`, `![[embeds]]`, `![images](…)`, `==hl==`, `$math$`, `%%comments%%`,
-//! footnotes) is literal text, and is written back escaped.
+//! footnotes) is literal text. [`wf_to_md`] writes wikilinks, embeds, highlights, math
+//! and footnote references back unescaped, so what the user typed keeps working in
+//! Obsidian; it escapes only what would change meaning: `%%` (EC 4), an image `![…](…)`,
+//! the tag forms, and a `$` before a digit when the value has another `$` (a price such
+//! as `$10-$20` typed in WF must not display as math).
 //!
 //! Character references in Markdown: `&amp; &lt; &gt; &quot; &#NN; &#xHH;` are decoded by
 //! [`md_to_wf`]; any other `&` is a literal `&` (a numeric reference to a character that
@@ -93,7 +97,8 @@
 //!      `[wid::` as `\[wid::`, `(wid::` as `\(wid::`, `<!--` as `\<!--`; a trailing
 //!      Obsidian block id (`… ^abc` at the end of a line) is written `\^abc`.
 //! 5. **Minimal escaping.** Escape only where needed (`a * b`, `x_y_z`, `3 > 2`, `AT&T`,
-//!    `#tag`, `1.5` stay unescaped); WF text `&lt;b&gt;` renders as `\<b>` so it stays
+//!    `#tag`, `1.5`, and the Obsidian forms `[[Page|alias]]`, `![[img.png]]`, `==hl==`,
+//!    `$x$`, `text[^1]` stay unescaped); WF text `&lt;b&gt;` renders as `\<b>` so it stays
 //!    distinct from real markup (UI:E2).
 //!
 //! For [`FieldKind::Code`] (the name of a `code-block` node, rendered inside a fence by

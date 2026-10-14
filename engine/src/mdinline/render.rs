@@ -122,7 +122,7 @@ fn side_of(node: &N) -> Side {
 pub(crate) struct Renderer<'a> {
     cfg: &'a InlineConfig,
     level: Level,
-    /// Escape every `$` (the value has two or more, which Obsidian could read as math).
+    /// The value has two or more `$`, which Obsidian could pair into math.
     dollars: bool,
     /// Delimiter characters that occur in a single run in the whole value (and so cannot
     /// pair); only used at [`Level::Minimal`].
@@ -352,14 +352,10 @@ impl<'a> Renderer<'a> {
                     k += run;
                     continue;
                 }
-                // Obsidian wikilinks/embeds `[[`, footnotes `[^`, Dataview `[wid::` (EC 4).
-                '[' => {
-                    in_link
-                        || next_c == Some('[')
-                        || prev_c == Some('[')
-                        || next_c == Some('^')
-                        || starts_with_ci(rest, "wid::")
-                }
+                // Dataview `[wid::` (EC 4). Obsidian wikilinks `[[…]]` and footnotes `[^…]`
+                // are left alone: `md_to_wf` reads them as literal text, so they round-trip
+                // unescaped and keep working in Obsidian (§4.2, EC 5).
+                '[' => in_link || starts_with_ci(rest, "wid::"),
                 ']' => in_link || next_c == Some('('),
                 // Could start an HTML tag, a comment or an autolink: `&lt;b&gt;` -> `\<b>`.
                 '<' => match next_c {
@@ -371,9 +367,11 @@ impl<'a> Renderer<'a> {
                     },
                 },
                 '&' => entity_like_len(&t[i..]).is_some(),
-                // `![` would be an image or an embed.
+                // `![…](…)` would display as an image (literal text in WF), and `!` before
+                // a link element would make it one. An embed `![[…]]` is literal text both
+                // ways and is left alone, so it keeps working in Obsidian (§4.2, EC 5).
                 '!' => {
-                    next_c == Some('[')
+                    (next_c == Some('[') && !rest.starts_with("[["))
                         || (last
                             && match n {
                                 Side::Char(x) => x == '[',
@@ -381,11 +379,14 @@ impl<'a> Renderer<'a> {
                                 Side::Edge => false,
                             })
                 }
-                // UNVERIFIED: Obsidian math (`$x$`) and highlight (`==x==`) rules are
-                // approximated: escape every `$` when there are two or more in the value,
-                // and every `=` in a run of two or more.
-                '$' => self.dollars,
-                '=' => prev_c == Some('=') || next_c == Some('='),
+                // `$x$` (math) and `==x==` (highlight) are Obsidian syntax with no WF
+                // meaning: `md_to_wf` reads them as literal text, so they are not escaped
+                // and keep working in Obsidian (§4.2, EC 5). A line of `=` alone (a setext
+                // underline) is escaped by the line-level pass (EC 4).
+                // UNVERIFIED: Obsidian's inline-math rule. Prices typed in WF (`$10-$20`)
+                // could pair into math, so a `$` before a digit is escaped when the value
+                // has another `$`; math rarely starts with a digit.
+                '$' => self.dollars && next_c.is_some_and(|x| x.is_ascii_digit()),
                 '%' => prev_c == Some('%'),
                 '^' => starts_with_ci(rest, "wf-"),
                 '(' => starts_with_ci(rest, "wid::"),

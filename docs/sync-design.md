@@ -151,6 +151,7 @@ Each WF-HTML construct is mapped to the most faithful Markdown. Anything without
 
 Things in Markdown with no WF meaning (`[[wikilinks]]`, `==highlight==`, `$math$`, `![[embeds]]`, footnotes)
 are sent to Workflowy as **literal text**. WF users then see `[[Page]]`. That is acceptable but visible.
+They are rendered back unescaped, so they keep working in Obsidian after a sync.
 
 **Escaping is the trickiest part of the dialect.** WF text such as `1. foo`, `> x`, `# x`, `[ ] x`,
 `- x` or `---` at the start of a name or note line, `*` and `_` mid-text, a trailing `^abc` or `[wid:: …]`, and

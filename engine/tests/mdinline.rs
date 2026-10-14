@@ -460,7 +460,7 @@ fn line_leading_escapes_in_names() {
         ("---", "\\---"),
         ("***", "\\***"),
         ("___", "\\___"),
-        ("==", "\\=\\="),
+        ("==", "\\=="),
         ("```", "\\```"),
         ("~~~", "\\~~~"),
         ("[foo]: bar", "\\[foo]: bar"),
@@ -548,15 +548,19 @@ fn inline_escapes() {
         ("a\\b", "a\\b"),
         ("a\\*", "a\\\\*"),
         ("end\\", "end\\\\"),
-        ("[[Page]]", "\\[\\[Page]]"),
-        ("![[embed]]", "\\!\\[\\[embed]]"),
-        ("[^1]", "\\[^1]"),
+        ("[[Page]]", "[[Page]]"),
+        ("![[embed]]", "![[embed]]"),
+        ("[^1]", "[^1]"),
         ("[a](b)", "[a\\](b)"),
         ("[WIP] task", "[WIP] task"),
-        ("==hl==", "\\=\\=hl\\=\\="),
+        ("==hl==", "==hl=="),
         ("a = b", "a = b"),
         ("$5", "$5"),
-        ("$x$ and $y$", "\\$x\\$ and \\$y\\$"),
+        ("$x$ and $y$", "$x$ and $y$"),
+        // Prices could pair into Obsidian math: a `$` before a digit is escaped when
+        // there is another `$`.
+        ("$5 and $10", "\\$5 and \\$10"),
+        ("$x$ costs $5", "$x$ costs \\$5"),
         ("%%comment%%", "%\\%comment%\\%"),
         ("100%", "100%"),
         ("50% off %", "50% off %"),
@@ -582,21 +586,55 @@ fn inline_escapes() {
 
 #[test]
 fn obsidian_only_syntax_is_literal() {
+    // Obsidian syntax with no WF meaning is literal text in WF (§4.2) and is written back
+    // as typed, so it keeps working in Obsidian after a sync (EC 5).
     for md in [
         "[[Page]]",
+        "see [[Page|alias]]",
+        "[[Page#Heading]] and [[Other]]",
         "![[embed]]",
+        "![[img.png]]",
         "==hl==",
+        "a ==highlight== b",
         "$math$",
-        "%%comment%%",
+        "$x$ and $y^2$",
         "[^1]",
+        "text[^1]",
+        "^[inline footnote]",
     ] {
-        let wf = md_to_wf(md, NAME, &cfg());
-        assert_eq!(wfhtml::to_plain_text(&wf), md, "{md}");
-        let back = wf_to_md(&wf, NAME, &cfg());
-        assert_eq!(back.tier, Tier::Exact);
-        assert_ne!(back.text, md, "{md} must be re-rendered escaped");
-        assert_eq!(md_to_wf(&back.text, NAME, &cfg()), wf);
+        for kind in [NAME, NOTE] {
+            let wf = md_to_wf(md, kind, &cfg());
+            assert_eq!(wfhtml::to_plain_text(&wf), md, "{md}");
+            let back = wf_to_md(&wf, kind, &cfg());
+            assert_eq!(back.tier, Tier::Exact, "{md}");
+            assert_eq!(back.text, md, "{md} must be re-rendered unescaped");
+            assert_eq!(md_to_wf(&back.text, kind, &cfg()), wf);
+        }
     }
+    // A note line made of the highlight delimiter alone would be a setext underline: the
+    // line-level pass still escapes it (EC 4).
+    let wf = md_to_wf("x\n==", NOTE, &cfg());
+    assert_eq!(wf_to_md(&wf, NOTE, &cfg()).text, "x\n\\==");
+    // Obsidian comments would hide text (and our tag forms): still escaped (EC 4).
+    let wf = md_to_wf("%%comment%%", NAME, &cfg());
+    assert_eq!(wfhtml::to_plain_text(&wf), "%%comment%%");
+    let back = wf_to_md(&wf, NAME, &cfg());
+    assert_eq!(back.text, "%\\%comment%\\%");
+    assert_eq!(md_to_wf(&back.text, NAME, &cfg()), wf);
+    // An image is literal text in WF (it has no WF meaning, but would display as an
+    // image): it stays escaped, and a `!` before a link stays escaped so the link is not
+    // read as an image.
+    name("![alt](x.png)", "\\![alt\\](x.png)", Tier::Exact);
+    name(
+        r#"wow!<a href="https://x.org">t</a>"#,
+        "wow\\![t](https://x.org)",
+        Tier::Exact,
+    );
+    // Inside a link's text brackets stay escaped (links cannot hold `[`/`]` unescaped).
+    let wf = r#"<a href="https://x.org">[[Page]]</a>"#;
+    let back = wf_to_md(wf, NAME, &cfg());
+    assert_eq!(back.text, "[\\[\\[Page\\]\\]](https://x.org)");
+    assert_eq!(md_to_wf(&back.text, NAME, &cfg()), wf);
 }
 
 // ---------------------------------------------------------------------------------------

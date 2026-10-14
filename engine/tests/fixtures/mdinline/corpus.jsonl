@@ -70,7 +70,7 @@
 {"expect":"ui","kind":"name","md":"\\> quoted","src":"typed","tier":"Exact","wf":"&gt; quoted"}
 {"expect":"ui","kind":"name","md":"\\[ ] fake box","src":"typed","tier":"Exact","wf":"[ ] fake box"}
 {"expect":"ui","kind":"name","md":"\\---","src":"typed","tier":"Exact","wf":"---"}
-{"expect":"ui","kind":"name","md":"\\[\\[Wiki Link]] and \\=\\=hl\\=\\= and \\$x^2\\$","src":"typed","tier":"Exact","wf":"[[Wiki Link]] and ==hl== and $x^2$"}
+{"expect":"ui","kind":"name","md":"[[Wiki Link]] and ==hl== and $x^2$","src":"typed","tier":"Exact","wf":"[[Wiki Link]] and ==hl== and $x^2$"}
 {"expect":"ui","kind":"name","md":"block id \\^abc","src":"typed","tier":"Exact","wf":"block id ^abc"}
 {"expect":"ui","kind":"name","md":"%\\%not a comment%\\%","src":"typed","tier":"Exact","wf":"%%not a comment%%"}
 {"expect":"ui","kind":"name","md":"&#32;&#32;leading and trailing&#32;&#32;","src":"typed","tier":"Exact","wf":"  leading and trailing  "}
