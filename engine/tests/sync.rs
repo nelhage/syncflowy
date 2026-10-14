@@ -1030,6 +1030,8 @@ fn crash_recovery_does_not_recreate_resurrections_or_copied_lines() {
         assert!(r.recovered.is_some(), "{r:#?}");
         assert_tagged_creates_single(&f, &format!("crash at {at} (after: {after})"));
         assert_settled(&f);
+    }
+}
 
 /// A dry run writes nothing anywhere, not even recovery's writes: with a journal left by
 /// a crash in the middle of an apply (two-step creates included), it sends no request
