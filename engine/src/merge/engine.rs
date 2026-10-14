@@ -576,50 +576,95 @@ impl<'a, 'c> Engine<'a, 'c> {
                 });
             }
         }
-        // Duplicated tags: the best match of the base item keeps the identity.
+        // Duplicated tags: the best match of the base item keeps the identity. Parents
+        // first (file pre-order), so that "same parent" compares with the parent's
+        // resolved identity (a pasted copy of a subtree is a new parent, §4.4).
         let mut by_node: BTreeMap<NodeId, Vec<usize>> = BTreeMap::new();
         for (i, c) in cand.iter().enumerate() {
             if let Some(c) = c {
                 by_node.entry(c.node().clone()).or_default().push(i);
             }
         }
-        for (node, list) in &by_node {
-            let winner = if list.len() == 1 {
-                list[0]
-            } else {
-                let w = self.best_duplicate(node, list, &cand);
-                self.report.push(ReportEvent::DuplicateTag {
-                    short: node.short().expect("resolved through the id map"),
-                    lines: list.iter().map(|&i| self.items[i].item.line).collect(),
-                    kept_line: self.items[w].item.line,
-                });
-                for &i in list {
-                    if i != w {
-                        self.items[i].ident = Ident::Duplicate;
-                    }
-                }
-                w
-            };
-            self.items[winner].ident = match cand[winner].clone().expect("candidate") {
-                Cand::Cross(n, r) => Ident::Cross(n, r),
-                Cand::Local(n) => {
-                    if self.base_items.contains_key(&n) {
-                        Ident::Base(n)
-                    } else if self.inp.pending_deletes.contains(&n) && self.remote_sub.contains(&n)
-                    {
-                        Ident::Pending(n)
-                    } else {
-                        Ident::Known(n)
-                    }
-                }
-            };
+        for list in by_node.values() {
+            if let [only] = list.as_slice() {
+                self.items[*only].ident = self.ident_of(cand[*only].clone().expect("candidate"));
+            }
+        }
+        let mut state: BTreeMap<NodeId, bool> = BTreeMap::new();
+        for c in cand.iter().flatten() {
+            if by_node[c.node()].len() > 1 {
+                self.resolve_duplicate(c.node(), &by_node, &cand, &mut state);
+            }
         }
         // Items whose tags were all invalid stay `New`.
         self.adopt();
         self.rematch();
     }
 
-    fn best_duplicate(&self, node: &NodeId, list: &[usize], cand: &[Option<Cand>]) -> usize {
+    /// The identity a winning candidate gives its item.
+    fn ident_of(&self, c: Cand) -> Ident {
+        match c {
+            Cand::Cross(n, r) => Ident::Cross(n, r),
+            Cand::Local(n) => {
+                if self.base_items.contains_key(&n) {
+                    Ident::Base(n)
+                } else if self.inp.pending_deletes.contains(&n) && self.remote_sub.contains(&n) {
+                    Ident::Pending(n)
+                } else {
+                    Ident::Known(n)
+                }
+            }
+        }
+    }
+
+    /// Resolve the items sharing the tag of `node`, after the duplicated tags of their
+    /// parents (`state`: `false` while in progress, `true` once done; a cycle between
+    /// groups falls back to the parent's raw tag).
+    fn resolve_duplicate(
+        &mut self,
+        node: &NodeId,
+        by_node: &BTreeMap<NodeId, Vec<usize>>,
+        cand: &[Option<Cand>],
+        state: &mut BTreeMap<NodeId, bool>,
+    ) {
+        if state.contains_key(node) {
+            return;
+        }
+        state.insert(node.clone(), false);
+        let list = &by_node[node];
+        for &i in list {
+            if let Some(p) = self.items[i].parent
+                && let Some(pc) = &cand[p]
+                && by_node[pc.node()].len() > 1
+            {
+                self.resolve_duplicate(pc.node(), by_node, cand, state);
+            }
+        }
+        let w = self.best_duplicate(node, list, cand, state);
+        self.report.push(ReportEvent::DuplicateTag {
+            short: node.short().expect("resolved through the id map"),
+            lines: list.iter().map(|&i| self.items[i].item.line).collect(),
+            kept_line: self.items[w].item.line,
+        });
+        for &i in list {
+            if i != w {
+                self.items[i].ident = Ident::Duplicate;
+            }
+        }
+        self.items[w].ident = self.ident_of(cand[w].clone().expect("candidate"));
+        state.insert(node.clone(), true);
+    }
+
+    /// §4.4: the occurrence that best matches the base item (text similarity, then same
+    /// parent, then position). "Same parent" uses the parent item's resolved identity:
+    /// under a pasted copy of the parent (a `Duplicate`, so a new node) it is false.
+    fn best_duplicate(
+        &self,
+        node: &NodeId,
+        list: &[usize],
+        cand: &[Option<Cand>],
+        state: &BTreeMap<NodeId, bool>,
+    ) -> usize {
         let Some(bi) = self.base_items.get(node) else {
             return list[0];
         };
@@ -631,7 +676,11 @@ impl<'a, 'c> Engine<'a, 'c> {
             let text = self.plain_of_md(li.item);
             let parent = match li.parent {
                 None => Some(&self.root),
-                Some(p) => cand[p].as_ref().map(Cand::node),
+                Some(p) => match &cand[p] {
+                    // A cycle between duplicated groups: the parent's raw tag.
+                    Some(c) if state.get(c.node()) == Some(&false) => Some(c.node()),
+                    _ => self.items[p].ident.node(),
+                },
             };
             let key = (
                 ratio_key(similarity(&text, &base_text)),

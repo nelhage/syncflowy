@@ -42,7 +42,9 @@
 //!    or in the remote subtree identifies it. If several items carry the same tag, the
 //!    one that best matches its `base_doc` item (text similarity of the plain text of
 //!    the names, then same parent, then position) keeps it; the others are new nodes
-//!    ([`ReportEvent::DuplicateTag`]).
+//!    ([`ReportEvent::DuplicateTag`]). Duplicates are resolved parents first, and "same
+//!    parent" compares the parent item's resolved identity, so a pasted copy of a
+//!    subtree is created whole and the original children stay under the original.
 //! 2. A tag resolving to a node inside another managed root (`cross.other_roots`, the
 //!    roots themselves excluded) is a cross-file move into this file (§6.4). Any other
 //!    tag (unknown, ambiguous, or a node elsewhere in the account) is ignored with

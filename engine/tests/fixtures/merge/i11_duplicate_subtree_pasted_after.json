@@ -1,0 +1,137 @@
+{
+  "base": {
+    "children": [
+      {
+        "id": "x",
+        "name": "Xeno"
+      },
+      {
+        "id": "y",
+        "name": "Yak"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "completed": true,
+                "id": "d",
+                "name": "hidden done"
+              }
+            ],
+            "id": "a1",
+            "name": "Alpha one"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§4.4: a copied subtree pasted after the original: the original keeps both identities, the copy is created whole.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 5,
+        "name": "Alpha",
+        "note": null,
+        "parent": "root",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      },
+      {
+        "layout": "bullets",
+        "line": 6,
+        "name": "Alpha one",
+        "note": null,
+        "parent": "temp-1",
+        "resurrects": null,
+        "temp": "temp-2",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  x \"Xeno\"",
+      "  y \"Yak\"",
+      "  a \"Alpha\"",
+      "    a1 \"Alpha one\"",
+      "      d \"hidden done\" [done]",
+      "  temp-1 \"Alpha\"",
+      "    temp-2 \"Alpha one\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1"
+      ],
+      "root": [
+        "x",
+        "y",
+        "a",
+        "temp-1"
+      ],
+      "temp-1": [
+        "temp-2"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "DuplicateTag": {
+          "kept_line": 3,
+          "lines": [
+            3,
+            5
+          ],
+          "short": "a"
+        }
+      },
+      {
+        "DuplicateTag": {
+          "kept_line": 4,
+          "lines": [
+            4,
+            6
+          ],
+          "short": "a1"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 4,
+      "conflicts": 0,
+      "created": 2,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 3,
+      "item": {
+        "children": [
+          {
+            "name": "Alpha one",
+            "tag": "a1"
+          }
+        ],
+        "name": "Alpha",
+        "tag": "a"
+      },
+      "op": "insert",
+      "parent": null
+    }
+  ]
+}
