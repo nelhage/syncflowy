@@ -404,6 +404,61 @@ fn atomic_write_replaces_whole_files() {
     assert!(temp_files(dir.path()).is_empty());
 }
 
+/// A write through a symbolic link replaces the file the link names and keeps the link
+/// (relative, absolute, chained and dangling links); a replaced file keeps its mode.
+#[cfg(unix)]
+#[test]
+fn atomic_write_keeps_symlinks_and_permissions() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    let mode = |p: &Path| fs::metadata(p).unwrap().permissions().mode() & 0o7777;
+    let is_link = |p: &Path| fs::symlink_metadata(p).unwrap().file_type().is_symlink();
+    let dir = tempfile::tempdir().unwrap();
+    let real_dir = dir.path().join("real");
+    let vault = dir.path().join("vault");
+    fs::create_dir_all(&real_dir).unwrap();
+    fs::create_dir_all(&vault).unwrap();
+
+    // A plain file keeps its mode.
+    let plain = vault.join("plain.md");
+    fs::write(&plain, "old").unwrap();
+    fs::set_permissions(&plain, fs::Permissions::from_mode(0o640)).unwrap();
+    atomic_write(&plain, b"new").unwrap();
+    assert_eq!(fs::read(&plain).unwrap(), b"new");
+    assert_eq!(mode(&plain), 0o640);
+
+    // A relative link into another directory, and a chain ending in it.
+    let real = real_dir.join("note.md");
+    fs::write(&real, "old").unwrap();
+    fs::set_permissions(&real, fs::Permissions::from_mode(0o600)).unwrap();
+    let link = vault.join("link.md");
+    symlink("../real/note.md", &link).unwrap();
+    atomic_write(&link, b"through the link").unwrap();
+    assert!(is_link(&link), "the link was replaced by a file");
+    assert_eq!(fs::read(&real).unwrap(), b"through the link");
+    assert_eq!(mode(&real), 0o600);
+    let chain = vault.join("chain.md");
+    symlink(&link, &chain).unwrap();
+    atomic_write(&chain, b"through the chain").unwrap();
+    assert!(is_link(&chain) && is_link(&link));
+    assert_eq!(fs::read(&real).unwrap(), b"through the chain");
+    assert_eq!(mode(&real), 0o600);
+
+    // A dangling link: the file it names is created.
+    let dangling = vault.join("new.md");
+    symlink(real_dir.join("fresh.md"), &dangling).unwrap();
+    atomic_write(&dangling, b"fresh").unwrap();
+    assert!(is_link(&dangling));
+    assert_eq!(fs::read(real_dir.join("fresh.md")).unwrap(), b"fresh");
+
+    // A link loop is an error, not a hang, and writes nothing.
+    symlink("b.md", vault.join("a.md")).unwrap();
+    symlink("a.md", vault.join("b.md")).unwrap();
+    assert!(atomic_write(&vault.join("a.md"), b"x").is_err());
+
+    assert!(temp_files(&vault).is_empty());
+    assert!(temp_files(&real_dir).is_empty());
+}
+
 // ---------------------------------------------------------------------------------------
 // History
 // ---------------------------------------------------------------------------------------

@@ -1082,6 +1082,74 @@ fn dry_run_does_not_recover_the_journal() {
 }
 
 // ---------------------------------------------------------------------------------------
+// Symbolic links and file modes
+// ---------------------------------------------------------------------------------------
+
+/// A synced file that is a symbolic link stays one: the sync (compare-and-swap write)
+/// and a forced render rewrite the file it names, which keeps its mode, instead of
+/// replacing the link with a regular file that silently diverges from the real one.
+#[cfg(unix)]
+#[test]
+fn symlinked_file_stays_a_link_and_keeps_its_mode() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    let mode = |p: &std::path::Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o7777;
+    let f = fixture();
+    let elsewhere = f.env.dir.path().join("elsewhere");
+    std::fs::create_dir_all(&elsewhere).unwrap();
+    let real = elsewhere.join("project.md");
+    std::fs::rename(&f.file, &real).unwrap();
+    symlink(&real, &f.file).unwrap();
+    std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let is_link = || {
+        std::fs::symlink_metadata(&f.file)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    };
+    let no_temps = |dir: &std::path::Path| {
+        std::fs::read_dir(dir)
+            .unwrap()
+            .flatten()
+            .all(|e| !e.file_name().to_string_lossy().contains(".tmp-"))
+    };
+
+    // A remote edit re-renders the file; a local edit through the link is pushed.
+    f.env.ui(
+        "edit",
+        json!({"id": f.milk.as_str(), "text": "Buy oat milk"}),
+    );
+    edit(&f.file, "Call Bob", "Call Bob back");
+    let r = f.env.sync(&f.file);
+    assert_eq!(synced(&r), (true, 2), "{r:#?}");
+    assert!(is_link(), "the link was replaced by a regular file");
+    let text = read(&real);
+    assert!(line_of(&text, &f.milk).contains("Buy oat milk"), "{text}");
+    assert!(text.contains("gen: 2"), "{text}");
+    assert_eq!(f.env.export().get(&f.bob).unwrap().name, "Call Bob back");
+    assert_eq!(mode(&real), 0o600);
+    assert!(no_temps(&elsewhere) && no_temps(f.file.parent().unwrap()));
+    assert_settled(&f);
+
+    // A forced render over the link writes through it too.
+    let mut forced = f.env.cfg.clone();
+    forced.force = true;
+    let short = f.root.short().unwrap().to_string();
+    let r = sync::render_once(
+        &f.env.client,
+        &short,
+        &f.file,
+        &DocConfig::default(),
+        &forced,
+    )
+    .unwrap();
+    assert!(matches!(r.outcome, SyncOutcome::Rendered { .. }), "{r:#?}");
+    assert!(is_link());
+    assert!(read(&real).contains("Buy oat milk"));
+    assert_eq!(mode(&real), 0o600);
+    assert!(no_temps(&elsewhere) && no_temps(f.file.parent().unwrap()));
+}
+
+// ---------------------------------------------------------------------------------------
 // status and dry runs
 // ---------------------------------------------------------------------------------------
 

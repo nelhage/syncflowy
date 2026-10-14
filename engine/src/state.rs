@@ -33,7 +33,8 @@
 //! * Every write is atomic: [`atomic_write`] (temp file in the same directory, fsync,
 //!   rename, fsync the directory). A crash leaves at worst a stale temp file
 //!   (`.<name>.tmp-<pid>-<n>`), which every reader ignores and [`StateStore::lock`]
-//!   removes.
+//!   removes. A symbolic link at the written path is kept (the file it names is
+//!   replaced, [`write_target`]) and a replaced file keeps its permission bits.
 //! * [`StateStore::load_checkpoint`] rejects a `version` other than
 //!   [`CHECKPOINT_VERSION`] with [`StateError::Version`] (no silent migration). The
 //!   version is read before the rest of the file is decoded, so a newer format reports
@@ -1060,10 +1061,57 @@ fn fsync_dir(dir: &Path) -> io::Result<()> {
     File::open(dir)?.sync_all()
 }
 
+/// Give `tmp` (a temp file about to be renamed over `target`) the permission bits of the
+/// file it replaces, so that a rewrite does not reset them to the umask default (a
+/// private `0600` note would become `0644`). Nothing to copy when `target` does not
+/// exist yet.
+pub(crate) fn keep_permissions(target: &Path, tmp: &File) -> io::Result<()> {
+    match fs::metadata(target) {
+        Ok(m) => tmp.set_permissions(m.permissions()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+/// The file a write to `path` must replace: `path` itself, or, when `path` is a symbolic
+/// link (or a chain of them), the file the last link names (which need not exist yet).
+/// Renaming a temp file over a link would replace the link with a regular file, and the
+/// file it pointed to would silently stop being the synced one (a vault file linked from
+/// elsewhere: the daemon's discovery follows links to files). Directory links in the
+/// parent path need no resolving: a rename goes through them.
+pub fn write_target(path: &Path) -> io::Result<PathBuf> {
+    let mut p = path.to_path_buf();
+    // The same bound as Linux's ELOOP for path resolution.
+    for _ in 0..40 {
+        match fs::symlink_metadata(&p) {
+            Ok(m) if m.file_type().is_symlink() => {
+                let link = fs::read_link(&p)?;
+                p = match p.parent() {
+                    Some(dir) if link.is_relative() => dir.join(link),
+                    _ => link,
+                };
+            }
+            Ok(_) => return Ok(p),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(p),
+            Err(e) => return Err(e),
+        }
+    }
+    Err(io::Error::new(
+        io::ErrorKind::InvalidInput,
+        format!("{}: too many levels of symbolic links", path.display()),
+    ))
+}
+
 /// Write `bytes` to `path` atomically: a temp file in the same directory, fsync, rename
 /// over `path`, fsync the directory. The temp file is `.<file name>.tmp-<pid>-<n>`; it is
 /// removed if any step before the rename fails. The parent directory must exist.
+///
+/// A symbolic link at `path` is kept: the file it names is replaced instead
+/// ([`write_target`]), with the temp file in that file's directory. A replaced file
+/// keeps its permission bits (the temp file gets them before the rename); its owner is
+/// not copied.
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let path = &write_target(path)?;
     let file_name = path
         .file_name()
         .and_then(|n| n.to_str())
@@ -1080,6 +1128,7 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     let result = (|| {
         let mut f = OpenOptions::new().write(true).create_new(true).open(&tmp)?;
         f.write_all(bytes)?;
+        keep_permissions(path, &f)?;
         f.sync_all()?;
         drop(f);
         fs::rename(&tmp, path)

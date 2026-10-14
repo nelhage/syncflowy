@@ -1240,10 +1240,15 @@ fn needs_remerge(a: &mut Active, p: &Planned, applied: Option<&ApplyOutcome>) ->
 /// before the re-read, so the window in which another writer's change (Obsidian Sync,
 /// §9.1) could still be replaced unseen is the re-read and one rename: a rename cannot
 /// be made conditional.
+///
+/// Like `state::atomic_write`, a symbolic link at `path` is kept: the file it names is
+/// re-read and replaced (`state::write_target`, temp file in that file's directory), and
+/// the replaced file keeps its permission bits (`state::keep_permissions`).
 fn write_if_unchanged(path: &Path, expected: &str, bytes: &[u8]) -> std::io::Result<bool> {
     use std::io::Write;
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let path = &state::write_target(path)?;
     let name = path
         .file_name()
         .and_then(|n| n.to_str())
@@ -1265,6 +1270,7 @@ fn write_if_unchanged(path: &Path, expected: &str, bytes: &[u8]) -> std::io::Res
             .create_new(true)
             .open(&tmp)?;
         f.write_all(bytes)?;
+        state::keep_permissions(path, &f)?;
         f.sync_all()
     })();
     let result = staged.and_then(|()| {
