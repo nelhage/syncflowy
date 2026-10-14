@@ -1,0 +1,108 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§9.1 guard 2 + §4.4: an untagged line with matching text where a pending delete was rematches it and cancels the delete.",
+  "expected": {
+    "cancelled_pending": [
+      "c"
+    ],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "Rematched": {
+          "line": 9,
+          "node": "c"
+        }
+      },
+      {
+        "PendingDeleteCancelled": {
+          "node": "c"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 5,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 2,
+      "item": {
+        "name": "Gamma"
+      },
+      "op": "insert",
+      "parent": null
+    }
+  ],
+  "pending": [
+    "c"
+  ]
+}

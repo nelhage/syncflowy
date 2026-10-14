@@ -1,0 +1,91 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "config": {
+    "max_depth": 1
+  },
+  "description": "§4.5: nodes deeper than the depth limit are hidden; their absence from the file means nothing.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha edited\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {
+      "a": {
+        "name": [
+          "Alpha",
+          "Alpha edited"
+        ]
+      }
+    },
+    "report": [],
+    "stats": {
+      "base_visible": 3,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 3,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Alpha edited",
+      "op": "set",
+      "tag": "a"
+    }
+  ]
+}

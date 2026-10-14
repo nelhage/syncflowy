@@ -1,0 +1,95 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§4.3/§6.1 layout: adding a fence to an item makes it a code-block.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\" layout=code-block"
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {
+      "c": {
+        "layout": [
+          "bullets",
+          "code-block"
+        ]
+      }
+    },
+    "report": [],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "kind": "code",
+      "op": "set",
+      "tag": "c"
+    }
+  ]
+}

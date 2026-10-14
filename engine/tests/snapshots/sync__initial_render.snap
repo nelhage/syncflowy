@@ -1,0 +1,27 @@
+---
+source: tests/sync.rs
+expression: text
+---
+---
+workflowy: 584a2265b1f5
+syncflowy: {gen: 1}
+---
+The root's note.
+
+- Plan ^wf-c4d1c386bbc4
+	first line
+	second line
+	- [ ] **Bold** step ^wf-6f447ed4d57b
+	- [ ] A todo ^wf-7696a6cecc1b
+- ``` ^wf-2c8218072e8c
+	let x = 1;
+	let y = 2;
+	```
+- > A quote ^wf-828dd5f4b3b2
+- Steps ^wf-7159c324c985
+	1. [ ] one ^wf-3d437204e52d
+	2. [ ] two ^wf-d4c13a902931
+- Open parent ^wf-8ad9f06c144a
+	- [ ] open child ^wf-b8bc076f3787
+- ⧉ (empty or mirror) ^wf-3fef701966a0-ro
+- --- ^wf-d2803bab6c39

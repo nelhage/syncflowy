@@ -1,0 +1,23 @@
+// Moves into a node created in the same run (a temp id), and a create under a
+// node that is moved in the same run.
+== remote
+home
+  root
+    a A
+      a1 A one
+    b B
+    c C
+== merged
+root
+  +1 New section
+    b B
+    a1 A one
+  a A
+  c C
+    +2 Under C
+== ops
+create +1 in root direct "New section" note=None layout=bullets
+create +2 in c direct "Under C" note=None layout=bullets
+move b to +1 bottom (from root)
+move a1 to +1 bottom (from a)
+move +1 to root top (from -)

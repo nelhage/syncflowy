@@ -1,0 +1,94 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "layout": "board",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§4.3: ordered markers under a parent whose layout is not bullets (here board) never change its layout (the table keeps it as is).",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\" layout=board",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "op": "set",
+      "ordered": true,
+      "tag": "a1"
+    },
+    {
+      "op": "set",
+      "ordered": true,
+      "tag": "a2"
+    }
+  ]
+}

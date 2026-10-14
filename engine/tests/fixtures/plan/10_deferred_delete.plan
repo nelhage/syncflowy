@@ -1,0 +1,21 @@
+// b disappeared from the file but its delete is deferred (§9.1 guard 2): it stays,
+// and the reorder leaves it where it is. c is deleted at once.
+== config
+deferred b
+== remote
+home
+  root
+    a A
+    b B
+      b1 B one
+    c C
+    d D
+    e E
+== merged
+root
+  e E
+  a A
+  d D
+== ops
+move e to root top (from root)
+delete c (hidden 0)

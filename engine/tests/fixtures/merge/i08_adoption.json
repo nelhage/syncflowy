@@ -1,0 +1,125 @@
+{
+  "adoptions": [
+    {
+      "name": "Typed before crash",
+      "node": "n1",
+      "parent": "b"
+    }
+  ],
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§7.3/apply::recover: an untagged item matching an interrupted create is adopted, and its name brought to the local value.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "    n1 \"Typed before crash\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1",
+        "n1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {
+      "n1": {
+        "name": [
+          "nonce123",
+          "Typed before crash"
+        ]
+      }
+    },
+    "report": [
+      {
+        "Adopted": {
+          "line": 9,
+          "node": "n1"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 7,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 1,
+      "item": {
+        "name": "Typed before crash"
+      },
+      "op": "insert",
+      "parent": "b"
+    }
+  ],
+  "remote_edits": [
+    {
+      "index": 1,
+      "node": {
+        "id": "n1",
+        "name": "nonce123"
+      },
+      "op": "insert",
+      "parent": "b"
+    }
+  ]
+}

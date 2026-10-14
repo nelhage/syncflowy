@@ -1,0 +1,137 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§6.2/§7.1: creates under creates reference earlier temp ids; an existing node moved under a create.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 1,
+        "name": "Section",
+        "note": null,
+        "parent": "root",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      },
+      {
+        "layout": "bullets",
+        "line": 2,
+        "name": "Sub",
+        "note": null,
+        "parent": "temp-1",
+        "resurrects": null,
+        "temp": "temp-2",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  temp-1 \"Section\"",
+      "    temp-2 \"Sub\"",
+      "    c \"Gamma\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\""
+    ],
+    "moves": [
+      [
+        "c",
+        "root",
+        "temp-1"
+      ]
+    ],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "temp-1",
+        "a",
+        "b"
+      ],
+      "temp-1": [
+        "temp-2",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 2,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 8,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "op": "delete",
+      "tag": "c"
+    },
+    {
+      "index": 0,
+      "item": {
+        "children": [
+          {
+            "name": "Sub"
+          },
+          {
+            "name": "Gamma",
+            "tag": "c"
+          }
+        ],
+        "name": "Section"
+      },
+      "op": "insert",
+      "parent": null
+    }
+  ]
+}

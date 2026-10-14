@@ -1,0 +1,128 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§6.1/§6.2: a field of a node moved out of the subtree remotely, edited on both sides: remote wins in Workflowy, and since the line leaves the file (no marker can hold it) the local text is reported (MovedOutConflict). The note edit, unchanged remotely, is pushed.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "root": [
+        "a",
+        "c"
+      ]
+    },
+    "outside": [
+      "b1"
+    ],
+    "pushes": {
+      "b1": {
+        "note": [
+          null,
+          "typed note"
+        ]
+      }
+    },
+    "report": [
+      {
+        "MovedOutConflict": {
+          "field": "Name",
+          "local_md": "Beta one edited",
+          "node": "b1"
+        }
+      },
+      {
+        "MovedOut": {
+          "new_parent": "else",
+          "node": "b"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Beta one edited",
+      "note": [
+        "typed note"
+      ],
+      "op": "set",
+      "tag": "b1"
+    }
+  ],
+  "remote_edits": [
+    {
+      "id": "b",
+      "index": 0,
+      "op": "move",
+      "parent": "else"
+    },
+    {
+      "id": "b1",
+      "name": "Beta one renamed remotely",
+      "op": "set"
+    }
+  ],
+  "remote_extra": [
+    {
+      "id": "else",
+      "name": "Elsewhere"
+    }
+  ]
+}

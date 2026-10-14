@@ -1,0 +1,18 @@
+// Nothing changed locally: no ops, even with hidden nodes and a remote priority layout
+// that is not 100, 200, ...
+== remote
+home
+  root Root
+    a Alpha
+      a1 Alpha one | a note
+      a2 Done [x]
+        a21 Under done
+    b Beta {todo}
+== merged
+root Root
+  a Alpha
+    a1 Alpha one | a note
+    a2 Done [x]
+      a21 Under done
+  b Beta {todo}
+== ops

@@ -1,0 +1,134 @@
+{
+  "adoptions": [
+    {
+      "name": "Beta",
+      "node": "n1",
+      "parent": "root"
+    },
+    {
+      "name": "Beta one edited",
+      "node": "n2",
+      "parent": "n1"
+    }
+  ],
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§7.3/§6.2: a resurrection (its tag still names the remotely deleted node) that an interrupted apply or an earlier CAS pass already created is adopted, children included, not created again.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  n1 \"Beta\"",
+      "    n2 \"Beta one edited\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "n1": [
+        "n2"
+      ],
+      "root": [
+        "a",
+        "n1",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "Adopted": {
+          "line": 7,
+          "node": "n1"
+        }
+      },
+      {
+        "Adopted": {
+          "line": 8,
+          "node": "n2"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Beta one edited",
+      "op": "set",
+      "tag": "b1"
+    }
+  ],
+  "remote_edits": [
+    {
+      "id": "b",
+      "op": "delete"
+    },
+    {
+      "index": 2,
+      "node": {
+        "children": [
+          {
+            "id": "n2",
+            "name": "Beta one edited"
+          }
+        ],
+        "id": "n1",
+        "name": "Beta"
+      },
+      "op": "insert",
+      "parent": "root"
+    }
+  ]
+}

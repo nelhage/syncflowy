@@ -1,0 +1,37 @@
+// One of everything, to pin the exact §7.1 order: creates, moves, updates,
+// reorders, completions (ticks, then new ticked items), deletes.
+== config
+force
+== remote
+home
+  root Root
+    a A
+      a1 A one
+    b B
+    c C
+      c1 C one
+      c2 C done [x]
+    d D
+    e E
+== merged
+root Root two
+  e E
+  +1 First new
+    a1 A one renamed
+  a A {todo}
+  d D [x]
+  b B | note
+    +2 Done already [x]
+== ops
+create +1 in root direct "First new" note=None layout=bullets
+create +2 in b direct "Done already" note=None layout=bullets
+move a1 to +1 bottom (from a)
+update-name root "Root" -> "Root two"
+update-layout a bullets -> todo
+update-name a1 "A one" -> "A one renamed"
+update-note b None -> "note"
+move a to root bottom (from root)
+move b to root bottom (from root)
+complete d
+complete +2
+delete c (hidden 1)

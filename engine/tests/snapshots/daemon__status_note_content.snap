@@ -1,0 +1,50 @@
+---
+source: tests/daemon.rs
+expression: note
+---
+# Workflowy sync status
+
+This note is written by syncflowy after every cycle; edits to it are overwritten.
+
+Last cycle: 2026-09-21 14:14 UTC
+
+## Roots
+
+| File | Root | Last sync | Gen | State |
+|---|---|---|---|---|
+| (none) | Archive `828dd5f4b3b2` | 2026-09-21 14:13 UTC | 1 | paused: no file names this root; nothing is deleted |
+| [[Projects]] | Projects `584a2265b1f5` | 2026-09-21 14:14 UTC | 2 | ok |
+| [[Shared copy]], [[Shared]] | Shared `3d437204e52d` | 2026-09-21 14:13 UTC | 1 | paused: several files name this root |
+| [[notes/Inbox]] | Inbox `7696a6cecc1b` | 2026-09-21 14:14 UTC | 2 | ok |
+
+## Conflicts awaiting resolution
+
+- [[Projects]] line 6: the name of "Beta (theirs)". Workflowy's version is in the file; edit or delete the marker to resolve.
+
+## Pending deletes
+
+Removed from a file but not yet deleted in Workflowy (§9.1 guard 2). Put the line back to cancel; paste its tag into another synced file to move it there.
+
+- [[Projects]]: "Alpha", removed 2026-09-21 14:14 UTC, deleted at the first cycle after 2026-09-21 14:24 UTC with the file unchanged
+
+## Problems
+
+- [[Shared copy]], [[Shared]] all name root `3d437204e52d`: that root is paused until only one of them does.
+- [[Projects (Conflict 2026-09-21)]]: looks like a sync conflict copy; never synced (merge it by hand, then delete it)
+
+## Safe-mode episodes
+
+- 2026-09-21 14:14 UTC [[notes/Inbox]]: the file's gen (missing) is unknown: safe mode (no deletes, moves or reorders)
+
+## Dropped resurrections and stale echoes
+
+None.
+
+## API errors
+
+None.
+
+## Other events
+
+- 2026-09-21 14:14 UTC [[Projects]]: conflict on the name of "Beta (theirs)" (6f447ed4d57b): Workflowy's version kept, yours is in the file
+- 2026-09-21 14:13 UTC [[Shared copy]], [[Shared]] all name root 3d437204e52d; that root is paused

@@ -1,0 +1,134 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§6.2: a remote move out of the subtree removes the node from the file (not a delete); the node still exists, so a local edit of it (here of b1, moved out with b) is pushed where it is now (§6.1), and a create under it goes to the nearest surviving ancestor.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 9,
+        "name": "Typed under Beta",
+        "note": null,
+        "parent": "root",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  temp-1 \"Typed under Beta\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "root": [
+        "a",
+        "temp-1",
+        "c"
+      ]
+    },
+    "outside": [
+      "b1"
+    ],
+    "pushes": {
+      "b1": {
+        "name": [
+          "Beta one",
+          "Beta one edited"
+        ]
+      }
+    },
+    "report": [
+      {
+        "MovedOut": {
+          "new_parent": "else",
+          "node": "b"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 1,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 7,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Beta one edited",
+      "op": "set",
+      "tag": "b1"
+    },
+    {
+      "index": 1,
+      "item": {
+        "name": "Typed under Beta"
+      },
+      "op": "insert",
+      "parent": "b"
+    }
+  ],
+  "remote_edits": [
+    {
+      "id": "b",
+      "index": 0,
+      "op": "move",
+      "parent": "else"
+    }
+  ],
+  "remote_extra": [
+    {
+      "id": "else",
+      "name": "Elsewhere"
+    }
+  ]
+}

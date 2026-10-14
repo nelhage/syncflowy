@@ -1,0 +1,206 @@
+//! [`View::build`]: the visible projection of a tree (§4.5) with kinds (§4.3), checkboxes
+//! (§4.3, §12.4), tiers (§5.3), placeholders (§10) and conflict markers (§6.1).
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use super::{
+    Checkbox, CheckboxPolicy, ConflictMarker, DocConfig, ItemKind, View, ViewError, ViewExtras,
+    ViewItem,
+};
+use crate::mdinline::{ConflictField, FieldKind, InlineConfig, MdText, Tier, md_to_wf, wf_to_md};
+use crate::tree::{Node, NodeId, Tree};
+
+/// Layout values with a meaning for the file (§4.3, UI:G2).
+const LAYOUT_TODO: &str = "todo";
+const LAYOUT_CODE: &str = "code-block";
+const LAYOUT_QUOTE: &str = "quote-block";
+const LAYOUT_NUMBERED: &str = "numbered";
+const LAYOUT_DIVIDER: &str = "divider";
+
+/// `wf_to_md`, with text that is rendered without an `ro` flag but does not round-trip
+/// (tier `Lossy`, or a `ReadOnly` root note, which cannot carry a flag) replaced by its
+/// own normal form `wf_to_md(md_to_wf(text))`. That form means the same as the text
+/// (convergence, mdinline EC 3) and is a fixed point, so a re-render of the parsed file
+/// gives the same bytes (§5.4). Edits to such a value still go through
+/// `mdinline::write_value` (§5.2), which keeps what the rendering could not show.
+pub(super) fn md_text(wf: &str, kind: FieldKind, cfg: &InlineConfig, keep_ro: bool) -> MdText {
+    let md = wf_to_md(wf, kind, cfg);
+    match md.tier {
+        Tier::Exact | Tier::Passthrough => md,
+        Tier::ReadOnly if keep_ro => md,
+        Tier::Lossy | Tier::ReadOnly => MdText {
+            text: wf_to_md(&md_to_wf(&md.text, kind, cfg), kind, cfg).text,
+            tier: md.tier,
+        },
+    }
+}
+
+struct Builder<'a> {
+    tree: &'a Tree,
+    cfg: &'a DocConfig,
+    extras: &'a ViewExtras,
+    conflicts: BTreeMap<NodeId, Vec<ConflictMarker>>,
+    seen: BTreeSet<NodeId>,
+}
+
+fn kind_of(node: &Node) -> ItemKind {
+    // A divider has an empty name by design (UI:G2 sets its note to "").
+    if node.layout == LAYOUT_DIVIDER && node.name.is_empty() {
+        return ItemKind::Divider;
+    }
+    // The heuristic only matches layout `bullets` (UI:H2: a mirror does not copy its
+    // origin's layout), so an empty todo, numbered, code or quote node is an ordinary
+    // item with its children shown.
+    if node.looks_like_mirror_shell() {
+        // §10: rendered as a read-only placeholder, children never rendered.
+        return ItemKind::Placeholder;
+    }
+    match node.layout.as_str() {
+        LAYOUT_CODE => ItemKind::Code,
+        LAYOUT_QUOTE => ItemKind::Quote,
+        _ => ItemKind::Bullet,
+    }
+}
+
+impl Builder<'_> {
+    fn hidden(&self, node: &Node, depth: u32) -> bool {
+        node.completed
+            || self.extras.hidden.contains(&node.id)
+            || self.cfg.max_depth.is_some_and(|m| depth > m)
+    }
+
+    fn children(&mut self, parent: &Node, depth: u32) -> Vec<ViewItem> {
+        let numbered = parent.layout == LAYOUT_NUMBERED;
+        let mut out = Vec::new();
+        for id in self.tree.children(&parent.id) {
+            let Some(node) = self.tree.get(id) else {
+                continue;
+            };
+            if self.hidden(node, depth) || !self.seen.insert(id.clone()) {
+                continue;
+            }
+            out.push(self.item(node, depth, numbered));
+        }
+        out
+    }
+
+    fn item(&mut self, node: &Node, depth: u32, parent_numbered: bool) -> ViewItem {
+        let inline = &self.cfg.inline;
+        let kind = kind_of(node);
+        let name_kind = if kind == ItemKind::Code {
+            FieldKind::Code
+        } else {
+            FieldKind::Name
+        };
+        let name = md_text(&node.name, name_kind, inline, true);
+        let note = node
+            .note
+            .as_deref()
+            .filter(|n| !n.is_empty())
+            .map(|n| md_text(n, FieldKind::Note, inline, true));
+        let read_only = kind == ItemKind::Placeholder
+            || name.tier == Tier::ReadOnly
+            || note.as_ref().is_some_and(|n| n.tier == Tier::ReadOnly);
+        let heading = (depth <= u32::from(self.cfg.headings)).then_some(depth as u8);
+        let children = if kind == ItemKind::Placeholder {
+            Vec::new()
+        } else {
+            self.children(node, depth + 1)
+        };
+        let checkbox = self.checkbox(node, kind, heading.is_some(), children.is_empty());
+        let conflicts = self.conflicts.remove(&node.id).unwrap_or_default();
+        ViewItem {
+            id: node.id.clone(),
+            tag: node.id.short(),
+            kind,
+            heading,
+            checkbox,
+            ordered: parent_numbered && heading.is_none(),
+            name,
+            note,
+            read_only,
+            conflicts,
+            children,
+        }
+    }
+
+    /// §4.3: which incomplete items show `[ ]` (cosmetic).
+    fn checkbox(&self, node: &Node, kind: ItemKind, heading: bool, leaf: bool) -> Checkbox {
+        // UNVERIFIED (our choice): quotes get no box either (`- [ ] > x` reads badly).
+        if heading || kind != ItemKind::Bullet {
+            return Checkbox::None;
+        }
+        if node.layout == LAYOUT_TODO {
+            return Checkbox::Open;
+        }
+        if let Some(&c) = self.extras.sticky.checkbox.get(&node.id) {
+            return match c {
+                Checkbox::None => Checkbox::None,
+                Checkbox::Open | Checkbox::Ticked => Checkbox::Open,
+            };
+        }
+        let open = match self.cfg.checkboxes {
+            CheckboxPolicy::TodosAndLeaves => leaf,
+            CheckboxPolicy::TodosOnly | CheckboxPolicy::None => false,
+            CheckboxPolicy::All => true,
+        };
+        if open { Checkbox::Open } else { Checkbox::None }
+    }
+}
+
+fn sort_markers(v: &mut [ConflictMarker]) {
+    v.sort_by_key(|m| match m.field {
+        ConflictField::Name => 0,
+        ConflictField::Note => 1,
+    });
+}
+
+/// See [`View::build`].
+pub(super) fn build(
+    tree: &Tree,
+    root: &NodeId,
+    cfg: &DocConfig,
+    extras: &ViewExtras,
+) -> Result<View, ViewError> {
+    let root_node = tree
+        .get(root)
+        .ok_or_else(|| ViewError::RootMissing(root.clone()))?;
+    let mut conflicts: BTreeMap<NodeId, Vec<ConflictMarker>> = BTreeMap::new();
+    for c in &extras.conflicts {
+        conflicts.entry(c.node.clone()).or_default().push(c.clone());
+    }
+    for v in conflicts.values_mut() {
+        sort_markers(v);
+    }
+    let mut root_conflicts = conflicts.remove(root).unwrap_or_default();
+    sort_markers(&mut root_conflicts);
+    let mut b = Builder {
+        tree,
+        cfg,
+        extras,
+        conflicts,
+        seen: BTreeSet::from([root.clone()]),
+    };
+    let items = b.children(root_node, 1);
+    // Markers of nodes that are not in the view are dropped from the file (merge reports
+    // them), in input order.
+    let dropped_conflicts = extras
+        .conflicts
+        .iter()
+        .filter(|c| b.conflicts.contains_key(&c.node))
+        .cloned()
+        .collect();
+    let root_note = root_node
+        .note
+        .as_deref()
+        .filter(|n| !n.is_empty())
+        .map(|n| md_text(n, FieldKind::Note, &cfg.inline, false));
+    Ok(View {
+        root: root.clone(),
+        root_completed: root_node.completed,
+        root_note,
+        root_conflicts,
+        items,
+        dropped_conflicts,
+    })
+}

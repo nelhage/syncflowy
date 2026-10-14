@@ -1,0 +1,133 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "config": {
+    "safe_mode": true
+  },
+  "description": "§9.1 guard 1: in safe mode a field edit equal to any known version of the node (base or earlier renders) is not pushed.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma v2\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {
+      "c": {
+        "name": [
+          "Gamma",
+          "Gamma v2"
+        ]
+      }
+    },
+    "report": [
+      {
+        "StaleEcho": {
+          "field": "Name",
+          "node": "a"
+        }
+      },
+      {
+        "SafeMode": {
+          "suppressed": 0
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Alpha v1",
+      "op": "set",
+      "tag": "a"
+    },
+    {
+      "name": "Gamma v2",
+      "op": "set",
+      "tag": "c"
+    }
+  ],
+  "prior_docs": [
+    {
+      "items": [
+        {
+          "name": "Alpha v1",
+          "tag": "a"
+        }
+      ]
+    },
+    {
+      "items": [
+        {
+          "name": "Gamma v1",
+          "tag": "c"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,606 @@
+{
+ "nodes": [
+  {
+   "id": "00000000-0000-4000-8000-000000000001",
+   "name": "Projects",
+   "note": "Free text here is the sync root's note.\nIt has <b>two</b> lines &amp; an ampersand.",
+   "parent_id": null,
+   "priority": 0,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834397,
+   "modifiedAt": 1791834397,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000002",
+   "name": "Planning",
+   "note": "Note on &quot;Planning&quot;: lines right under the heading.",
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834398,
+   "modifiedAt": 1791834398,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000003",
+   "name": "Draft the <i>spec</i>",
+   "note": "A note line.\n\nAfter an empty line.\n- not a child, a note line",
+   "parent_id": "00000000-0000-4000-8000-000000000002",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834399,
+   "modifiedAt": 1791834399,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000004",
+   "name": "Write the mock",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000003",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "todo"
+   },
+   "createdAt": 1791834400,
+   "modifiedAt": 1791834400,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000005",
+   "name": "Run the UI scenarios",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000003",
+   "priority": 200,
+   "completed": true,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834401,
+   "modifiedAt": 1791834401,
+   "completedAt": 1791834405
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000006",
+   "name": "hidden incomplete descendant",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000005",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834402,
+   "modifiedAt": 1791834402,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000007",
+   "name": "Deep",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000003",
+   "priority": 300,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834403,
+   "modifiedAt": 1791834403,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000008",
+   "name": "Deeper",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000007",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834404,
+   "modifiedAt": 1791834404,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000009",
+   "name": "Deeper still",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000008",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834405,
+   "modifiedAt": 1791834405,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000000a",
+   "name": "Nearly there",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000009",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834406,
+   "modifiedAt": 1791834406,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000000b",
+   "name": "Bottom <code>x = 1</code>",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-00000000000a",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834407,
+   "modifiedAt": 1791834407,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000000c",
+   "name": "Numbered steps",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000002",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "numbered"
+   },
+   "createdAt": 1791834408,
+   "modifiedAt": 1791834408,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000000d",
+   "name": "first",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-00000000000c",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834409,
+   "modifiedAt": 1791834409,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000000e",
+   "name": "second (done)",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-00000000000c",
+   "priority": 200,
+   "completed": true,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834410,
+   "modifiedAt": 1791834410,
+   "completedAt": 1791834414
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000000f",
+   "name": "third",
+   "note": "with a note",
+   "parent_id": "00000000-0000-4000-8000-00000000000c",
+   "priority": 300,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834411,
+   "modifiedAt": 1791834411,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000010",
+   "name": "Board layout is kept as a plain item",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000002",
+   "priority": 300,
+   "completed": false,
+   "data": {
+    "layoutMode": "board"
+   },
+   "createdAt": 1791834412,
+   "modifiedAt": 1791834412,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000011",
+   "name": "Paragraph layout",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000002",
+   "priority": 400,
+   "completed": false,
+   "data": {
+    "layoutMode": "p"
+   },
+   "createdAt": 1791834413,
+   "modifiedAt": 1791834413,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000012",
+   "name": "An h1 inside the outline",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000002",
+   "priority": 500,
+   "completed": false,
+   "data": {
+    "layoutMode": "h1"
+   },
+   "createdAt": 1791834414,
+   "modifiedAt": 1791834414,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000013",
+   "name": "fn main() {\n    println!(&quot;hi &amp; bye&quot;);\n}",
+   "note": "runs on save",
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "code-block"
+   },
+   "createdAt": 1791834415,
+   "modifiedAt": 1791834415,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000014",
+   "name": "To be or not to be",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 300,
+   "completed": false,
+   "data": {
+    "layoutMode": "quote-block"
+   },
+   "createdAt": 1791834416,
+   "modifiedAt": 1791834416,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000015",
+   "name": "",
+   "note": "",
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 400,
+   "completed": false,
+   "data": {
+    "layoutMode": "divider"
+   },
+   "createdAt": 1791834417,
+   "modifiedAt": 1791834417,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000016",
+   "name": "",
+   "note": "",
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 500,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834418,
+   "modifiedAt": 1791834418,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000017",
+   "name": "vestigial child of an API shell",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000016",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834419,
+   "modifiedAt": 1791834419,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000018",
+   "name": "",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 600,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834420,
+   "modifiedAt": 1791834420,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000019",
+   "name": "broken <b>bold",
+   "note": "a malformed name (UI:F1)",
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 700,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834421,
+   "modifiedAt": 1791834421,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000001a",
+   "name": "line one\nline two",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 800,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834422,
+   "modifiedAt": 1791834422,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000001b",
+   "name": "x\n```\ny",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 900,
+   "completed": false,
+   "data": {
+    "layoutMode": "code-block"
+   },
+   "createdAt": 1791834423,
+   "modifiedAt": 1791834423,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000001c",
+   "name": "<b>bold</b> and <foo>unknown</foo> markup",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 1000,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834424,
+   "modifiedAt": 1791834424,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000001d",
+   "name": "See <a href=\"https://example.com/a?b=1&c=2\">https://example.com/a?b=1&amp;c=2</a> on <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\">Thu, Jan 15, 2026</time> and at <time startYear=\"2026\" startMonth=\"1\" startDay=\"15\" startHour=\"14\" startMinute=\"30\">Thu, Jan 15, 2026 at 2:30 PM</time>",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 1100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834425,
+   "modifiedAt": 1791834425,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000001e",
+   "name": "<u>underlined</u>, <span class=\"colored c-red\">red</span>, <a href=\"https://example.com\">a link</a> and #tag @who",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 1200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834426,
+   "modifiedAt": 1791834426,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000001f",
+   "name": "1. not a list",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 1300,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834427,
+   "modifiedAt": 1791834427,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000020",
+   "name": "- not a child",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 1400,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834428,
+   "modifiedAt": 1791834428,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000021",
+   "name": "# not a heading",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 1500,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834429,
+   "modifiedAt": 1791834429,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000022",
+   "name": "[ ] not a box",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 1600,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834430,
+   "modifiedAt": 1791834430,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000023",
+   "name": "a ^wf-8e1f00aa2b3c in the text and %% percents",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 1700,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834431,
+   "modifiedAt": 1791834431,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000024",
+   "name": "Done stuff",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 1800,
+   "completed": true,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834432,
+   "modifiedAt": 1791834432,
+   "completedAt": 1791834436
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000025",
+   "name": "incomplete under completed",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000024",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834433,
+   "modifiedAt": 1791834433,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000026",
+   "name": "also hidden",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000024",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834434,
+   "modifiedAt": 1791834434,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000027",
+   "name": "A todo with children",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 1900,
+   "completed": false,
+   "data": {
+    "layoutMode": "todo"
+   },
+   "createdAt": 1791834435,
+   "modifiedAt": 1791834435,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000028",
+   "name": "leaf one",
+   "note": null,
+   "parent_id": "00000000-0000-4000-8000-000000000027",
+   "priority": 100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834436,
+   "modifiedAt": 1791834436,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000029",
+   "name": "leaf two",
+   "note": "  indented note line",
+   "parent_id": "00000000-0000-4000-8000-000000000027",
+   "priority": 200,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834437,
+   "modifiedAt": 1791834437,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000002a",
+   "name": "Trailing empty note lines",
+   "note": "first\n\n",
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 2000,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834438,
+   "modifiedAt": 1791834438,
+   "completedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-8000-00000000002b",
+   "name": "Leading empty note line",
+   "note": "\nsecond",
+   "parent_id": "00000000-0000-4000-8000-000000000001",
+   "priority": 2100,
+   "completed": false,
+   "data": {
+    "layoutMode": "bullets"
+   },
+   "createdAt": 1791834439,
+   "modifiedAt": 1791834439,
+   "completedAt": null
+  }
+ ]
+}

@@ -1,0 +1,26 @@
+// Creates come first, parents before children, each at the bottom of its parent;
+// whitelisted names go in the create request (direct), others are deferred (§7.2);
+// a new item typed [x] is created, then completed after all edits (§7.1 step 5).
+== remote
+home
+  root Root
+    a Alpha
+== merged
+root Root
+  a Alpha
+    +1 Plain child
+      +2 Grandchild with a note | line one\nline two
+    +3 a &amp; b {todo}
+  +4 - looks like a bullet
+    +5 <b>bold</b> text
+  +6 Already done [x]
+  +7 [2026-01-15] meeting {h1}
+== ops
+create +1 in a direct "Plain child" note=None layout=bullets
+create +2 in +1 direct "Grandchild with a note" note=Some("line one\nline two") layout=bullets
+create +3 in a deferred "a &amp; b" note=None layout=todo
+create +4 in root deferred "- looks like a bullet" note=None layout=bullets
+create +5 in +4 deferred "<b>bold</b> text" note=None layout=bullets
+create +6 in root direct "Already done" note=None layout=bullets
+create +7 in root deferred "[2026-01-15] meeting" note=None layout=h1
+complete +6

@@ -4,11 +4,11 @@ Groundwork for a two-way sync between [Workflowy](https://workflowy.com) and Mar
 Obsidian vault can act as a plain-text frontend to a Workflowy tree, without the collaborators using Workflowy
 noticing.
 
-The sync engine itself is not written yet. What exists so far:
+The sync engine is written in Rust under [`engine/`](engine/README.md) (build, usage, safety behaviours and known limitations are there). The repository also holds:
 
 - reverse-engineered documentation of the Workflowy REST API and web UI,
 - a high-fidelity mock of the API, plus a differential suite that checks it against production,
-- a design for the sync engine, which will be written in Rust (see [docs/sync-design.md](docs/sync-design.md)).
+- the design the engine implements (see [docs/sync-design.md](docs/sync-design.md)).
 
 ## Setup
 
@@ -19,7 +19,18 @@ direnv allow
 direnv exec . uv run pytest        # the offline test suite (mock, conformance goldens, wfhtml)
 ```
 
+The engine is a Cargo crate; `cargo` and `rustc` come from the dev shell:
+
+```sh
+cd engine
+cargo build --release              # target/release/syncflowy
+cargo test                         # needs uv: the end-to-end tests spawn the Python mock
+cargo clippy --all-targets -- -D warnings
+```
+
 Anything that talks to production reads `WORKFLOWY_API_KEY` from `.envrc.local`, which is git-ignored.
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the Python suite and the engine's rustfmt, clippy and tests on every push to `main` and every pull request.
 
 ## Documents
 
@@ -36,12 +47,20 @@ Anything that talks to production reads `WORKFLOWY_API_KEY` from `.envrc.local`,
 | [docs/mock-server.md](docs/mock-server.md) | How to run and use the mock server, its mock-only admin and UI-simulation routes, and its known deviations from production. |
 | [docs/conformance.md](docs/conformance.md) | How the differential conformance suite works, and how to record goldens and check the mock. |
 
+## Engine (`engine/`)
+
+| path | what it is |
+|---|---|
+| [`engine/README.md`](engine/README.md) | How to build, configure and use the `syncflowy` binary (`render`, `sync`, `daemon`, `status`), the Markdown dialect, safety behaviours, state directory, limitations and the module map. |
+| [`engine/src/`](engine/src/) | The Rust sync engine: a pure core (`tree`, `wfhtml`, `mdinline`, `mdblock`, `merge`, `plan`) and the I/O layers (`wfclient`, `apply`, `state`, `sync`, `daemon`). `lib.rs` is the module map and contract. |
+| [`engine/tests/`](engine/tests/) | Unit, property, snapshot, differential and end-to-end tests; the end-to-end ones run against the mock server. |
+
 ## Code (`src/syncflowy/`)
 
 | path | what it is |
 |---|---|
 | [`prod_client.py`](src/syncflowy/prod_client.py) | Client for the **production** API: rate-limited, confined to a scratchpad node unless told otherwise, and logging every request to `.prod-state/requests.jsonl`. |
-| [`wfhtml.py`](src/syncflowy/wfhtml.py) | Workflowy's rich-text format for names and notes ("WF-HTML"): escaping, canonicalisation and well-formedness checks. The Rust engine's `wfhtml` will be a port of this. |
+| [`wfhtml.py`](src/syncflowy/wfhtml.py) | Workflowy's rich-text format for names and notes ("WF-HTML"): escaping, canonicalisation and well-formedness checks. The Rust engine's `wfhtml` is a port of this. |
 | [`mock/`](src/syncflowy/mock/) | The mock API server (`syncflowy-mock`), backed by SQLite. `app.py` is the HTTP layer, `ops.py` the endpoint semantics, `store.py` storage, `text.py` the create-name text pipeline, `models.py` request validation, `ui.py` the test-only `/_mock/ui/*` routes that simulate web-UI edits, and `testing.py` runs the server in a thread for tests. |
 | [`conformance/`](src/syncflowy/conformance/) | The differential conformance suite (`syncflowy-conformance`). `scenarios/` holds the scenarios by area; the rest is the recording client, backends, normaliser and runner. |
 | `__init__.py` | Placeholder `syncflowy` entry point. |
@@ -74,7 +93,7 @@ run against production, inside the scratchpad node.
 
 | path | what it is |
 |---|---|
-| `flake.nix`, `flake.lock` | Nix dev shell (Python 3.14, `uv`). |
+| `flake.nix`, `flake.lock` | Nix dev shell (Python 3.14, `uv`, the Rust toolchain). |
 | `.envrc` | direnv: loads the flake, sets up the `uv` virtualenv, and sources `.envrc.local`. |
 | `pyproject.toml`, `uv.lock`, `.python-version` | Python project and locked dependencies. |
 | `.prod-state/` (git-ignored) | `prod_client` state: the log of every production request (`requests.jsonl`), the ids it may touch, and its rate-limit state. |

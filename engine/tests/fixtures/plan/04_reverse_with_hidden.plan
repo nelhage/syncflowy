@@ -1,0 +1,25 @@
+// Reversing a visible list of 4 costs n - 1 = 3 moves; the completed siblings in
+// between are never moved (§8.1).
+== remote
+home
+  root
+    a A
+    h1 Hidden one [x]
+    b B
+    c C
+    h2 Hidden two [x]
+      h21 Below hidden
+    d D
+== merged
+root
+  d D
+  h1 Hidden one [x]
+  c C
+  b B
+  h2 Hidden two [x]
+    h21 Below hidden
+  a A
+== ops
+move c to root bottom (from root)
+move b to root bottom (from root)
+move a to root bottom (from root)

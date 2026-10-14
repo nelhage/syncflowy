@@ -1,0 +1,117 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§6.1: a new conflict on a node replaces the carried marker of the same field.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [
+      [
+        "a",
+        "Name",
+        "Alpha L"
+      ]
+    ],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha R\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "Conflict": {
+          "field": "Name",
+          "node": "a"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 1,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 6,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Alpha L",
+      "op": "set",
+      "tag": "a"
+    },
+    {
+      "index": 0,
+      "item": {
+        "kind": "marker-name",
+        "name": "older wording"
+      },
+      "op": "insert",
+      "parent": "a"
+    }
+  ],
+  "remote_edits": [
+    {
+      "id": "a",
+      "name": "Alpha R",
+      "op": "set"
+    }
+  ]
+}

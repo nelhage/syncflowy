@@ -1,0 +1,186 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "cross": {
+    "other_roots": [
+      "other"
+    ],
+    "source": {
+      "base": {
+        "children": [
+          {
+            "children": [
+              {
+                "id": "o11",
+                "name": "Its child"
+              }
+            ],
+            "id": "o1",
+            "name": "From other"
+          }
+        ],
+        "id": "other",
+        "name": "Other file"
+      }
+    }
+  },
+  "description": "§6.4/§6.1: a pasted line edited in the move is merged against the source file's base: edited here only, it is pushed; edited on both sides (o11), remote wins and the local text becomes a conflict marker.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [
+      [
+        "o11",
+        "Name",
+        "Its child, edited"
+      ]
+    ],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Gamma\"",
+      "    o1 \"From other, edited\"",
+      "      o11 \"Its child, edited remotely\""
+    ],
+    "moves": [
+      [
+        "o1",
+        "other",
+        "c"
+      ]
+    ],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "c": [
+        "o1"
+      ],
+      "o1": [
+        "o11"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {
+      "o1": {
+        "name": [
+          "From other",
+          "From other, edited"
+        ]
+      }
+    },
+    "report": [
+      {
+        "Conflict": {
+          "field": "Name",
+          "node": "o11"
+        }
+      },
+      {
+        "MovedIn": {
+          "from_file_root": "other",
+          "node": "o1"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 1,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 8,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 0,
+      "item": {
+        "children": [
+          {
+            "name": "Its child, edited",
+            "tag": "o11"
+          }
+        ],
+        "name": "From other, edited",
+        "tag": "o1"
+      },
+      "op": "insert",
+      "parent": "c"
+    }
+  ],
+  "remote_edits": [
+    {
+      "id": "o11",
+      "name": "Its child, edited remotely",
+      "op": "set"
+    }
+  ],
+  "remote_extra": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "id": "o11",
+              "name": "Its child"
+            }
+          ],
+          "id": "o1",
+          "name": "From other"
+        }
+      ],
+      "id": "other",
+      "name": "Other file"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+// Indent b under a and outdent c1 out of c: two re-parenting moves to the bottom of
+// the new parents, then one reorder fixes the root order (§7.1 steps 2 and 4).
+== remote
+home
+  root
+    a A
+    b B
+    c C
+      c1 C one
+      c2 C two
+    d D
+== merged
+root
+  a A
+    b B
+  c1 C one
+  c C
+    c2 C two
+  d D
+== ops
+move b to a bottom (from root)
+move c1 to root bottom (from c)
+move c to root bottom (from root)
+move d to root bottom (from root)

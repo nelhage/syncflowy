@@ -1,0 +1,108 @@
+{
+  "base": {
+    "children": [
+      {
+        "children": [
+          {
+            "id": "a1",
+            "name": "Alpha one"
+          },
+          {
+            "id": "a2",
+            "name": "Alpha two"
+          }
+        ],
+        "id": "a",
+        "name": "Alpha",
+        "note": "one\ntwo\nthree"
+      },
+      {
+        "children": [
+          {
+            "id": "b1",
+            "name": "Beta one"
+          }
+        ],
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "layout": "quote-block",
+        "name": "Quoted"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§4.3: a quote item that is still a quote keeps quote-block when a child typed under it is ordered.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 10,
+        "name": "first",
+        "note": null,
+        "parent": "c",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
+      "    a1 \"Alpha one\"",
+      "    a2 \"Alpha two\"",
+      "  b \"Beta\"",
+      "    b1 \"Beta one\"",
+      "  c \"Quoted\" layout=quote-block",
+      "    temp-1 \"first\""
+    ],
+    "moves": [],
+    "orders": {
+      "a": [
+        "a1",
+        "a2"
+      ],
+      "b": [
+        "b1"
+      ],
+      "c": [
+        "temp-1"
+      ],
+      "root": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [],
+    "stats": {
+      "base_visible": 6,
+      "conflicts": 0,
+      "created": 1,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 7,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "index": 0,
+      "item": {
+        "name": "first",
+        "ordered": true
+      },
+      "op": "insert",
+      "parent": "c"
+    }
+  ]
+}

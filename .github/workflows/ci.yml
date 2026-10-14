@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  python:
+    name: Python (mock, conformance goldens, wfhtml)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install the locked environment
+        run: uv sync --locked
+      - name: Run the offline test suite
+        run: uv run pytest -q
+
+  rust:
+    name: Rust engine (fmt, clippy, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v4
+      # The end-to-end tests spawn the Python mock server with `uv run syncflowy-mock`,
+      # and the differential tests call the Python wfhtml and create-pipeline oracles.
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install the Python environment the tests spawn
+        run: uv sync --locked
+        working-directory: .
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
+      - name: rustfmt
+        run: cargo fmt --check
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: tests
+        run: cargo test
+
+  static-binary:
+    name: Static musl release binary
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
+          key: musl
+      - name: Install the musl C toolchain (ring's C sources are compiled with it)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq musl-tools
+      - name: Build
+        run: cargo build --release --target x86_64-unknown-linux-musl
+        env:
+          CC_x86_64_unknown_linux_musl: musl-gcc
+      - name: Smoke test
+        run: |
+          file target/x86_64-unknown-linux-musl/release/syncflowy
+          target/x86_64-unknown-linux-musl/release/syncflowy --help
+      - uses: actions/upload-artifact@v4
+        with:
+          name: syncflowy-x86_64-unknown-linux-musl
+          path: engine/target/x86_64-unknown-linux-musl/release/syncflowy
+          if-no-files-found: error

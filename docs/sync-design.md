@@ -1,6 +1,6 @@
 # Workflowy ⇄ Markdown sync: design notes
 
-Status: design exploration, 2026-10-13. Nothing here is implemented yet.
+Status: design, 2026-10-13. Implemented under [`engine/`](../engine/README.md) as of 2026-10-14; see "Implementation notes" at the end for where the implementation differs.
 
 This document works out what a Workflowy/Markdown sync engine would look like, given what
 [workflowy/](workflowy/) established about the API and the web UI. Facts about Workflowy cite the
@@ -151,6 +151,7 @@ Each WF-HTML construct is mapped to the most faithful Markdown. Anything without
 
 Things in Markdown with no WF meaning (`[[wikilinks]]`, `==highlight==`, `$math$`, `![[embeds]]`, footnotes)
 are sent to Workflowy as **literal text**. WF users then see `[[Page]]`. That is acceptable but visible.
+They are rendered back unescaped, so they keep working in Obsidian after a sync.
 
 **Escaping is the trickiest part of the dialect.** WF text such as `1. foo`, `> x`, `# x`, `[ ] x`,
 `- x` or `---` at the start of a name or note line, `*` and `_` mid-text, a trailing `^abc` or `[wid:: …]`, and
@@ -818,3 +819,40 @@ and the content staying, which is what the WF user saw.
   read-only placeholders.
 - **Creating a mirror from Markdown** is a natural later feature: a stub line `- ⧉ [[#^wf-…]]` with no tag of
   its own, placed by the user, becomes `POST /nodes/<origin>/mirror`. It is not needed for the first version.
+
+## Implementation notes
+
+The engine under `engine/` follows this design. The places where it narrows or departs from it, or decides
+something the design left open, are below. Each is marked `UNVERIFIED` in the code where it rests on a guess; the
+module docs have the details.
+
+- **Never run against production.** All behaviour was developed and tested against the mock server. The open
+  questions of §13 are still open, and the mock's choices stand in for them.
+- **Mass-change brakes (§8.3).** The thresholds are 50 deletes, or 20% of the visible nodes from 5 deletes on, and
+  200 completions or 50% from 10 on. An empty file brakes only when the base had items and the merge deletes
+  something. A file emptied because all its items were cut into another file of the run is not braked, because
+  it deletes nothing and braking would keep remote changes out of it.
+- **Mirrors (§10) are placeholders only.** A shell is recognised by an empty name, no note and layout `bullets`;
+  its children are never shown and edits or deletes need `--force`. §15.1 is not implemented.
+- **Nodes moved out of the file in Workflowy.** The design does not cover edits to such a node. The engine still
+  pushes your edits and ticks to it where it now is. If both sides edited the same field, Workflowy wins and the
+  local text is only logged (a marker cannot be shown because the line leaves the file).
+- **Cross-file moves (§6.4)** compare the pasted line against the source file's base, so a collaborator's edit is
+  not reverted. Without such a base nothing is pushed for the move.
+- **Safe mode (§9.1 guard 1)** also applies to a bootstrap with `--force` and no checkpoint, which takes the remote
+  as the base.
+- **Deferred deletes (guard 2)** are held while another synced file has edits waiting for its debounce, which the
+  design does not ask for. Plain `sync` has no grace period and sends deletes at once.
+- **Creates are never resent after a 5xx.** Any 5xx other than the application's own `internal_error` is treated as
+  "maybe applied" and settled by the nonce scan of §7.3. No gateway 5xx or 429 has been observed.
+- **Dry run** does not recover a leftover journal, since recovery writes.
+- **Code blocks** with a ``` line are written with a longer fence and stay editable; the design left this open.
+- **Obsidian syntax** (`[[x]]`, `![[x]]`, `==x==`, `$x$`) is written back unescaped (§4.2), except a `$` before a
+  digit when the value holds another `$`, to keep prices from reading as math.
+- **Dates, locale variants and link titles** have no compact or structured form; they stay literal.
+- **Checkbox policy, id tag form, depth, headings** are frontmatter options (`checkboxes`, `ids`, `depth`,
+  `headings`); the design only recommended making the tag form configurable.
+- **Files** are written in place through symlinks and keep their mode. The state directory layout (checkpoint,
+  pending deletes, history, journal, lock) is described in `engine/src/state.rs`.
+- **Not done:** several engines on one account, mirrors as origins (§15.1), any Obsidian Sync experiment (§13 Q7),
+  and the optional title or `# H1` rendering of the root's name (§4.1).
