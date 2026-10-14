@@ -679,6 +679,42 @@ fn status_note_content() {
     assert!(rig.env.export().contains(&alpha));
 }
 
+/// The status note's Problems section.
+fn problems(note: &str) -> String {
+    let start = note.find("## Problems\n").expect("a Problems section");
+    let rest = &note[start..];
+    let end = rest[3..].find("\n## ").map_or(rest.len(), |i| i + 3);
+    rest[..end].to_owned()
+}
+
+#[test]
+fn a_file_error_leaves_the_status_note_with_the_file() {
+    let (env, _root, _a, _b, _file) = one_file();
+    let ghost = env.path("ghost.md");
+    write(&ghost, "---\nworkflowy: 0123456789ab\n---\n- x\n");
+    let mut rig = Rig::new(env);
+    rig.step(&[]);
+    rig.run_for(60);
+    let p = problems(&rig.note());
+    assert!(p.contains("- [[ghost]]: "), "{p}");
+
+    // Renamed: the error now belongs to the new path only.
+    let renamed = rig.env.path("renamed ghost.md");
+    std::fs::rename(&ghost, &renamed).unwrap();
+    rig.step(&[&ghost, &renamed]);
+    rig.run_for(60);
+    let p = problems(&rig.note());
+    assert!(p.contains("- [[renamed ghost]]: "), "{p}");
+    assert!(!p.contains("[[ghost]]"), "{p}");
+
+    // Deleted: no error is left behind.
+    std::fs::remove_file(&renamed).unwrap();
+    rig.advance(1);
+    rig.step(&[&renamed]);
+    let p = problems(&rig.note());
+    assert_eq!(p, "## Problems\n\nNone.\n", "{p}");
+}
+
 /// An `Api` that fails its exports on demand.
 struct FlakyApi<'a> {
     inner: &'a syncflowy::wfclient::Client,

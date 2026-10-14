@@ -807,6 +807,12 @@ impl Daemon {
         self.debouncer.retain(|p| live.contains(p));
         let known: BTreeSet<&Path> = tracked.iter().map(|t| t.path.as_path()).collect();
         self.attempted.retain(|p, _| known.contains(p.as_path()));
+        // A file that was deleted or renamed takes its error and outcome with it (its
+        // root is reported under the new path, or as missing: guard 5); the run-wide
+        // error (`""`) stays until a cycle succeeds.
+        self.errors
+            .retain(|p, _| p.as_os_str().is_empty() || known.contains(p.as_path()));
+        self.outcomes.retain(|p, _| known.contains(p.as_path()));
         for (path, reason) in &disc.skipped {
             if !self
                 .discovery
