@@ -115,3 +115,118 @@ fn missing_api_key_is_an_error() {
     assert_eq!(o.status.code(), Some(2));
     assert!(stderr(&o).contains("API key"), "{}", stderr(&o));
 }
+
+#[test]
+fn status_of_missing_and_unknown_files() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Project");
+    env.ui_create(Some(&root), "Alpha");
+    let file = env.path("project.md");
+    env.render(&root, &file);
+    let other = env.path("other.md");
+    let other_root = "0f3c1b2a-1111-4222-8333-444455556666";
+    write(
+        &other,
+        &format!("---\nworkflowy: {other_root}\n---\n- Beta\n"),
+    );
+    let gone = env.path("gone.md");
+
+    let o = cli(
+        &env,
+        &[
+            "status",
+            gone.to_str().unwrap(),
+            other.to_str().unwrap(),
+            file.to_str().unwrap(),
+        ],
+    );
+    let s = stdout(&o);
+    assert_eq!(o.status.code(), Some(1), "{s}{}", stderr(&o));
+    assert!(s.contains(&format!("{}: missing\n", gone.display())), "{s}");
+    assert!(
+        s.contains(&format!(
+            "{}: no checkpoint for root {other_root} in this state directory\n",
+            other.display()
+        )),
+        "{s}"
+    );
+    assert!(s.contains(&format!("{root}: gen 1")), "{s}");
+    assert!(s.contains("as last written"), "{s}");
+}
+
+#[test]
+fn status_creates_no_state_directory() {
+    let env = Env::new();
+    let fresh = env.dir.path().join("fresh-state");
+    let file = env.dir.path().join("f.md");
+    write(&file, "---\nworkflowy: abcdef123456\n---\n- x\n");
+    let run = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_syncflowy"))
+            .arg("--state-dir")
+            .arg(&fresh)
+            .args(args)
+            .env_remove("WORKFLOWY_API_KEY")
+            .env_remove("SYNCFLOWY_STATE_DIR")
+            .output()
+            .unwrap()
+    };
+    let o = run(&["status"]);
+    assert!(o.status.success(), "{}", stderr(&o));
+    assert!(stdout(&o).contains("no synced roots"), "{}", stdout(&o));
+    let o = run(&["status", file.to_str().unwrap()]);
+    assert_eq!(o.status.code(), Some(1), "{}", stderr(&o));
+    assert!(
+        stdout(&o).contains("no checkpoint for root"),
+        "{}",
+        stdout(&o)
+    );
+    assert!(!fresh.exists());
+}
+
+#[test]
+fn a_second_file_for_a_root_is_refused_across_runs() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Project");
+    env.ui_create(Some(&root), "Alpha");
+    let file = env.path("big.md");
+    env.render(&root, &file);
+    let before = env.snapshot();
+
+    // A conflict copy is never synced, even on its own.
+    let copy = env.path("big (conflicted copy 2026-10-13).md");
+    std::fs::copy(&file, &copy).unwrap();
+    edit(&copy, "Alpha", "Alpha, in the copy");
+    let o = cli(&env, &["sync", copy.to_str().unwrap()]);
+    assert_eq!(o.status.code(), Some(1), "{}{}", stdout(&o), stderr(&o));
+    assert!(
+        stdout(&o).contains("skipped: looks like a sync conflict copy"),
+        "{}",
+        stdout(&o)
+    );
+
+    // Another file naming the root while the synced one still exists: paused.
+    let other = env.path("renamed-big.md");
+    std::fs::rename(&copy, &other).unwrap();
+    let o = cli(&env, &["sync", other.to_str().unwrap()]);
+    assert_eq!(o.status.code(), Some(1), "{}{}", stdout(&o), stderr(&o));
+    let s = stdout(&o);
+    assert!(s.contains("paused: several files claim this root"), "{s}");
+    assert!(s.contains("big.md"), "{s}");
+    assert_eq!(env.snapshot(), before);
+
+    // A real rename (the old path is gone) is synced.
+    std::fs::remove_file(&file).unwrap();
+    let o = cli(&env, &["sync", other.to_str().unwrap()]);
+    assert!(o.status.success(), "{}{}", stdout(&o), stderr(&o));
+    assert!(stdout(&o).contains("1 updated"), "{}", stdout(&o));
+    // So is one whose old path now holds another root.
+    let third = env.path("third.md");
+    std::fs::rename(&other, &third).unwrap();
+    let root2 = env.ui_create(None, "Other");
+    env.ui_create(Some(&root2), "Beta");
+    env.render(&root2, &other);
+    edit(&third, "Alpha, in the copy", "Alpha again");
+    let o = cli(&env, &["sync", third.to_str().unwrap()]);
+    assert!(o.status.success(), "{}{}", stdout(&o), stderr(&o));
+    assert!(stdout(&o).contains("1 updated"), "{}", stdout(&o));
+}

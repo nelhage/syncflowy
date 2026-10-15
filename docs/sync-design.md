@@ -594,6 +594,9 @@ is the likeliest glitch in this topology.
 - If a **file is missing**, pause that root and report. Do not re-render it unasked, because deleting it on a
   client is the obvious way to say "stop syncing this", and the engine must not delete anything in response.
 - Files whose names look like conflict copies are never synced.
+- `syncflowy sync`, which is given files instead of scanning a vault, also compares a file with the one recorded
+  in the root's checkpoint: if that one still exists under another path and still names the root, the root is
+  claimed twice and the file is not synced. A rename (the old path is gone, or names another root) is accepted.
 
 #### Guard 6: other writers on the clients
 
@@ -687,6 +690,13 @@ is ever enforced. Hiding completed nodes makes the list walk more attractive for
 never needs to list below a completed node: its cost is the number of *visible* nodes, not the subtree size.
 Pushes do not need a pull first if the checkpoint is fresh: plan against `B`, guard each
 write with a GET, and reconcile at the next export.
+
+What the engine does: the daemon spaces its cycles by `--min-export-interval` (default 60 s), but a cycle that
+pushes exports twice (before the merge, and again to verify and re-render), and the CLI never waits between
+runs. A proactive wait would make every pushing `sync` take a minute for a limit that has never been seen
+enforced. Instead an enforced limit degrades gracefully: the client retries a 429 until its waits add up to
+`rate_limit_budget` (default 90 s), waiting what `Retry-After` asks (else the backoff), so the verification
+export of a run whose writes are done is delayed by up to a minute rather than failed.
 
 ### 12.3 Heading mapping
 

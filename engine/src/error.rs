@@ -57,8 +57,10 @@ pub enum Error {
     /// The file's root is not in the export.
     #[error("sync root {0:?} not found")]
     RootNotFound(String),
-    /// The root has no checkpoint (run `syncflowy render` first, or `--force`).
-    #[error("no checkpoint for root {0}; run `syncflowy render` first or use --force")]
+    /// The root has no checkpoint. The message names no remedy: the CLI adds "run
+    /// `syncflowy render` first or use --force", the daemon points to `force: true` in the
+    /// frontmatter.
+    #[error("no checkpoint for root {0}")]
     NoCheckpoint(NodeId),
     /// The file names a different root than its checkpoint.
     #[error("{file}: root changed from {expected} to {found}")]

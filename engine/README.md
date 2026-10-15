@@ -102,12 +102,18 @@ identified by root, not by path, so renaming a file needs no handling.
 
 The daemon never exits on a per-file error; it logs it (use `-v`) and shows it in the status note. It exits on a
 fatal error, such as an unusable state directory or an API 401.
+On SIGTERM or SIGINT (Ctrl-C) it finishes the cycle in progress, writes `Stopped at ...` to the status note and
+exits 0; a second signal ends it at once (an interrupted cycle is recovered by the next run). Its event log is
+kept in the state directory, so the status note's event sections survive a restart.
 
 ### `status [FILE.md]...`
 
 Prints the local state without calling the API: for each root its generation, when it last synced, which file
 holds it, whether the file has local changes, whether an interrupted cycle awaits recovery, and the pending
-deletes.
+deletes. With files, it shows their roots; a file that does not exist prints `<file>: missing`, and one whose
+root has no checkpoint in this state directory prints `<file>: no checkpoint for root <root> in this state
+directory`. The other files are still shown, and the exit status is 1. `status` only reads: it does not create
+the state directory.
 
 ```console
 $ syncflowy $S status
@@ -211,7 +217,9 @@ A note on "Planning": the lines right under the heading.
 * **Other guards.** Every update checks the remote value just before writing it (a collaborator's later edit
   becomes a conflict, not an overwrite). Creates are journaled and nonce-tagged so a crash never duplicates a
   node; an interrupted cycle is recovered by the next run. A file that cannot be parsed (frontmatter) is skipped,
-  never read as "everything deleted". Two files claiming one root are both skipped. A synced file that is a
+  never read as "everything deleted". Two files claiming one root are both paused, also when they are synced by
+  separate `sync` commands (the checkpoint records the file last synced; a rename is fine), and a file whose name
+  looks like a sync conflict copy (`(conflicted copy ...)`, `(... conflict ...)`, `.sync-conflict-`) is skipped. A synced file that is a
   symlink stays a symlink and keeps its mode. `paused: true` in the frontmatter stops syncing a file.
 * **The status note** (daemon): `Workflowy Sync Status.md` in the vault, rewritten after every cycle. It lists each
   root with its file, last sync, generation and state, the conflicts awaiting resolution, the pending deletes, per-file
@@ -222,6 +230,7 @@ A note on "Planning": the lines right under the heading.
 
 ```text
 <state_dir>/
+  daemon-events.json       the daemon's event log (the status note's event sections)
   roots/<root uuid>/
     checkpoint.json        base_md and base_wf of the last write, the generation, the file's config
     pending.json           pending deletes
@@ -236,7 +245,11 @@ the server that talks to Workflowy: there must be only one engine per account.
 
 ## Known limitations
 
-* One engine, one writer. Several engines on one root are not supported.
+* One engine, one writer. Several engines on one root are not supported, and nothing detects them: use one
+  state directory per vault and account, and run every `sync`, `render` and `daemon` for those files with it. The
+  per-root lock covers only one state directory. Two engines with separate state directories on the same files
+  read each other's `gen` as unknown (safe mode, with no hint why) or, worse, as one of their own generations
+  with different text, and then merge against the wrong base.
 * The engine needs the beta API (§10); it does not run against production. Mirrors are never
   created from Markdown, a stub is read-only, and an origin that still has mirrors cannot be deleted from
   Markdown. A mirror's hidden persisted children (DM§10.5) are never shown and go with the mirror when it is
@@ -244,7 +257,10 @@ the server that talks to Workflowy: there must be only one engine per account.
 * Dates render compactly only for the observed forms; ranges, times, and locale or 24-hour variants stay literal HTML.
 * Markdown link titles are not supported (`[a](b "t")` is literal text). Images are literal text.
 * A node that cannot round-trip is shown read-only (`🔒`); edit it in Workflowy.
-* The client sends at most 10 requests per second and exports once per cycle; the documented export limit of one per minute was not observed in production (the daemon's `--min-export-interval` keeps to it).
+* The client sends at most 10 requests per second. A cycle exports once, or twice when it pushes (the second
+  export verifies the push and renders the file). The documented export limit of one per minute was not observed
+  in production; the daemon spaces its cycles by `--min-export-interval`, and if the limit is ever enforced, a
+  429 is retried for up to 90 s in total, waiting as its `Retry-After` header asks (design §12.2).
 * The engine has only been run against the mock server, never against the real API. Anything marked UNVERIFIED
   below depends on behaviour nobody has observed.
 * A cycle that cannot be settled after its retries (collaborator edits racing the push) commits nothing and is

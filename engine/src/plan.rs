@@ -338,14 +338,13 @@ impl Default for BrakeConfig {
     }
 }
 
-/// A mass-change brake that engaged (§8.3). The run must stop before any write and ask
-/// for `--force` (or `force: true` in the frontmatter).
+/// A mass-change brake that engaged (§8.3). The run must stop before any write. The
+/// message says what was refused, not how to override it: the CLI adds `(use --force)`,
+/// the daemon points to `force: true` in the frontmatter.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Error)]
 pub enum Brake {
     /// Too many deletes.
-    #[error(
-        "refusing to delete {visible} visible and {hidden} hidden nodes out of {base_visible} (use --force)"
-    )]
+    #[error("refusing to delete {visible} visible and {hidden} hidden nodes out of {base_visible}")]
     TooManyDeletes {
         /// Visible nodes deleted.
         visible: usize,
@@ -355,13 +354,13 @@ pub enum Brake {
         base_visible: usize,
     },
     /// Every visible node would be deleted: the file looks truncated or emptied.
-    #[error("the file is empty but {base_visible} nodes were visible (use --force)")]
+    #[error("the file is empty but {base_visible} nodes were visible")]
     EmptyFile {
         /// Visible nodes in the base file.
         base_visible: usize,
     },
     /// Too many completions.
-    #[error("refusing to complete {completes} nodes out of {base_visible} (use --force)")]
+    #[error("refusing to complete {completes} nodes out of {base_visible}")]
     TooManyCompletes {
         /// Completions.
         completes: usize,

@@ -259,13 +259,13 @@ fn deferred_deletes_wait_for_the_grace_period() {
     assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
     assert!(env.export().contains(&a));
     assert!(!read(&file).contains("Alpha"));
-    let st = sync::status(&cfg, &[]).unwrap();
+    let st = sync::status(&cfg).unwrap();
     assert_eq!(st[0].pending_deletes.len(), 1);
     // Next cycle with the file unchanged: due, sent.
     sync::sync_once(&env.client, &file, &cfg).unwrap();
     assert!(!env.export().contains(&a));
     assert_eq!(child_names(&env.export(), &root), ["Beta"]);
-    let st = sync::status(&cfg, &[]).unwrap();
+    let st = sync::status(&cfg).unwrap();
     assert!(st[0].pending_deletes.is_empty());
     let r = sync::sync_once(&env.client, &file, &cfg).unwrap();
     assert_eq!(r.outcome, SyncOutcome::Unchanged);
@@ -286,11 +286,7 @@ fn deferred_delete_is_cancelled_when_the_line_comes_back() {
     let r = sync::sync_once(&env.client, &file, &cfg).unwrap();
     assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
     assert!(read(&file).contains("Alpha"));
-    assert!(
-        sync::status(&cfg, &[]).unwrap()[0]
-            .pending_deletes
-            .is_empty()
-    );
+    assert!(sync::status(&cfg).unwrap()[0].pending_deletes.is_empty());
     assert!(env.export().contains(&a));
 }
 
@@ -459,6 +455,6 @@ fn skipped_local_content_is_not_committed_when_no_retry_is_left() {
 }
 
 fn root_of(env: &Env, file: &std::path::Path) -> NodeId {
-    let st = sync::status(&env.cfg, &[file.to_path_buf()]).unwrap();
-    st[0].root.clone()
+    let st = sync::status_of_files(&env.cfg, &[file.to_path_buf()]).unwrap();
+    st[0].status.as_ref().unwrap().root.clone()
 }
