@@ -222,6 +222,8 @@ pub fn stub_text(full: &ShortId, label: &str) -> String {
         format!("{STUB_PREFIX}{full}|{label}]]")
     }
 }
+/// The deepest heading level `headings:` accepts (Markdown has six).
+pub const MAX_HEADINGS: u8 = 6;
 /// Prefix of a read-only best-effort rendering (§5.3).
 pub const READ_ONLY_PREFIX: &str = "🔒 ";
 /// Prefix of a conflict marker item (§6.1).
@@ -267,7 +269,7 @@ pub enum CheckboxPolicy {
 /// echoed in the checkpoint. Defaults are the design's recommendations.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DocConfig {
-    /// Depth 1..=headings renders as headings (§4.1). Default 0.
+    /// Depth 1..=headings renders as headings (§4.1), at most [`MAX_HEADINGS`]. Default 0.
     pub headings: u8,
     /// Id tag form to write. Default [`TagStyle::Auto`].
     pub tags: TagStyle,

@@ -4,8 +4,8 @@
 //! (`workflowy:` and `syncflowy:`); every other line is kept verbatim.
 
 use super::{
-    CheckboxPolicy, DocConfig, Frontmatter, ParseError, ParseWarning, RootRef, TagStyle,
-    WarningKind,
+    CheckboxPolicy, DocConfig, Frontmatter, MAX_HEADINGS, ParseError, ParseWarning, RootRef,
+    TagStyle, WarningKind,
 };
 use crate::tree::{IdMap, NodeId, ShortId};
 
@@ -314,7 +314,7 @@ fn apply_entry(
     let v = v.trim();
     match key {
         "headings" => match v.parse::<u8>() {
-            Ok(n) if n <= 6 => st.config.headings = n,
+            Ok(n) if n <= MAX_HEADINGS => st.config.headings = n,
             _ => return Err(bad_config(key, v)),
         },
         "ids" => st.config.tags = tag_style(v).ok_or_else(|| bad_config(key, v))?,

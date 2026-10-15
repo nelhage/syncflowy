@@ -456,24 +456,97 @@ fn tagged_nodes(doc: &LocalDoc, ids: &IdMap) -> BTreeSet<NodeId> {
 // render
 // ---------------------------------------------------------------------------------------
 
+/// The options of [`render_once`]. A `&DocConfig` converts into one with no override.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RenderConfig {
+    /// The options of a new file (unused when a forced re-render keeps the old file's).
+    pub doc: DocConfig,
+    /// `--headings`: overrides `headings` of whichever options are used.
+    pub headings: Option<u8>,
+}
+
+impl From<&DocConfig> for RenderConfig {
+    fn from(doc: &DocConfig) -> RenderConfig {
+        RenderConfig {
+            doc: doc.clone(),
+            headings: None,
+        }
+    }
+}
+
+/// The frontmatter of a forced re-render over `out` (§14 step 3): when `out` exists and
+/// names the same root, its options and other lines (not `gen`, `force` or `paused`,
+/// and not options written outside `syncflowy:`, which may hold them); otherwise a
+/// fresh one with `doc`. Also returns a warning when an existing file is not kept from.
+fn render_frontmatter(
+    out: &Path,
+    root_ref: RootRef,
+    doc: &DocConfig,
+) -> (Frontmatter, Option<String>) {
+    let mut fm = Frontmatter::new(root_ref);
+    fm.config = doc.clone();
+    let text = match std::fs::read(out) {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+        Err(_) => return (fm, None),
+    };
+    match mdblock::parse_frontmatter(&text) {
+        Ok(old) if old.root.short == fm.root.short => {
+            fm.config = old.config;
+            fm.other = old
+                .other
+                .into_iter()
+                .filter(|l| mdblock::misplaced_option(l).is_none())
+                .collect();
+            (fm, None)
+        }
+        Ok(_) => (
+            fm,
+            Some("the existing file names another root; its frontmatter is not kept".to_owned()),
+        ),
+        Err(e) => (
+            fm,
+            Some(format!(
+                "the existing file's frontmatter does not parse ({e}); it is not kept"
+            )),
+        ),
+    }
+}
+
 /// `syncflowy render <root> <out.md>` (§14 step 3): export, resolve `root` (short id,
 /// UUID or URL), refuse if `out` exists or the root has a checkpoint (unless `force`),
-/// build the view with `doc`, render with `gen: 1` (or one past the generations a
-/// forced re-render finds), save the history entry, write the file, save the
-/// checkpoint. A leftover journal of the root is recovered first (so half-created nodes
-/// get their names) and then removed.
+/// build the view, render with `gen: 1` (or one past the generations a forced re-render
+/// finds), save the history entry, write the file, save the checkpoint. The options are
+/// `opts.doc`, or with `force` those of an existing `out` that names the same root
+/// (with its other frontmatter lines, [`render_frontmatter`]); `opts.headings` overrides
+/// either. A leftover journal of the root is recovered first (so half-created nodes get
+/// their names) and then removed.
 pub fn render_once(
     api: &dyn Api,
     root: &str,
     out: &Path,
-    doc: &DocConfig,
+    opts: impl Into<RenderConfig>,
     cfg: &SyncConfig,
 ) -> Result<SyncReport, Error> {
+    let opts = opts.into();
+    // The CLI checks this too; a file with a deeper `headings:` would never parse.
+    let h = opts.headings.unwrap_or(opts.doc.headings);
+    if h > mdblock::MAX_HEADINGS {
+        return Err(mdblock::ParseError::BadConfig {
+            key: "headings".to_owned(),
+            value: h.to_string(),
+        }
+        .into());
+    }
     if !cfg.force && std::fs::symlink_metadata(out).is_ok() {
         return Err(Error::FileExists(out.to_path_buf()));
     }
     let store = StateStore::open(&cfg.state_dir)?;
     let root_ref = RootRef::parse(root)?;
+    let (mut fm, kept_warning) = render_frontmatter(out, root_ref.clone(), &opts.doc);
+    if let Some(h) = opts.headings {
+        fm.config.headings = h;
+    }
+    let doc = fm.config.clone();
     let mut remote = export_tree(api)?;
     let root_id = root_ref
         .resolve(&IdMap::from_tree(&remote))
@@ -494,6 +567,7 @@ pub fn render_once(
     }
 
     let mut report = SyncReport::new(out, Some(root_id.clone()), SyncOutcome::Unchanged);
+    report.warnings.extend(kept_warning);
     let journal = store.journal_path(&root_id);
     if journal.exists() {
         report.recovered = apply::recover(&journal, api)?;
@@ -508,14 +582,12 @@ pub fn render_once(
         .map(|cp| mirrors::full_placements(&cp.base_wf))
         .unwrap_or_default();
     let remote = mirrors::view_tree(&remote, &root_id, &previous);
-    let view = View::build(&remote, &root_id, doc, &ViewExtras::default())?;
+    let view = View::build(&remote, &root_id, &doc, &ViewExtras::default())?;
     if view.root_completed {
         report
             .warnings
             .push("the sync root is completed in Workflowy".to_owned());
     }
-    let mut fm = Frontmatter::new(root_ref);
-    fm.config = doc.clone();
     fm.generation = Some(generation);
     let md = mdblock::render(&view, &fm);
     let subtree = remote

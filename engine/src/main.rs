@@ -21,8 +21,8 @@ use std::time::Duration;
 use clap::{Parser, Subcommand};
 
 use syncflowy::daemon::{self, DaemonConfig};
-use syncflowy::mdblock::DocConfig;
-use syncflowy::sync::{self, PauseReason, SyncConfig, SyncOutcome, SyncReport};
+use syncflowy::mdblock::{DocConfig, MAX_HEADINGS};
+use syncflowy::sync::{self, PauseReason, RenderConfig, SyncConfig, SyncOutcome, SyncReport};
 use syncflowy::wfclient::{Client, ClientConfig, DEFAULT_BASE_URL};
 
 #[derive(Debug, Parser)]
@@ -65,10 +65,13 @@ enum Command {
         root: String,
         /// Output Markdown file.
         out: PathBuf,
-        /// Render depth 1..N as headings.
-        #[arg(long, default_value_t = 0)]
-        headings: u8,
-        /// Overwrite an existing file or checkpoint.
+        /// Render depth 1..N as headings (0 to 6; default 0, or the options kept by
+        /// --force).
+        #[arg(long, value_parser = clap::value_parser!(u8).range(0..=i64::from(MAX_HEADINGS)))]
+        headings: Option<u8>,
+        /// Overwrite an existing file or checkpoint. An existing file that names the same
+        /// root keeps its options and other frontmatter lines (not gen, force or paused);
+        /// for a clean reset, delete the file first.
         #[arg(long)]
         force: bool,
     },
@@ -242,11 +245,11 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
         } => {
             let api = client(&cli)?;
             cfg.force = *force;
-            let doc = DocConfig {
+            let opts = RenderConfig {
+                doc: DocConfig::default(),
                 headings: *headings,
-                ..DocConfig::default()
             };
-            let report = sync::render_once(&api, root, out, &doc, &cfg)?;
+            let report = sync::render_once(&api, root, out, opts, &cfg)?;
             Ok(print_report(&report))
         }
         Command::Sync {

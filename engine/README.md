@@ -58,8 +58,10 @@ S="--api-url http://127.0.0.1:8765 --state-dir /tmp/st"
 ### `render <ROOT> <OUT.md> [--headings N] [--force]`
 
 Renders the subtree under `ROOT` (a short id, a full UUID, or a `https://workflowy.com/#/<short>` URL) into a new
-file and records the first checkpoint, which starts the sync. `--headings N` renders depth 1..N as `#` headings.
-It refuses to overwrite an existing file or checkpoint unless `--force` is given.
+file and records the first checkpoint, which starts the sync. `--headings N` (0 to 6) renders depth 1..N as `#`
+headings. It refuses to overwrite an existing file or checkpoint unless `--force` is given. With `--force`, an
+existing file that names the same root keeps its `syncflowy:` options (not `gen`, `force` or `paused`) and its
+other frontmatter lines, and `--headings` changes only the heading depth; delete the file first for a clean reset.
 
 ```console
 $ syncflowy $S render 5e23116b-0a18-4c58-82b5-cbe4cb0343ff vault/plan.md

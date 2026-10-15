@@ -14,7 +14,7 @@ use syncflowy::mdblock::{self, DocConfig};
 use syncflowy::merge::ReportEvent;
 use syncflowy::plan::Brake;
 use syncflowy::state::StateStore;
-use syncflowy::sync::{self, PauseReason, SyncOutcome};
+use syncflowy::sync::{self, PauseReason, RenderConfig, SyncOutcome};
 use syncflowy::tree::{NodeId, Position};
 use syncflowy::wfclient::Api;
 
@@ -194,6 +194,74 @@ fn render_with_headings_round_trips() {
     f.env.sync(&file);
     assert_eq!(f.env.export().get(&f.milk).unwrap().name, "Buy oat milk");
     assert_ne!(f.env.snapshot(), before);
+}
+
+#[test]
+fn forced_render_keeps_the_old_frontmatter() {
+    let f = fixture();
+    edit(
+        &f.file,
+        "syncflowy: {gen: 1}",
+        "syncflowy: {ids: comment, checkboxes: all, depth: 2, paused: true, force: true, gen: 1}\n\
+         tags: [plans]\npaused: true",
+    );
+    let short = f.root.short().unwrap().to_string();
+    let mut forced = f.env.cfg.clone();
+    forced.force = true;
+    let render = |opts: RenderConfig| {
+        sync::render_once(&f.env.client, &short, &f.file, opts, &forced).unwrap()
+    };
+    let r = render(RenderConfig::default());
+    assert_eq!(r.outcome, SyncOutcome::Rendered { generation: 2 });
+    let text = read(&f.file);
+    assert!(
+        text.contains(
+            "syncflowy: {ids: comment, checkboxes: all, depth: 2, gen: 2}\ntags: [plans]\n---\n"
+        ),
+        "options and other lines kept; gen, force, paused and the top-level option not:\n{text}"
+    );
+    assert!(text.contains("- [ ] Plan %%wf:"), "{text}");
+
+    // --headings overrides only headings.
+    render(RenderConfig {
+        headings: Some(1),
+        ..RenderConfig::default()
+    });
+    let text = read(&f.file);
+    assert!(
+        text.contains("syncflowy: {headings: 1, ids: comment, checkboxes: all, depth: 2, gen: 3}"),
+        "{text}"
+    );
+
+    // A file of another root keeps nothing (and says so).
+    let other = f.env.ui_create(None, "Other");
+    let other_file = f.env.path("other.md");
+    f.env.render(&other, &other_file);
+    std::fs::copy(&f.file, &other_file).unwrap();
+    let other_short = other.short().unwrap().to_string();
+    let r = sync::render_once(
+        &f.env.client,
+        &other_short,
+        &other_file,
+        &DocConfig::default(),
+        &forced,
+    )
+    .unwrap();
+    assert!(
+        r.warnings.iter().any(|w| w.contains("another root")),
+        "{r:#?}"
+    );
+    assert!(read(&other_file).contains("syncflowy: {gen: 2}\n---\n"));
+
+    // Library callers get the same bound as the command line.
+    let fresh = f.env.path("fresh.md");
+    let doc = DocConfig {
+        headings: 7,
+        ..DocConfig::default()
+    };
+    let e = sync::render_once(&f.env.client, &short, &fresh, &doc, &forced).unwrap_err();
+    assert!(matches!(e, Error::Parse(_)), "{e}");
+    assert!(!fresh.exists());
 }
 
 // ---------------------------------------------------------------------------------------

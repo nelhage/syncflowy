@@ -105,6 +105,22 @@ fn render_sync_status() {
 }
 
 #[test]
+fn render_refuses_headings_above_six() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Project");
+    let file = env.path("deep.md");
+    let root_short = short(&root).to_string();
+    let path = file.to_str().unwrap();
+    let o = cli(&env, &["render", &root_short, path, "--headings", "7"]);
+    assert_eq!(o.status.code(), Some(2), "{}", stderr(&o));
+    assert!(stderr(&o).contains("0..=6"), "{}", stderr(&o));
+    assert!(!file.exists());
+    let o = cli(&env, &["render", &root_short, path, "--headings", "6"]);
+    assert!(o.status.success(), "{}", stderr(&o));
+    assert!(read(&file).contains("syncflowy: {headings: 6, gen: 1}"));
+}
+
+#[test]
 fn missing_api_key_is_an_error() {
     let env = Env::new();
     let o = Command::new(env!("CARGO_BIN_EXE_syncflowy"))
