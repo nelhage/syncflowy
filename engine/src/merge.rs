@@ -41,10 +41,13 @@
 //!    (§4.4 "take the last valid one"), that resolves through `ids` to a node in `base`
 //!    or in the remote subtree identifies it. If several items carry the same tag, the
 //!    one that best matches its `base_doc` item (text similarity of the plain text of
-//!    the names, then same parent, then position) keeps it; the others are new nodes
-//!    ([`ReportEvent::DuplicateTag`]). Duplicates are resolved parents first, and "same
-//!    parent" compares the parent item's resolved identity, so a pasted copy of a
-//!    subtree is created whole and the original children stay under the original.
+//!    the names, then same parent, then position) keeps it. Each other one takes the
+//!    next valid tag on its line whose node no line wins and no other item took (so a
+//!    line with its own tag and a copied one keeps its node), and only a line left
+//!    without one is a new node ([`ReportEvent::DuplicateTag`]). Duplicates are
+//!    resolved parents first, and "same parent" compares the parent item's resolved
+//!    identity, so a pasted copy of a subtree is created whole and the original
+//!    children stay under the original.
 //! 2. A tag resolving to a node inside another managed root (`cross.other_roots`, the
 //!    roots themselves excluded) is a cross-file move into this file (§6.4). Any other
 //!    tag (unknown, ambiguous, or a node elsewhere in the account) is ignored with
@@ -507,11 +510,14 @@ pub enum ReportEvent {
     DeleteLost { node: NodeId },
     /// A tag that does not belong to this file was ignored (§4.4).
     ForeignTag { short: ShortId, line: usize },
-    /// A duplicated tag: `kept_line` kept the identity, the others became new nodes.
+    /// A duplicated tag: `kept_line` kept the identity, the lines in `other_tag_lines`
+    /// kept the node of another tag they carry (§4.4), the others became new nodes.
     DuplicateTag {
         short: ShortId,
         lines: Vec<usize>,
         kept_line: usize,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        other_tag_lines: Vec<usize>,
     },
     /// An untagged item was matched to a base node by the fallback (§4.4).
     Rematched { node: NodeId, line: usize },
@@ -625,11 +631,26 @@ impl ReportEvent {
                 short,
                 lines,
                 kept_line,
+                other_tag_lines,
             } => {
-                let lines: Vec<String> = lines.iter().map(usize::to_string).collect();
+                let join = |ls: &[usize]| -> String {
+                    let ls: Vec<String> = ls.iter().map(usize::to_string).collect();
+                    ls.join(", ")
+                };
+                let new_items = lines.len().saturating_sub(1 + other_tag_lines.len());
+                let other = match other_tag_lines.as_slice() {
+                    [] => String::new(),
+                    [one] => format!("line {one} keeps its other id tag"),
+                    many => format!("lines {} keep their other id tags", join(many)),
+                };
+                let rest = match (other.is_empty(), new_items) {
+                    (true, _) => "the others are new items".to_owned(),
+                    (false, 0) => other,
+                    (false, _) => format!("{other}, the others are new items"),
+                };
                 format!(
-                    "id tag {short} appears on lines {}; line {kept_line} keeps it, the others are new items",
-                    lines.join(", ")
+                    "id tag {short} appears on lines {}; line {kept_line} keeps it, {rest}",
+                    join(lines)
                 )
             }
             ReportEvent::Rematched { node, line } => {
@@ -895,6 +916,7 @@ mod tests {
                 short,
                 lines: vec![3, 9],
                 kept_line: 9,
+                other_tag_lines: Vec::new(),
             },
             ReportEvent::Rematched {
                 node: a.clone(),

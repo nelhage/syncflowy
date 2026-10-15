@@ -703,18 +703,54 @@ impl<'a, 'c> Engine<'a, 'c> {
             }
         }
         let w = self.best_duplicate(node, list, cand, state);
+        self.items[w].ident = self.ident_of(cand[w].clone().expect("candidate"));
+        // A losing line that carries other tags keeps the identity of the first of them
+        // that nobody else claims (§4.4 "take the last valid one"), in file order; only
+        // a line left with none is a new item.
+        let mut other_tag_lines = Vec::new();
+        for &i in list {
+            if i == w {
+                continue;
+            }
+            match self.unclaimed_other_tag(i, node, by_node) {
+                Some(c) => {
+                    self.items[i].ident = self.ident_of(c);
+                    other_tag_lines.push(self.items[i].item.line);
+                }
+                None => self.items[i].ident = Ident::Duplicate,
+            }
+        }
         self.report.push(ReportEvent::DuplicateTag {
             short: node.short().expect("resolved through the id map"),
             lines: list.iter().map(|&i| self.items[i].item.line).collect(),
             kept_line: self.items[w].item.line,
+            other_tag_lines,
         });
-        for &i in list {
-            if i != w {
-                self.items[i].ident = Ident::Duplicate;
-            }
-        }
-        self.items[w].ident = self.ident_of(cand[w].clone().expect("candidate"));
         state.insert(node.clone(), true);
+    }
+
+    /// The candidate of another tag on item `i`'s line (in "last valid" order, skipping
+    /// the node it lost, `lost`) whose node no line wins and no item has taken yet.
+    /// Every node some line names as its winning tag is claimed by that line
+    /// (`by_node`), so a fallback never takes a node from another item, and checking
+    /// what earlier fallbacks took reaches the fixed point in one pass.
+    fn unclaimed_other_tag(
+        &self,
+        i: usize,
+        lost: &NodeId,
+        by_node: &BTreeMap<NodeId, Vec<usize>>,
+    ) -> Option<Cand> {
+        let it = self.items[i].item;
+        it.tag
+            .iter()
+            .chain(it.extra_tags.iter().rev())
+            .filter_map(|t| self.classify_tag(t))
+            .find(|c| {
+                let n = c.node();
+                n != lost
+                    && !by_node.contains_key(n)
+                    && !self.items.iter().any(|li| li.ident.node() == Some(n))
+            })
     }
 
     /// §4.4: the occurrence that best matches the base item (text similarity, then same

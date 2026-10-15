@@ -219,7 +219,9 @@ GET by short id recovers it if the checkpoint is lost (DM§3.1).
 Ids in a freely edited text file are fragile. The engine must handle all of these:
 
 - **Duplicated tag** (a line was copied): the occurrence that best matches the base (text similarity,
-  then position) keeps the identity. The others are new nodes, and their tags are rewritten on output.
+  then position) keeps the identity. An other occurrence whose line carries a further valid tag that no
+  line wins (its own tag next to a copied one) keeps that node; the rest are new nodes, and their tags
+  are rewritten on output.
 - **Deleted tag, text kept**: this looks like delete plus create, which would destroy the node's WF history
   and, worse, re-create the node's WF-only features (colour, mirror status, `layoutMode`) as lost. Fallback:
   pair each unmatched new item with an unmatched deleted base item of the same parent, position and similar
