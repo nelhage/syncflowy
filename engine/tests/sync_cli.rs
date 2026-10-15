@@ -182,3 +182,51 @@ fn status_creates_no_state_directory() {
     );
     assert!(!fresh.exists());
 }
+
+#[test]
+fn a_second_file_for_a_root_is_refused_across_runs() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Project");
+    env.ui_create(Some(&root), "Alpha");
+    let file = env.path("big.md");
+    env.render(&root, &file);
+    let before = env.snapshot();
+
+    // A conflict copy is never synced, even on its own.
+    let copy = env.path("big (conflicted copy 2026-10-13).md");
+    std::fs::copy(&file, &copy).unwrap();
+    edit(&copy, "Alpha", "Alpha, in the copy");
+    let o = cli(&env, &["sync", copy.to_str().unwrap()]);
+    assert_eq!(o.status.code(), Some(1), "{}{}", stdout(&o), stderr(&o));
+    assert!(
+        stdout(&o).contains("skipped: looks like a sync conflict copy"),
+        "{}",
+        stdout(&o)
+    );
+
+    // Another file naming the root while the synced one still exists: paused.
+    let other = env.path("renamed-big.md");
+    std::fs::rename(&copy, &other).unwrap();
+    let o = cli(&env, &["sync", other.to_str().unwrap()]);
+    assert_eq!(o.status.code(), Some(1), "{}{}", stdout(&o), stderr(&o));
+    let s = stdout(&o);
+    assert!(s.contains("paused: several files claim this root"), "{s}");
+    assert!(s.contains("big.md"), "{s}");
+    assert_eq!(env.snapshot(), before);
+
+    // A real rename (the old path is gone) is synced.
+    std::fs::remove_file(&file).unwrap();
+    let o = cli(&env, &["sync", other.to_str().unwrap()]);
+    assert!(o.status.success(), "{}{}", stdout(&o), stderr(&o));
+    assert!(stdout(&o).contains("1 updated"), "{}", stdout(&o));
+    // So is one whose old path now holds another root.
+    let third = env.path("third.md");
+    std::fs::rename(&other, &third).unwrap();
+    let root2 = env.ui_create(None, "Other");
+    env.ui_create(Some(&root2), "Beta");
+    env.render(&root2, &other);
+    edit(&third, "Alpha, in the copy", "Alpha again");
+    let o = cli(&env, &["sync", third.to_str().unwrap()]);
+    assert!(o.status.success(), "{}{}", stdout(&o), stderr(&o));
+    assert!(stdout(&o).contains("1 updated"), "{}", stdout(&o));
+}

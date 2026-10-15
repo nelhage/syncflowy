@@ -214,7 +214,9 @@ A note on "Planning": the lines right under the heading.
 * **Other guards.** Every update checks the remote value just before writing it (a collaborator's later edit
   becomes a conflict, not an overwrite). Creates are journaled and nonce-tagged so a crash never duplicates a
   node; an interrupted cycle is recovered by the next run. A file that cannot be parsed (frontmatter) is skipped,
-  never read as "everything deleted". Two files claiming one root are both skipped. A synced file that is a
+  never read as "everything deleted". Two files claiming one root are both paused, also when they are synced by
+  separate `sync` commands (the checkpoint records the file last synced; a rename is fine), and a file whose name
+  looks like a sync conflict copy (`(conflicted copy ...)`, `(... conflict ...)`, `.sync-conflict-`) is skipped. A synced file that is a
   symlink stays a symlink and keeps its mode. `paused: true` in the frontmatter stops syncing a file.
 * **The status note** (daemon): `Workflowy Sync Status.md` in the vault, rewritten after every cycle. It lists each
   root with its file, last sync, generation and state, the conflicts awaiting resolution, the pending deletes, per-file

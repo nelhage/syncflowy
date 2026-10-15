@@ -118,8 +118,12 @@
 //!
 //! # Several files (§6.4)
 //!
-//! `sync_all` parses every file first. Two files naming the same root: both are
-//! [`SyncOutcome::Paused`] with [`PauseReason::DuplicateRoot`] (guard 5). A root inside
+//! `sync_all` parses every file first; a file whose name looks like a sync conflict copy
+//! (`daemon::is_conflict_copy`) is [`SyncOutcome::Skipped`]. Two files naming the same
+//! root: both are [`SyncOutcome::Paused`] with [`PauseReason::DuplicateRoot`] (guard 5).
+//! So is a file whose root's checkpoint records another file that still exists and still
+//! names the root (two files claiming one root in separate runs); a renamed file, whose
+//! old path is gone or names another root, is synced. A root inside
 //! another root of the run: the inner file fails with `Error::NestedRoots` (the outer
 //! one is synced). Then one export; then every merge (with `CrossFile.other_roots` = the
 //! other roots, `claimed_elsewhere` = nodes tagged in the other files that are not in
@@ -1480,6 +1484,13 @@ pub fn sync_all(
     let mut parsed: Vec<(usize, String, LocalDoc)> = Vec::new();
     for (i, file) in files.iter().enumerate() {
         let done = |outcome| Some(Ok(SyncReport::new(file, None, outcome)));
+        if crate::daemon::is_conflict_copy(file) {
+            // Guard 5: a copy made by a sync tool claims its original's root.
+            results[i] = done(SyncOutcome::Skipped {
+                reason: "looks like a sync conflict copy".to_owned(),
+            });
+            continue;
+        }
         match read_text(file) {
             Ok(None) => {
                 log::warn!(
@@ -1537,6 +1548,33 @@ pub fn sync_all(
                         SyncOutcome::Paused(PauseReason::DuplicateRoot(paths.clone())),
                     )));
                 }
+            }
+        }
+        resolved.retain(|(i, ..)| results[*i].is_none());
+        // Guard 5 across runs: the file the root was last synced from still exists
+        // and still names it. A rename (the old path gone, or now naming another
+        // root) is accepted.
+        for (i, _, _, r) in &resolved {
+            let Some(old) = store.load_checkpoint(r).ok().flatten().and_then(|c| c.file) else {
+                continue;
+            };
+            if recorded_path(&old) == recorded_path(&files[*i]) {
+                continue;
+            }
+            let names_root = read_text(&old)
+                .ok()
+                .flatten()
+                .and_then(|t| mdblock::parse_frontmatter(&t).ok())
+                .and_then(|fm| fm.root.resolve(&ids))
+                .is_some_and(|o| &o == r);
+            if names_root {
+                let paths = vec![old, files[*i].clone()];
+                log::warn!("root {r} is claimed by several files: {paths:?}; not synced");
+                results[*i] = Some(Ok(SyncReport::new(
+                    &files[*i],
+                    Some(r.clone()),
+                    SyncOutcome::Paused(PauseReason::DuplicateRoot(paths)),
+                )));
             }
         }
         resolved.retain(|(i, ..)| results[*i].is_none());

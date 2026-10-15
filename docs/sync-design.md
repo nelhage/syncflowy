@@ -594,6 +594,9 @@ is the likeliest glitch in this topology.
 - If a **file is missing**, pause that root and report. Do not re-render it unasked, because deleting it on a
   client is the obvious way to say "stop syncing this", and the engine must not delete anything in response.
 - Files whose names look like conflict copies are never synced.
+- `syncflowy sync`, which is given files instead of scanning a vault, also compares a file with the one recorded
+  in the root's checkpoint: if that one still exists under another path and still names the root, the root is
+  claimed twice and the file is not synced. A rename (the old path is gone, or names another root) is accepted.
 
 #### Guard 6: other writers on the clients
 
