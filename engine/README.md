@@ -47,9 +47,10 @@ The state directory holds the checkpoints and must be **outside the vault** (see
 
 Exit codes: `0` success (this includes a file paused by `paused: true`, conflicts and safe mode: read the report),
 `1` the run needs attention (a brake, a skipped file, a missing file, two files claiming one root, or an error in
-one file of a `sync` such as an unknown root or a missing checkpoint; the other files are still synced), `2` a
-fatal error (no API key, a 401, the API unreachable, unusable state, an unknown root given to `render` or
-`status FILE`, ...).
+one file of a `sync` such as an unknown root or a missing checkpoint; the other files are still synced; for
+`status FILE...`, a file that is missing, unreadable or has no checkpoint), `2` a fatal error (no API key, a 401,
+the API unreachable, unusable state, an unknown root given to `render`, `render` refusing an existing file or
+checkpoint, ...).
 
 ## Commands
 
@@ -214,7 +215,9 @@ A note on "Planning": the lines right under the heading.
   its hidden descendants (completed, or below `depth:`), which you cannot see; the report and the dry run name
   them (the first ten).
 * **Mass-change brakes** (§8.3) stop a run before anything is written, report `refused: ...` and exit 1:
-  * every visible node of the base would be deleted (the file is empty, has no items, or keeps only new lines),
+  * the file has no items while the run deletes something, or every visible node of the base would be deleted
+    (the file keeps only new lines); a file emptied because its items were pasted into another file of the run
+    is not braked,
   * the deletes (visible plus hidden) exceed 50, or there are at least 5 of them and they exceed 20% of the base's
     visible nodes,
   * the completions exceed 200, or there are at least 10 of them and they exceed 50% of the visible nodes.
@@ -296,7 +299,7 @@ the server that talks to Workflowy: there must be only one engine per account.
 * Dates render compactly only for the observed forms; ranges, times, and locale or 24-hour variants stay literal HTML.
 * Markdown link titles are dropped (`[a](b "t")` is pushed as a link to `b`, and the report says the title was dropped). Images
   and Obsidian comments are literal text in Workflowy (a `%%x%%` typed there is hidden in Obsidian).
-* A node that cannot round-trip is shown read-only (`🔒`); edit it in Workflowy.
+* A node that cannot round-trip is shown read-only (`🔒`); edit its text in Workflowy.
 * The client sends at most 10 requests per second. A cycle exports once, or twice when it pushes (the second
   export verifies the push and renders the file). The documented export limit of one per minute was not observed
   in production; the daemon spaces its cycles by `--min-export-interval`, and if the limit is ever enforced, a
