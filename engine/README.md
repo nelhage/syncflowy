@@ -252,7 +252,8 @@ the server that talks to Workflowy: there must be only one engine per account.
   Markdown. A mirror's hidden persisted children (DM§10.5) are never shown and go with the mirror when it is
   removed. Observed on the beta host on 2026-10-13 only through the mock.
 * Dates render compactly only for the observed forms; ranges, times, and locale or 24-hour variants stay literal HTML.
-* Markdown link titles are not supported (`[a](b "t")` is literal text). Images are literal text.
+* Markdown link titles are dropped (`[a](b "t")` is pushed as a link to `b`, reported as a lossy write). Images
+  and Obsidian comments are literal text in Workflowy (a `%%x%%` typed there is hidden in Obsidian).
 * A node that cannot round-trip is shown read-only (`🔒`); edit it in Workflowy.
 * The client sends at most 10 requests per second and exports once per cycle; the documented export limit of one per minute was not observed in production (the daemon's `--min-export-interval` keeps to it).
 * The engine has only been run against the mock server, never against the real API. Anything marked UNVERIFIED
