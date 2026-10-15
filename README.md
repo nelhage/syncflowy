@@ -36,13 +36,14 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the Python suit
 
 | path | what it is |
 |---|---|
-| [docs/sync-design.md](docs/sync-design.md) | **Design of the sync engine**: the Markdown dialect, three-way merge, applying changes through the API, ordering and safety, deployment as one daemon behind Obsidian Sync, mirrors (future work), and the choice of Rust. |
+| [docs/sync-design.md](docs/sync-design.md) | **Design of the sync engine**: the Markdown dialect, three-way merge, applying changes through the API, ordering and safety, deployment as one daemon behind Obsidian Sync, mirrors (as placeholders on production, as their origins on the beta API), and the choice of Rust. |
 | [docs/workflowy/README.md](docs/workflowy/README.md) | Index and one-page summary of the API investigation. Start here for anything about Workflowy's behaviour. |
-| [docs/workflowy/data-model.md](docs/workflowy/data-model.md) | **The authoritative API spec**: storage model, every endpoint, validation, ids, priorities, `modifiedAt`, text processing, mirrors. |
+| [docs/workflowy/data-model.md](docs/workflowy/data-model.md) | **The authoritative API spec**: storage model, every endpoint, validation, ids, priorities, `modifiedAt`, text processing, mirrors (production, and the beta API's mirror-aware semantics in §10.5). |
 | [docs/workflowy/ui-findings.md](docs/workflowy/ui-findings.md) | What the web UI actually does (reordering, deletes, text format, layouts, mirrors), observed through the API while a human used the UI. |
 | [docs/workflowy/ui-scenarios.md](docs/workflowy/ui-scenarios.md) | The list of human-in-the-loop UI scenarios, run and still to run. |
 | [docs/workflowy/open-questions.md](docs/workflowy/open-questions.md) | What is still unknown about the API. |
 | [docs/workflowy/upstream-api-reference.md](docs/workflowy/upstream-api-reference.md) | The official API reference, vendored. |
+| [docs/workflowy/upstream-api-reference-beta.md](docs/workflowy/upstream-api-reference-beta.md) | The official **beta** API reference (`beta.workflowy.com`), vendored. It adds mirror-aware semantics. |
 | `docs/workflowy/*.md` (others) | Per-area investigation notes with evidence: create, update and complete, ordering and move, delete and mirrors, errors and HTTP, text and content, three follow-up rounds, and global read-only probes. Indexed in [docs/workflowy/README.md](docs/workflowy/README.md). |
 | [docs/mock-server.md](docs/mock-server.md) | How to run and use the mock server, its mock-only admin and UI-simulation routes, and its known deviations from production. |
 | [docs/conformance.md](docs/conformance.md) | How the differential conformance suite works, and how to record goldens and check the mock. |
@@ -59,7 +60,7 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the Python suit
 
 | path | what it is |
 |---|---|
-| [`prod_client.py`](src/syncflowy/prod_client.py) | Client for the **production** API: rate-limited, confined to a scratchpad node unless told otherwise, and logging every request to `.prod-state/requests.jsonl`. |
+| [`prod_client.py`](src/syncflowy/prod_client.py) | Client for the **production** API (or, with `base_url=BETA_URL`, the beta host): rate-limited, confined to a scratchpad node unless told otherwise, and logging every request to `.prod-state/requests.jsonl`. |
 | [`wfhtml.py`](src/syncflowy/wfhtml.py) | Workflowy's rich-text format for names and notes ("WF-HTML"): escaping, canonicalisation and well-formedness checks. The Rust engine's `wfhtml` is a port of this. |
 | [`mock/`](src/syncflowy/mock/) | The mock API server (`syncflowy-mock`), backed by SQLite. `app.py` is the HTTP layer, `ops.py` the endpoint semantics, `store.py` storage, `text.py` the create-name text pipeline, `models.py` request validation, `ui.py` the test-only `/_mock/ui/*` routes that simulate web-UI edits, and `testing.py` runs the server in a thread for tests. |
 | [`conformance/`](src/syncflowy/conformance/) | The differential conformance suite (`syncflowy-conformance`). `scenarios/` holds the scenarios by area; the rest is the recording client, backends, normaliser and runner. |
@@ -87,6 +88,7 @@ run against production, inside the scratchpad node.
 | `errors-http/` | routing, errors, ids, bodies ([errors-and-http.md](docs/workflowy/errors-and-http.md)) |
 | `text-content/` | name and note fidelity ([text-and-content.md](docs/workflowy/text-and-content.md)) |
 | `followup-0/`, `followup-1/`, `followup-2/` | follow-up rounds ([followup-0.md](docs/workflowy/followup-0.md), [-1](docs/workflowy/followup-1.md), [-2](docs/workflowy/followup-2.md)) |
+| `beta-mirrors/` | the beta host's mirror-aware semantics, read side by side with production ([data-model.md §10.5](docs/workflowy/data-model.md#105-beta-api-mirror-aware-semantics)) |
 | `ui/` | tooling for the UI scenarios: `ui.py` builds fixtures and snapshots and diffs them, `step.sh` snapshots one step; `state/` and `snaps/` hold each scenario's ids and snapshots ([ui-findings.md](docs/workflowy/ui-findings.md)) |
 
 ## Other files

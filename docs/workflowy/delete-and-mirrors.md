@@ -9,6 +9,11 @@ deleted and mirrored nodes look through the rest of the API.
 - All experiments ran on 2026-10-12 (server clock around `1791834400`–`1791834690`) inside
   sandboxes under the scratchpad (`a846cfce4c6d`).
 
+> **Beta API (2026-07-22).** Everything below describes **production** (`workflowy.com`). The beta API
+> (`beta.workflowy.com`) documents mirror-aware semantics instead: `data.mirror` metadata, shells that show and write through
+> to their origin, and a refused delete of an origin that still has mirrors. That was probed on 2026-10-13. See
+> [data-model.md §10.5](data-model.md#105-beta-api-mirror-aware-semantics) and open-questions R1–R9.
+
 Labels used below: **[observed]** means seen directly in a response (re-run where
 noted). **[inferred]** means a reasonable reading of what was observed but not
 directly proven.

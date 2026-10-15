@@ -152,6 +152,20 @@
 //! another file: it is neither deleted nor moved here (the other file's merge moves
 //! it); it stays in `M` at its remote position.
 //!
+//! **Mirrors (§15.1, `crate::mirrors`).** On a view tree (base and remote alike) a
+//! shell placement that renders its origin in full is an ordinary item whose edits,
+//! ticks, creates and moves name the placement; `mirrors::to_real` maps them to the
+//! content node afterwards. A **stub** placement (`ItemKind::MirrorStub`, `stub` on the
+//! node) and an orphan shell are treated like §10 placeholders: read-only, no children,
+//! items typed or moved under them refused. Deleting a shell placement is an ordinary
+//! delete of that node (the planner removes just the mirror); its descendants in the
+//! view are the content's children and are neither deleted nor counted. A delete is
+//! refused ([`ReportEvent::MirrorDeleteRefused`]) when the deleted node, or a node below
+//! it other than through a shell, is an origin that still has mirrors (live shells, or
+//! entries in its registry, DM§10.5: the API would answer 400, and removing a mirror
+//! that Workflowy users rely on is their call); the refused subtree is kept whole, and
+//! `force` does not override this.
+//!
 //! **Pending deletes (§9.1 guard 2).** Nodes in `pending_deletes` that are still in the
 //! remote subtree and were neither cancelled nor changed remotely are listed in
 //! `deletes` again on every merge (and removed from `M`), so that `sync` can keep
@@ -509,6 +523,9 @@ pub enum ReportEvent {
     ReadOnlyEditRefused { node: NodeId, line: usize },
     /// A delete of a placeholder was refused without `force` (§10).
     PlaceholderDeleteRefused { node: NodeId },
+    /// A delete was refused because `node` is, or holds, the mirror origin `origin`,
+    /// which still has mirrors (§15.1, DM§10.5). Remove the mirrors in Workflowy first.
+    MirrorDeleteRefused { node: NodeId, origin: NodeId },
     /// A local value equal to an earlier render was ignored (§9.1 guard 3).
     StaleEcho { node: NodeId, field: ConflictField },
     /// A tagged item hidden remotely and absent from the base was dropped (guard 3).
@@ -629,6 +646,15 @@ impl ReportEvent {
             ReportEvent::PlaceholderDeleteRefused { node } => format!(
                 "{} is a mirror placeholder; its delete was not sent (use force)",
                 n(node)
+            ),
+            ReportEvent::MirrorDeleteRefused { node, origin } if node == origin => format!(
+                "{} still has mirrors in Workflowy; its delete was not sent (remove the mirrors first)",
+                n(node)
+            ),
+            ReportEvent::MirrorDeleteRefused { node, origin } => format!(
+                "{} contains {}, which still has mirrors in Workflowy; its delete was not sent (remove the mirrors first)",
+                n(node),
+                n(origin)
             ),
             ReportEvent::StaleEcho { node, field } => format!(
                 "the {} of {} equals an older render; ignored as a stale echo",
@@ -781,10 +807,10 @@ pub fn merge_with(
 /// The nodes of `tree` visible from `root` under the file's projection rules (§4.5,
 /// the same rules as `mdblock::View`): the root always; below it, nodes that are not
 /// completed, not in `hidden` (pending deletes), not deeper than `cfg.max_depth`, and
-/// not children of a mirror placeholder (§10). The root is never treated as a
-/// placeholder, and nodes with layout `divider` are not placeholders (an empty divider
-/// renders as `- ---`). UNVERIFIED design choice: both exceptions are this module's
-/// reading of `mdblock`'s rules.
+/// not children of a mirror placeholder (§10) or stub (§15.1). The root is never
+/// treated as a placeholder, and nodes with layout `divider` are not placeholders (an
+/// empty divider renders as `- ---`). UNVERIFIED design choice: both exceptions are
+/// this module's reading of `mdblock`'s rules.
 pub fn visible_nodes(
     tree: &Tree,
     root: &NodeId,
@@ -796,9 +822,14 @@ pub fn visible_nodes(
         return out;
     }
     out.insert(root.clone());
+    let mirror_aware = tree.has_mirror_metadata();
     let mut stack: Vec<(NodeId, u32)> = vec![(root.clone(), 0)];
     while let Some((id, depth)) = stack.pop() {
-        if &id != root && tree.get(&id).is_some_and(is_placeholder_node) {
+        if &id != root
+            && tree
+                .get(&id)
+                .is_some_and(|n| is_placeholder_node(n, mirror_aware))
+        {
             continue;
         }
         if cfg.max_depth.is_some_and(|max| depth + 1 > max) {
@@ -816,9 +847,13 @@ pub fn visible_nodes(
     out
 }
 
-/// The §10 placeholder heuristic as the merge applies it (see [`visible_nodes`]).
-pub(crate) fn is_placeholder_node(node: &crate::tree::Node) -> bool {
-    node.looks_like_mirror_shell() && node.layout != "divider"
+/// A node the merge treats as a read-only placeholder without children (see
+/// [`visible_nodes`]): a §15.1 stub, an orphan shell, or, when the tree has no mirror
+/// metadata (`mirror_aware` false), the §10 heuristic.
+pub(crate) fn is_placeholder_node(node: &crate::tree::Node, mirror_aware: bool) -> bool {
+    node.stub
+        || node.is_orphan_shell()
+        || (!mirror_aware && node.looks_like_mirror_shell() && node.layout != "divider")
 }
 
 #[cfg(test)]
@@ -883,6 +918,10 @@ mod tests {
                 line: 4,
             },
             ReportEvent::PlaceholderDeleteRefused { node: a.clone() },
+            ReportEvent::MirrorDeleteRefused {
+                node: a.clone(),
+                origin: b.clone(),
+            },
             ReportEvent::StaleEcho {
                 node: a.clone(),
                 field: ConflictField::Name,

@@ -43,7 +43,7 @@ These are the facts from the investigation that shape the design most, roughly i
 | **Text is WF-HTML, an XML fragment** (UI:E1–E8, F1/F2): `&amp; &lt; &gt; &quot;`, `<b> <i> <u> <s> <code> <a href> <span class="colored …"> <time …>`, raw `\n` in notes. A malformed name renders blank and is wiped by the next UI edit. | All writes go through `wfhtml` and must be well-formed and canonical (a fixed point of `wfhtml.canonicalize`). |
 | **Mutations need the full UUID**; only GET takes short ids (DM§3.1). | The checkpoint maps short id → UUID. Markdown can carry the short id. |
 | **A move into one's own descendant returns 200 and creates a cycle** (DM§4.7.5). | The planner must check for cycles against *fresh* remote state before every move. This is a hard safety requirement. |
-| **Mirrors cannot be detected or resolved through the API** (DM§10.1, UI:H1–H4). The UI shows the origin's content, while the API shows an empty shell. | Mirrored content cannot be synced yet. Writes to a shell are invisible to UI users (§10). Full support is pending an API change (§15.1). |
+| **Mirrors cannot be detected or resolved through the API** on production (DM§10.1, UI:H1–H4). The UI shows the origin's content, while the API shows an empty shell. | On production, mirrored content cannot be synced and writes to a shell are invisible to UI users (§10). The beta API fixes this (DM§10.5), and the engine follows mirrors on it (§15.1). |
 | **Delete is soft** (UI:B1/B2). Deleted ids can come back with the same id. | A 404 is not a tombstone. On the plus side, every delete we push can be recovered from the Workflowy Trash. |
 | **10 req/s budget** (self-imposed, no 429 observed). | A full initial upload of N nodes costs about 2N requests (§7.2). |
 | **API-created parents appear collapsed in the UI** (UI:C2). Collapse state is not exposed. | A small "tell" to collaborators that we cannot avoid. |
@@ -634,8 +634,9 @@ an origin shows up as "origin moved, shell vanished" (UI:H6), which the general 
 This is the one place where "collaborators won't notice" is not fully achievable, and the gap is in what *we*
 can see, not in what we break.
 
-Full mirror support, where a mirror is edited in place as in the UI, is planned in §15.1. It is **pending an
-upstream API change** that exposes each shell's origin.
+Full mirror support, where a mirror is edited in place as in the UI, is §15.1. The upstream API change it needs
+exists on the **beta** API (DM§10.5) but not yet in production; the engine applies §15.1 whenever the export carries
+mirror metadata, and this section otherwise.
 
 ## 11. What collaborators could notice
 
@@ -736,13 +737,32 @@ Some could be settled with more UI scenarios ([ui-scenarios.md](workflowy/ui-sce
 
 ## 15. Future work
 
-### 15.1 Mirrors as their origins (pending an upstream API change)
+### 15.1 Mirrors as their origins (on the beta API)
 
-**Status: blocked.** This needs the API to return each shell's origin on GET, list and export (for example
-the `origin_id` that `POST /mirror` already returns, or a `mirror_origin_id` field). This has been
-requested from Workflowy support. Until then, §10's read-only placeholders apply.
+**Status: implemented on the beta API (2026-10-14; see the implementation notes for what is narrowed), not yet
+in production.** This needed the API to return each shell's origin on GET, list and export. The beta API (`beta.workflowy.com`, DM§10.5) does that and more: GET, list and
+export carry `data.mirror.origin_id` on shells and `data.mirror.mirror_ids` on origins. A shell reports its origin's
+content, a list of a shell returns the origin's children, and update, complete and create through a shell reach the
+origin. This was observed on the beta host on 2026-10-13 (open-questions R1–R11). The mock implements it behind
+`beta_mirrors`. The engine detects the beta semantics from the export (any record with `data.mirror`) and otherwise
+applies §10's read-only placeholders.
 
-A workaround exists today and has been rejected: `POST /nodes/S/mirror` into a scratch parent returns the
+Three caveats were also observed:
+- `mirror_ids` is a registry stored on the origin. The UI can leave a live shell out of it, and a production-host
+  delete of a shell leaves a **ghost** in it. So the engine should build the origin → shells map from each shell's
+  `origin_id`.
+- A ghost makes its origin undeletable through beta, so the engine must remove shells only with `DELETE /mirror`
+  or a beta plain delete.
+- A shell's own persisted children are invisible in lists, but export includes them, and they are deleted along
+  with the shell.
+
+Two beta rules change the plan below. First, the engine can write through a shell, but it does not need to, because the
+content node's own id always works. Second, **deleting a node fails while it, or any node in its subtree, is an origin
+that still has mirrors**. So a Markdown delete of a subtree that contains origins must first delete their mirror roots
+(`DELETE /nodes/S/mirror`) or decline the delete. Removing a mirror that WF users rely on is a visible change, so the
+safer default is to decline the delete and report it.
+
+For production, a workaround exists and has been rejected: `POST /nodes/S/mirror` into a scratch parent returns the
 resolved `origin_id` (DM§10.2), and the throwaway shell can then be deleted. That costs two requests per
 candidate and has side effects visible to collaborators: the origin's `modifiedAt` is bumped, a brief extra
 mirror exists, and an entry lands in the Trash.
@@ -832,8 +852,19 @@ module docs have the details.
   200 completions or 50% from 10 on. An empty file brakes only when the base had items and the merge deletes
   something. A file emptied because all its items were cut into another file of the run is not braked, because
   it deletes nothing and braking would keep remote changes out of it.
-- **Mirrors (§10) are placeholders only.** A shell is recognised by an empty name, no note and layout `bullets`;
-  its children are never shown and edits or deletes need `--force`. §15.1 is not implemented.
+- **Mirrors (§15.1) on the beta API, placeholders (§10) on production.** The engine decides by the export: any
+  record with `data.mirror` means the beta semantics. On production a shell is recognised by an empty name, no note
+  and layout `bullets`; its children are never shown and edits or deletes need `--force`. On the beta API
+  (`engine/src/mirrors.rs`) the view tree of §15.1 is built per sync root, with the full placement chosen as the
+  first visible one in pre-order and kept sticky from the previous base; the merge runs on it and its result is
+  translated to the real nodes before planning. Narrowed from the design: a stub is read-only (its text edits are
+  refused and rewritten rather than dropped silently, a tick of it is refused instead of completing the content, and
+  items typed under it are lifted to its parent and reported, like items under a §10 placeholder, instead of being
+  kept as a conflict marker); deleting the origin's own placement while shells exist is refused and reported, like any
+  delete whose subtree holds an origin that still has mirrors (the UI's promotion of a shell, H6, is not emulated),
+  and the refused subtree is kept whole; a refused mirror delete is not overridden by `--force`. Orphan shells are
+  placeholders. Mirrors are not created from Markdown. A shell's hidden persisted children (DM§10.5) are dropped from
+  every tree the engine looks at, so they are never shown and are not counted when the shell is removed.
 - **Nodes moved out of the file in Workflowy.** The design does not cover edits to such a node. The engine still
   pushes your edits and ticks to it where it now is. If both sides edited the same field, Workflowy wins and the
   local text is only logged (a marker cannot be shown because the line leaves the file).
@@ -854,5 +885,6 @@ module docs have the details.
   `headings`); the design only recommended making the tag form configurable.
 - **Files** are written in place through symlinks and keep their mode. The state directory layout (checkpoint,
   pending deletes, history, journal, lock) is described in `engine/src/state.rs`.
-- **Not done:** several engines on one account, mirrors as origins (§15.1), any Obsidian Sync experiment (§13 Q7),
+- **Not done:** several engines on one account, mirrors as origins on production (§15.1 needs the beta API), any
+  Obsidian Sync experiment (§13 Q7),
   and the optional title or `# H1` rendering of the root's name (§4.1).

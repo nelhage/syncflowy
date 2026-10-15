@@ -103,14 +103,28 @@
 //! file's base (`CrossFile::bases`, §6.4), so a skipped edit of a pasted line is a
 //! conflict like any other.
 //!
+//! # Mirrors (§15.1, `crate::mirrors`)
+//!
+//! On an export with the beta API's mirror metadata (DM§10.5) every file works on its
+//! own **view tree** (`mirrors::view_tree` over the run's export, with the full
+//! placements of its base as the sticky choice): the merge's remote, the base of the
+//! fast path and of the next checkpoint, and the render's tree are all views. The
+//! planner and the applier work on the **real tree** (`mirrors::real_tree`), and the
+//! merge result is translated between the two with `mirrors::to_real` (the view-space
+//! result keeps the conflicts, report and deletes for the file; the real-space one
+//! goes to `plan`, `apply` and the verification). A CAS rerun maps the applied real
+//! ops back onto the view base (`rebase_after`). Without metadata both trees are the
+//! export and nothing changes.
+//!
 //! # Several files (§6.4)
 //!
 //! `sync_all` parses every file first. Two files naming the same root: both are
 //! [`SyncOutcome::Paused`] with [`PauseReason::DuplicateRoot`] (guard 5). A root inside
 //! another root of the run: the inner file fails with `Error::NestedRoots` (the outer
 //! one is synced). Then one export; then every merge (with `CrossFile.other_roots` = the
-//! other roots, `claimed_elsewhere` = nodes tagged in the other files, resolved with
-//! one global id map, and `bases` = for the nodes of each other root that this file
+//! other roots, `claimed_elsewhere` = nodes tagged in the other files that are not in
+//! those files' own view scope (a node mirrored into two files is in both scopes and
+//! claimed by neither), resolved with one global id map, and `bases` = for the nodes of each other root that this file
 //! pastes, that file's base as its own merge chooses it (step 4) and its older renders,
 //! so the move merges the pasted line against what was cut, `merge::cross_bases`);
 //! then every plan and apply in file order (cross-file moves are
@@ -133,6 +147,7 @@ use crate::mdblock::{
     ViewExtras,
 };
 use crate::merge::{self, CrossBase, CrossFile, MergeConfig, MergeInput, MergeResult, ReportEvent};
+use crate::mirrors;
 use crate::plan::{self, Brake, BrakeConfig, Op, Plan, PlanConfig, PlanError, PlanSummary};
 use crate::state::{
     self, Checkpoint, HistoryEntry, HistoryLimits, PendingDeletes, RootLock, StateError,
@@ -485,6 +500,12 @@ pub fn render_once(
 
     let now = cfg.clock.now();
     let generation = next_generation(&store, &root_id, existing.as_ref().map(|c| c.generation))?;
+    // §15.1: the root's view of the export (sticky to a forced re-render's base).
+    let previous = existing
+        .as_ref()
+        .map(|cp| mirrors::full_placements(&cp.base_wf))
+        .unwrap_or_default();
+    let remote = mirrors::view_tree(&remote, &root_id, &previous);
     let view = View::build(&remote, &root_id, doc, &ViewExtras::default())?;
     if view.root_completed {
         report
@@ -567,6 +588,9 @@ struct Active {
     pushed: PlanSummary,
     /// The base of a CAS rerun (§9): the pass's base with the pushes it applied.
     rebase: Option<Base>,
+    /// §15.1: content -> full placement of this root's latest view (from the
+    /// checkpoint's base at first), the sticky input of the next `mirrors::view_tree`.
+    full: BTreeMap<NodeId, NodeId>,
 }
 
 /// The base of a merge: `base_md` and `base_wf` (§5.1) and where they came from.
@@ -594,7 +618,11 @@ enum BaseKind {
 struct Planned {
     base: Base,
     checkpoint: Option<Checkpoint>,
+    /// The merge on the view tree (conflicts, report, deletes for the file).
     merge: MergeResult,
+    /// The same on the real tree (`mirrors::to_real`): what `apply` and the
+    /// verification compare against.
+    real: MergeResult,
     plan: Plan,
     ids: IdMap,
     /// Deletes deferred this cycle (hidden from the render).
@@ -623,6 +651,7 @@ fn prepare(
     cfg: &SyncConfig,
     a: &mut Active,
     remote: &Tree,
+    real: &Tree,
     global_ids: &IdMap,
     cross: &CrossFile,
     roots: &BTreeSet<NodeId>,
@@ -785,7 +814,9 @@ fn prepare(
         fast_path_creates: cfg.fast_path_creates,
         deferred_deletes: deferred.clone(),
     };
-    let plan = match plan::plan(&merged, remote, &pcfg) {
+    // §15.1: the planner and the applier work on real nodes.
+    let real_merge = mirrors::to_real(&merged, remote, real);
+    let plan = match plan::plan(&real_merge, real, &pcfg) {
         Ok(p) => p,
         Err(PlanError::Brake(b)) => {
             a.report.warnings.push(format!("brake: {b}"));
@@ -810,6 +841,7 @@ fn prepare(
         },
         checkpoint,
         merge: merged,
+        real: real_merge,
         plan,
         ids,
         deferred,
@@ -921,7 +953,8 @@ fn describe_events(events: &[ReportEvent], tree: &Tree) -> Vec<String> {
     events.iter().map(|e| e.describe(tree)).collect()
 }
 
-/// Step 10: apply the plan with a journal. `Ok(None)` for an empty plan.
+/// Step 10: apply the plan with a journal. `Ok(None)` for an empty plan. `remote` is the
+/// real tree the plan was made against.
 fn apply_planned(
     api: &dyn Api,
     store: &StateStore,
@@ -945,7 +978,7 @@ fn apply_planned(
     let outcome = apply::Applier::new(api, opts, roots.clone()).apply(
         &p.plan,
         remote,
-        &p.merge.merged,
+        &p.real.merged,
         journal,
     );
     let outcome = match outcome {
@@ -1138,27 +1171,30 @@ fn rebase_after(p: &Planned, applied: Option<&ApplyOutcome>) -> Base {
             if *result != apply::OpOutcome::Done {
                 continue;
             }
+            // The ops name real nodes; the base is a view (§15.1): a field update
+            // reaches every placement of the content, a move's destination is the
+            // placement that renders the parent's children.
             let r = match op {
-                Op::UpdateName { node, name, .. } if wf.contains(node) => {
-                    wf.set_name(node, name.clone())
-                }
-                Op::UpdateNote { node, note, .. } if wf.contains(node) => {
-                    wf.set_note(node, Some(note.clone()))
-                }
-                Op::UpdateLayout { node, layout, .. } if wf.contains(node) => {
-                    wf.set_layout(node, layout.clone())
-                }
+                Op::UpdateName { node, name, .. } => mirrors::placements_of(&wf, node)
+                    .iter()
+                    .try_for_each(|pl| wf.set_name(pl, name.clone())),
+                Op::UpdateNote { node, note, .. } => mirrors::placements_of(&wf, node)
+                    .iter()
+                    .try_for_each(|pl| wf.set_note(pl, Some(note.clone()))),
+                Op::UpdateLayout { node, layout, .. } => mirrors::placements_of(&wf, node)
+                    .iter()
+                    .try_for_each(|pl| wf.set_layout(pl, layout.clone())),
                 Op::Move {
                     node,
                     parent,
                     position,
                     ..
-                } if wf.contains(node)
-                    && wf.contains(parent)
-                    && wf.parent(node) != Some(parent) =>
-                {
-                    wf.move_node(node, Some(parent), *position)
-                }
+                } if wf.contains(node) => match mirrors::full_placement_of(&wf, parent) {
+                    Some(dest) if wf.parent(node) != Some(&dest) => {
+                        wf.move_node(node, Some(&dest), *position)
+                    }
+                    _ => Ok(()),
+                },
                 _ => Ok(()),
             };
             if let Err(e) = r {
@@ -1378,31 +1414,38 @@ fn rerun(
         }
         let mut ids = global_ids.clone();
         ids.extend_from_tree(&remote);
-        let mut planned = match prepare(store, cfg, a, &remote, &ids, cross, roots)? {
+        // §15.1: the rerun's view keeps the pass's full placements.
+        let view = mirrors::view_tree(&remote, &a.root, &a.full);
+        let real = mirrors::real_tree(&remote);
+        let mut planned = match prepare(store, cfg, a, &view, &real, &ids, cross, roots)? {
             Prepared::Done(outcome) => {
                 a.report.outcome = outcome;
                 return Ok(());
             }
             Prepared::Ready(p) => p,
         };
-        let applied = apply_planned(api, store, cfg, a, &mut planned, &remote, roots)?;
-        if applied.is_some() {
+        let applied = apply_planned(api, store, cfg, a, &mut planned, &real, roots)?;
+        let after_view = if applied.is_some() {
             remote = export_tree(api)?;
             if cfg.apply.verify
                 && let Some(outcome) = &applied
             {
                 a.report.discrepancies.extend(apply::verify(
-                    &planned.merge.merged,
-                    &remote,
+                    &planned.real.merged,
+                    &mirrors::real_tree(&remote),
                     &a.root,
                     &outcome.created,
                 ));
             }
-        }
+            mirrors::view_tree(&remote, &a.root, &mirrors::full_placements(&view))
+        } else {
+            view
+        };
+        a.full = mirrors::full_placements(&after_view);
         match needs_remerge(a, &planned, applied.as_ref()) {
             Some(r) => reason = r,
             None => {
-                if let Finished::Done = finish(store, cfg, a, &planned, &remote)? {
+                if let Finished::Done = finish(store, cfg, a, &planned, &after_view)? {
                     return Ok(());
                 }
                 reason = "the file kept changing during the sync".to_owned();
@@ -1581,6 +1624,7 @@ pub fn sync_all(
                 had_journal,
                 pushed: PlanSummary::default(),
                 rebase: None,
+                full: BTreeMap::new(),
             });
         }
         if recovered_any {
@@ -1588,10 +1632,35 @@ pub fn sync_all(
             ids = IdMap::from_tree(&remote);
         }
 
+        // §15.1: each root's view of the export (sticky to its checkpoint's base) and
+        // the real tree the plans run on.
+        let real = mirrors::real_tree(&remote);
+        let mut views: Vec<Tree> = Vec::with_capacity(active.len());
+        for a in active.iter_mut() {
+            let previous = match store.load_checkpoint(&a.root) {
+                Ok(Some(cp)) => mirrors::full_placements(&cp.base_wf),
+                _ => BTreeMap::new(),
+            };
+            let view = mirrors::view_tree(&remote, &a.root, &previous);
+            a.full = mirrors::full_placements(&view);
+            views.push(view);
+        }
+
         // Steps 4–9: every merge and plan against the one export.
         let roots: BTreeSet<NodeId> = active.iter().map(|a| a.root.clone()).collect();
-        let tagged: Vec<BTreeSet<NodeId>> =
-            active.iter().map(|a| tagged_nodes(&a.doc, &ids)).collect();
+        // A tag in another file claims its node only when that node is not in the other
+        // file's own scope: a node mirrored into both files belongs to both.
+        let tagged: Vec<BTreeSet<NodeId>> = active
+            .iter()
+            .zip(&views)
+            .map(|(a, view)| {
+                let scope: BTreeSet<NodeId> = view.descendants(&a.root).into_iter().collect();
+                tagged_nodes(&a.doc, &ids)
+                    .into_iter()
+                    .filter(|n| !scope.contains(n))
+                    .collect()
+            })
+            .collect();
         let claimed_elsewhere = |k: usize| -> BTreeSet<NodeId> {
             tagged
                 .iter()
@@ -1632,7 +1701,7 @@ pub fn sync_all(
             .collect();
         let mut planned: Vec<Option<Box<Planned>>> = Vec::new();
         for (k, a) in active.iter_mut().enumerate() {
-            match prepare(&store, cfg, a, &remote, &ids, &crosses[k], &roots) {
+            match prepare(&store, cfg, a, &views[k], &real, &ids, &crosses[k], &roots) {
                 Ok(Prepared::Ready(p)) => planned.push(Some(p)),
                 Ok(Prepared::Done(outcome)) => {
                     a.report.outcome = outcome;
@@ -1653,7 +1722,7 @@ pub fn sync_all(
                 applied.push(None);
                 continue;
             };
-            match apply_planned(api, &store, cfg, a, p, &remote, &roots) {
+            match apply_planned(api, &store, cfg, a, p, &real, &roots) {
                 Ok(o) => {
                     any_applied |= o.is_some();
                     applied.push(o);
@@ -1671,6 +1740,7 @@ pub fn sync_all(
         } else {
             remote.clone()
         };
+        let after_real = mirrors::real_tree(&after);
         for (k, a) in active.iter_mut().enumerate() {
             if results[a.index].is_some() {
                 continue;
@@ -1680,16 +1750,23 @@ pub fn sync_all(
                 && let Some(outcome) = &applied[k]
             {
                 a.report.discrepancies =
-                    apply::verify(&p.merge.merged, &after, &a.root, &outcome.created);
+                    apply::verify(&p.real.merged, &after_real, &a.root, &outcome.created);
                 for d in &a.report.discrepancies {
                     log::warn!("{}: verification: {d:?}", a.file.display());
                 }
             }
+            // §15.1: this root's view of the new export, sticky to the pass's choice.
+            let after_view = if any_applied {
+                mirrors::view_tree(&after, &a.root, &a.full)
+            } else {
+                views[k].clone()
+            };
+            a.full = mirrors::full_placements(&after_view);
             // Local changes the applier had to skip are merged again against the new
             // export (§6.1 conflict, §6.2 resurrection) instead of being rendered away.
             let first = match needs_remerge(a, p, applied[k].as_ref()) {
                 Some(reason) => Ok(Err(reason)),
-                None => finish(&store, cfg, a, p, &after).map(|f| match f {
+                None => finish(&store, cfg, a, p, &after_view).map(|f| match f {
                     Finished::Done => Ok(()),
                     Finished::CasConflict => {
                         Err("the file kept changing during the sync".to_owned())

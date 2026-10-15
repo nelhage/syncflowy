@@ -334,6 +334,37 @@ pub struct Node {
     pub modified_at: Option<i64>,
     /// Sparse sort key among siblings (DM§7). Only meaningful within one snapshot.
     pub priority: i64,
+    /// The beta API's mirror metadata (`data.mirror`, DM§10.5): `None` on plain nodes
+    /// and on every node of a production export. Absent from checkpoints written before
+    /// mirrors were modelled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror: Option<Mirror>,
+    /// Only in a **view tree** (`crate::mirrors::view_tree`, §15.1): this placement of
+    /// its content node is rendered as a stub, because the content's full rendering
+    /// (text and children) sits at another placement. Always `false` in an export.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub stub: bool,
+}
+
+/// A node's part in a mirror (DM§10.5, beta API only).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Mirror {
+    /// A mirror root ("shell"): the API reports its origin's content in its place.
+    /// `origin` is `None` for an orphan (the origin was deleted): the API then reports
+    /// the shell's own empty row and refuses writes through it.
+    Shell {
+        /// The origin, a non-mirror node.
+        origin: Option<NodeId>,
+    },
+    /// A mirror origin whose registry (`data.mirror.mirror_ids`) is non-empty. The
+    /// registry is what blocks a delete of the node (DM§10.5): it can name deleted
+    /// shells ("ghosts") and miss live ones, so the live shells are found from the
+    /// shells' `origin` instead ([`Tree::shells_of`]).
+    Origin {
+        /// `mirror_ids`, sorted by id as the API returns them.
+        mirror_ids: Vec<NodeId>,
+    },
 }
 
 impl Node {
@@ -351,7 +382,39 @@ impl Node {
             created_at: 0,
             modified_at: None,
             priority: 0,
+            mirror: None,
+            stub: false,
         }
+    }
+
+    /// True for a mirror root with an accessible origin (DM§10.5).
+    pub fn is_shell(&self) -> bool {
+        matches!(self.mirror, Some(Mirror::Shell { origin: Some(_) }))
+    }
+
+    /// True for a mirror root whose origin is gone (DM§10.4, §10.5 "orphans").
+    pub fn is_orphan_shell(&self) -> bool {
+        matches!(self.mirror, Some(Mirror::Shell { origin: None }))
+    }
+
+    /// The origin of a shell, `None` otherwise (orphans included).
+    pub fn origin(&self) -> Option<&NodeId> {
+        match &self.mirror {
+            Some(Mirror::Shell { origin }) => origin.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// The **content node** this placement shows (§15.1): a shell's origin, else the
+    /// node itself.
+    pub fn content_id(&self) -> &NodeId {
+        self.origin().unwrap_or(&self.id)
+    }
+
+    /// True if the node's mirror registry is non-empty: the beta API refuses to delete
+    /// it, or any ancestor of it (DM§10.5).
+    pub fn has_registered_mirrors(&self) -> bool {
+        matches!(&self.mirror, Some(Mirror::Origin { mirror_ids }) if !mirror_ids.is_empty())
     }
 
     /// The mirror-shell heuristic of §10 (UI:H2): `name == ""` and `note` is `None` or
@@ -407,12 +470,67 @@ pub struct ApiNode {
     pub completed_at: Option<i64>,
 }
 
-/// The API's `data` object; it only ever holds `layoutMode` (DM§1.2).
+/// The API's `data` object: `layoutMode` (DM§1.2) and, on the beta API, `mirror`
+/// (DM§10.5).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApiNodeData {
     /// The layout mode string.
     #[serde(rename = "layoutMode", default = "default_layout")]
     pub layout_mode: String,
+    /// `{"origin_id": …}` on a shell (null for an orphan), `{"mirror_ids": […]}` on an
+    /// origin with a non-empty registry; absent otherwise and on production.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror: Option<ApiMirror>,
+}
+
+/// `data.mirror` as the beta API serialises it (DM§10.5). Exactly one key is present.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApiMirror {
+    /// A shell's origin; serialised as `null` for an orphan (`Some(None)`). Not present
+    /// on origins (`None`).
+    #[serde(
+        default,
+        deserialize_with = "nullable_string",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub origin_id: Option<Option<String>>,
+    /// An origin's registry. Not present on shells.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_ids: Option<Vec<String>>,
+}
+
+/// `null` reads as `Some(None)` (serde would otherwise fold it into an absent key).
+fn nullable_string<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<Option<String>>, D::Error> {
+    Option::<String>::deserialize(d).map(Some)
+}
+
+impl ApiMirror {
+    fn to_mirror(&self) -> Option<Mirror> {
+        if let Some(origin) = &self.origin_id {
+            return Some(Mirror::Shell {
+                origin: origin.clone().map(NodeId::from_api),
+            });
+        }
+        let ids = self.mirror_ids.as_ref()?;
+        Some(Mirror::Origin {
+            mirror_ids: ids.iter().cloned().map(NodeId::from_api).collect(),
+        })
+    }
+
+    fn from_mirror(m: &Mirror) -> ApiMirror {
+        match m {
+            Mirror::Shell { origin } => ApiMirror {
+                origin_id: Some(origin.as_ref().map(|o| o.as_str().to_owned())),
+                mirror_ids: None,
+            },
+            Mirror::Origin { mirror_ids } => ApiMirror {
+                origin_id: None,
+                mirror_ids: Some(mirror_ids.iter().map(|i| i.as_str().to_owned()).collect()),
+            },
+        }
+    }
 }
 
 fn default_layout() -> String {
@@ -423,6 +541,7 @@ impl Default for ApiNodeData {
     fn default() -> Self {
         ApiNodeData {
             layout_mode: default_layout(),
+            mirror: None,
         }
     }
 }
@@ -440,6 +559,8 @@ impl From<ApiNode> for Node {
             created_at: a.created_at,
             modified_at: a.modified_at,
             priority: a.priority,
+            mirror: a.data.mirror.as_ref().and_then(ApiMirror::to_mirror),
+            stub: false,
         }
     }
 }
@@ -455,6 +576,7 @@ impl From<&Node> for ApiNode {
             completed: n.completed,
             data: ApiNodeData {
                 layout_mode: n.layout.clone(),
+                mirror: n.mirror.as_ref().map(ApiMirror::from_mirror),
             },
             created_at: n.created_at,
             modified_at: n.modified_at,
@@ -614,6 +736,45 @@ impl Tree {
     /// All ids, in id order.
     pub fn ids(&self) -> impl Iterator<Item = &NodeId> {
         self.nodes.keys()
+    }
+
+    /// True if any node carries mirror metadata: the export came from the beta API
+    /// (DM§10.5), so a node without metadata is certainly not a shell and the §10
+    /// heuristic does not apply. An account without mirrors is indistinguishable from a
+    /// production export, which only costs it the heuristic's caution.
+    pub fn has_mirror_metadata(&self) -> bool {
+        self.nodes.values().any(|n| n.mirror.is_some())
+    }
+
+    /// The live shells of every origin, from the shells' `origin` (never from the
+    /// registry, DM§10.5): origin -> shells in id order.
+    pub fn shells_by_origin(&self) -> BTreeMap<NodeId, Vec<NodeId>> {
+        let mut out: BTreeMap<NodeId, Vec<NodeId>> = BTreeMap::new();
+        for n in self.nodes.values() {
+            if let Some(o) = n.origin() {
+                out.entry(o.clone()).or_default().push(n.id.clone());
+            }
+        }
+        out
+    }
+
+    /// The live shells of `origin` (see [`Tree::shells_by_origin`]).
+    pub fn shells_of(&self, origin: &NodeId) -> Vec<NodeId> {
+        self.nodes
+            .values()
+            .filter(|n| n.origin() == Some(origin))
+            .map(|n| n.id.clone())
+            .collect()
+    }
+
+    /// Descendants of `id` in pre-order, not descending below nodes for which `descend`
+    /// is false (those nodes are still listed).
+    pub fn descendants_where(&self, id: &NodeId, descend: impl Fn(&Node) -> bool) -> Vec<NodeId> {
+        let mut out = Vec::new();
+        let mut seen = BTreeSet::new();
+        seen.insert(id.clone());
+        self.preorder_into(id, &mut seen, &mut out, &descend);
+        out
     }
 
     /// The stored `parent_id` of `id` (which may name a node outside the tree), or
@@ -899,6 +1060,32 @@ impl Tree {
         Ok(())
     }
 
+    /// Re-parent every child of `from` under `to`, keeping each child's priority (a
+    /// projection, not an API move: `crate::mirrors::view_tree` hangs an origin's
+    /// children under the placement that renders them, §15.1). Both must be in the tree.
+    pub fn adopt_children(&mut self, from: &NodeId, to: &NodeId) -> Result<(), TreeError> {
+        if !self.nodes.contains_key(from) {
+            return Err(TreeError::UnknownNode(from.clone()));
+        }
+        if !self.nodes.contains_key(to) {
+            return Err(TreeError::UnknownParent(to.clone()));
+        }
+        if from == to {
+            return Ok(());
+        }
+        let kids = self
+            .children
+            .remove(&Some(from.clone()))
+            .unwrap_or_default();
+        for k in &kids {
+            self.nodes.get_mut(k).expect("child").parent_id = Some(to.clone());
+        }
+        let key = Some(to.clone());
+        self.children.entry(key.clone()).or_default().extend(kids);
+        self.sort_siblings(&key);
+        Ok(())
+    }
+
     /// Remove `id` and all its descendants; returns the removed nodes in pre-order.
     pub fn remove_subtree(&mut self, id: &NodeId) -> Result<Vec<Node>, TreeError> {
         if !self.nodes.contains_key(id) {
@@ -942,6 +1129,12 @@ impl Tree {
         let n = self.node_mut(id)?;
         n.completed = completed;
         n.completed_at = completed_at;
+        Ok(())
+    }
+
+    /// Set the view-tree `stub` flag (`crate::mirrors::view_tree`).
+    pub fn set_stub(&mut self, id: &NodeId, stub: bool) -> Result<(), TreeError> {
+        self.node_mut(id)?.stub = stub;
         Ok(())
     }
 

@@ -169,6 +169,12 @@ struct Engine<'a, 'c> {
     root: NodeId,
     force: bool,
     safe: bool,
+    /// The remote tree carries mirror metadata (DM§10.5): shells are known, the §10
+    /// heuristic is off (`is_placeholder_node`).
+    mirror_aware: bool,
+    /// Origin -> live shells in the remote tree (§15.1: a delete of an origin that still
+    /// has mirrors is refused).
+    shell_index: BTreeMap<NodeId, Vec<NodeId>>,
 
     base_sub: BTreeSet<NodeId>,
     remote_sub: BTreeSet<NodeId>,
@@ -313,11 +319,12 @@ fn kind_layout(kind: ItemKind) -> Option<&'static str> {
 ///   children ([`numbered_target`]). Code, quote and divider items, and every layout
 ///   §4.3 keeps as is, never derive a layout change from their children.
 fn layout_target(base: &LocalItem, local: &LocalItem, base_layout: &str) -> Option<String> {
-    use ItemKind::{Bullet, ConflictMarker, Placeholder};
+    use ItemKind::{Bullet, ConflictMarker, MirrorStub, Placeholder};
     match (base.kind, local.kind) {
-        (Placeholder, _) | (_, Placeholder) | (ConflictMarker(_), _) | (_, ConflictMarker(_)) => {
-            None
-        }
+        (Placeholder | MirrorStub, _)
+        | (_, Placeholder | MirrorStub)
+        | (ConflictMarker(_), _)
+        | (_, ConflictMarker(_)) => None,
         (b, l) if b != l => match kind_layout(l) {
             Some(t) => Some(t.to_owned()),
             // Back to a plain item from a fence, quote or divider.
@@ -370,6 +377,8 @@ impl<'a, 'c> Engine<'a, 'c> {
             root: root.clone(),
             force: inp.cfg.force,
             safe: inp.cfg.safe_mode,
+            mirror_aware: inp.remote.has_mirror_metadata(),
+            shell_index: inp.remote.shells_by_origin(),
             base_sub,
             remote_sub,
             remote_vis: BTreeSet::new(),
@@ -465,7 +474,41 @@ impl<'a, 'c> Engine<'a, 'c> {
     }
 
     fn is_existing_placeholder(&self, tree: &Tree, id: &NodeId) -> bool {
-        !self.force && id != &self.root && tree.get(id).is_some_and(is_placeholder_node)
+        !self.force
+            && id != &self.root
+            && tree
+                .get(id)
+                .is_some_and(|n| is_placeholder_node(n, self.mirror_aware))
+    }
+
+    /// §15.1: the origin that blocks a delete of `n` in `M`, if any: `n` itself or a
+    /// node below it, not looking through shells (a shell placement's descendants in the
+    /// view are its origin's children, which its delete leaves alone), that still has
+    /// live shells or registry entries (DM§10.5).
+    fn mirror_delete_blocker(&self, n: &NodeId) -> Option<NodeId> {
+        let node = self.m.get(n)?;
+        if node.is_shell() {
+            return None;
+        }
+        let mut candidates = vec![n.clone()];
+        candidates.extend(self.m.descendants_where(n, |x| !x.is_shell()));
+        candidates.into_iter().find(|x| {
+            self.m.get(x).is_some_and(|node| {
+                !node.is_shell()
+                    && (node.has_registered_mirrors()
+                        || self.shell_index.get(x).is_some_and(|s| !s.is_empty()))
+            })
+        })
+    }
+
+    /// The descendants of `n` in `M` that a delete of `n` removes: none for a shell
+    /// placement (its view children are the content's), and below a shell placement
+    /// nothing but the shell itself (§15.1).
+    fn deleted_descendants(&self, n: &NodeId) -> Vec<NodeId> {
+        if self.m.get(n).is_some_and(Node::is_shell) {
+            return Vec::new();
+        }
+        self.m.descendants_where(n, |x| !x.is_shell())
     }
 
     /// The node changed remotely since the base (fields, completion or parent; §6.2
@@ -965,8 +1008,9 @@ impl<'a, 'c> Engine<'a, 'c> {
         };
         let kb = field_kind(bi);
         let kl = field_kind(li);
-        // §10 placeholders and §5.3 read-only items.
-        let ro_item = !self.force && (has_ro_flag(bi) || bi.kind == ItemKind::Placeholder);
+        // §10 placeholders, §15.1 stubs and §5.3 read-only items.
+        let ro_item = !self.force
+            && (has_ro_flag(bi) || matches!(bi.kind, ItemKind::Placeholder | ItemKind::MirrorStub));
         let mut refused = false;
         let mut d = Detected {
             name: None,
@@ -1780,11 +1824,12 @@ impl<'a, 'c> Engine<'a, 'c> {
             return false;
         }
         let li = &self.items[i];
-        li.item.kind == ItemKind::Placeholder
+        let placeholder = |k: ItemKind| matches!(k, ItemKind::Placeholder | ItemKind::MirrorStub);
+        placeholder(li.item.kind)
             || li
                 .ident
                 .base_node()
-                .is_some_and(|b| self.base_items[b].item.kind == ItemKind::Placeholder)
+                .is_some_and(|b| placeholder(self.base_items[b].item.kind))
             || self.is_existing_placeholder(self.inp.remote, nd)
     }
 
@@ -1868,12 +1913,29 @@ impl<'a, 'c> Engine<'a, 'c> {
                 self.cancelled.insert(p.clone());
             }
         }
-        let refused: BTreeSet<NodeId> = dset
+        let mut refused: BTreeSet<NodeId> = dset
             .iter()
             .filter(|n| !self.force && self.base_items[*n].item.kind == ItemKind::Placeholder)
             .cloned()
             .collect();
+        // §15.1: an origin that still has mirrors cannot be deleted (DM§10.5), with or
+        // without `force`; neither can a node holding one.
         let all: BTreeSet<NodeId> = dset.union(&pset).cloned().collect();
+        let mut mirror_refused: BTreeMap<NodeId, NodeId> = BTreeMap::new();
+        for n in &all {
+            if let Some(origin) = self.mirror_delete_blocker(n) {
+                mirror_refused.insert(n.clone(), origin);
+                refused.insert(n.clone());
+                // Nothing of the refused subtree goes: the user asked for one delete,
+                // which cannot be done as asked, so it is left whole and reported.
+                refused.extend(
+                    self.m
+                        .descendants(n)
+                        .into_iter()
+                        .filter(|d| all.contains(d)),
+                );
+            }
+        }
         let mut memo = BTreeMap::new();
         let mut top = Vec::new();
         for n in self.m.preorder(&self.root) {
@@ -1887,7 +1949,17 @@ impl<'a, 'c> Engine<'a, 'c> {
                 .as_ref()
                 .is_some_and(|p| all.contains(p) && memo.get(p).copied().unwrap_or(false));
             if k {
-                if pset.contains(&n) {
+                if let Some(origin) = mirror_refused.get(&n) {
+                    if pset.contains(&n) {
+                        self.cancelled.insert(n.clone());
+                    }
+                    if !parent_kept || pset.contains(&n) {
+                        self.report.push(ReportEvent::MirrorDeleteRefused {
+                            node: n.clone(),
+                            origin: origin.clone(),
+                        });
+                    }
+                } else if pset.contains(&n) {
                     self.cancelled.insert(n.clone());
                     self.report
                         .push(ReportEvent::DeleteLost { node: n.clone() });
@@ -1907,7 +1979,9 @@ impl<'a, 'c> Engine<'a, 'c> {
             return;
         }
         for n in top {
-            let desc = self.m.descendants(&n);
+            // What the delete removes (§15.1: not a content's children shown at a shell);
+            // the view subtree leaves `M` whole, since that is what the file stops showing.
+            let desc = self.deleted_descendants(&n);
             let vis = desc
                 .iter()
                 .filter(|d| self.base_items.contains_key(*d))

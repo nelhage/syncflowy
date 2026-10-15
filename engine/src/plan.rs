@@ -39,7 +39,13 @@
 //!   nodes inside `merge.root`'s subtree, except moves' sources (cross-file moves come
 //!   from another root) and the updates and completions of `merge.outside` (nodes moved
 //!   out of the root remotely whose local edits follow them, §6.2), which
-//!   [`Plan::outside`] passes on to `apply`.
+//!   [`Plan::outside`] passes on to `apply`. "Inside" follows mirrors
+//!   ([`crate::mirrors::MirrorIndex::in_scope`], §15.1): a content node mirrored into a
+//!   root, and its children, are in that root's scope although outside its real
+//!   subtree.
+//! * A delete of a mirror root is emitted with `Op::Delete { mirror: true }`, which
+//!   `apply` sends to the mirror endpoint (§15.1); the merge runs on the view tree and
+//!   `crate::mirrors::to_real` translates its result before it reaches this module.
 //! * Every parent sent to the API is explicit (create and move always carry a parent).
 //!
 //! A guard violation is a bug or a race; the whole plan is refused
@@ -131,6 +137,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::merge::{MergeResult, MoveIntent};
+use crate::mirrors::MirrorIndex;
 use crate::tree::{Node, NodeId, Position, Tree, TreeError};
 
 /// How a create sends the name (§7.2).
@@ -216,12 +223,17 @@ pub enum Op {
         /// Node (real or temp id).
         node: NodeId,
     },
-    /// Delete the node and its subtree (to the WF Trash).
+    /// Delete the node and its subtree (to the WF Trash), or, with `mirror`, remove a
+    /// mirror root and leave its origin's content intact (`DELETE /nodes/:id/mirror`,
+    /// §15.1, DM§10.3).
     Delete {
         /// Node (real id).
         node: NodeId,
         /// Hidden descendants deleted with it (for logs and the journal).
         hidden_descendants: usize,
+        /// The node is a mirror root: `apply` calls the mirror endpoint.
+        #[serde(default)]
+        mirror: bool,
     },
 }
 
@@ -372,6 +384,10 @@ pub enum GuardReason {
     /// The op would touch a hidden node (§4.5) other than by a delete of a visible
     /// ancestor or a tick.
     HiddenNode,
+    /// A plain delete of a node that is, or holds, a mirror origin that still has
+    /// mirrors: the beta API refuses it (DM§10.5), and the merge should have declined
+    /// it (§15.1).
+    HasMirrors,
 }
 
 /// Planning failures.
@@ -436,6 +452,7 @@ pub fn plan(merge: &MergeResult, remote: &Tree, cfg: &PlanConfig) -> Result<Plan
     let mut b = Builder {
         root: &merge.root,
         roots: &roots,
+        index: MirrorIndex::new(remote),
         s: remote.clone(),
         ops: Vec::new(),
         summary: PlanSummary::default(),
@@ -522,6 +539,9 @@ enum MoveKind {
 struct Builder<'a> {
     root: &'a NodeId,
     roots: &'a BTreeSet<NodeId>,
+    /// Origin -> live shells of the remote tree: the boundary guards follow mirrors
+    /// (§15.1: a content node mirrored into a root is in that root's scope).
+    index: MirrorIndex,
     s: Tree,
     ops: Vec<Op>,
     summary: PlanSummary,
@@ -544,21 +564,22 @@ impl Builder<'_> {
         }
     }
 
-    /// `id` is the sync root or inside its subtree in `S`.
+    /// `id` is the sync root or inside its scope in `S` (through mirrors, §15.1).
     fn in_root(&self, id: &NodeId) -> bool {
-        id == self.root || self.s.is_descendant(id, self.root)
+        id == self.root
+            || self
+                .index
+                .in_scope(&self.s, id, &BTreeSet::from([self.root.clone()]))
     }
 
-    /// `id` is one of the sync roots or inside one in `S`.
+    /// `id` is one of the sync roots or inside one's scope in `S`.
     fn in_sync_roots(&self, id: &NodeId) -> bool {
-        self.roots
-            .iter()
-            .any(|r| id == r || self.s.is_descendant(id, r))
+        self.index.in_scope(&self.s, id, self.roots)
     }
 
-    /// `id` is strictly inside one of the sync roots in `S`.
+    /// `id` is strictly inside one of the sync roots' scopes in `S`.
     fn strictly_in_sync_roots(&self, id: &NodeId) -> bool {
-        self.roots.iter().any(|r| self.s.is_descendant(id, r))
+        !self.roots.contains(id) && self.in_sync_roots(id)
     }
 
     /// §8.2 for a move of `node` under `dest`, against `S`.
@@ -846,12 +867,21 @@ impl Builder<'_> {
                 let op = Op::Delete {
                     node: d.node.clone(),
                     hidden_descendants: d.hidden_descendants,
+                    mirror: false,
                 };
                 return Err(Self::guard(&op, GuardReason::UnknownNode));
             }
+            // §15.1: a shell is removed with the mirror endpoint; what it takes with it
+            // (its persisted children, DM§10.5) is all hidden.
+            let mirror = self.s.get(&d.node).is_some_and(Node::is_shell);
             let op = Op::Delete {
                 node: d.node.clone(),
-                hidden_descendants: self.s.count_hidden_descendants(&d.node),
+                hidden_descendants: if mirror {
+                    self.s.descendants(&d.node).len()
+                } else {
+                    self.s.count_hidden_descendants(&d.node)
+                },
+                mirror,
             };
             if &d.node == self.root || !self.in_root(&d.node) {
                 return Err(Self::guard(&op, GuardReason::OutsideRoot));
@@ -1393,6 +1423,7 @@ mod tests {
             Err(TreeError::Cycle { .. })
         ));
         let delete = Op::Delete {
+            mirror: false,
             node: x.clone(),
             hidden_descendants: 0,
         };

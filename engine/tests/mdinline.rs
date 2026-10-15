@@ -825,6 +825,12 @@ fn find_tags_rules() {
         panic!()
     };
     assert_eq!(t.flags, [TagFlag::ReadOnly].into());
+    // A block link is a reference to a tag, not a tag (the form of a mirror stub, §15.1).
+    assert!(find_tags("⧉ [[#^wf-8e1f00aa2b3c|Plan]]").is_empty());
+    assert_eq!(
+        find_tags("[[#^wf-8e1f00aa2b3c]] ^wf-0c0ffee12345-ro").len(),
+        1
+    );
     // Spaces inside the bracketed forms.
     assert_eq!(find_tags("%% wf:8e1f00aa2b3c %%").len(), 1);
     assert_eq!(find_tags("[wid::8e1f00aa2b3c]").len(), 1);

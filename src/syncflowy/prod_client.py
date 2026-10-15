@@ -1,7 +1,9 @@
 """Rate-limited, scope-guarded client for the *production* Workflowy API.
 
-ALL access to https://workflowy.com from this project must go through this
-module. It enforces:
+ALL access to https://workflowy.com (and to the beta host
+https://beta.workflowy.com, which serves the same account: pass
+``base_url=BETA_URL`` or set ``SYNCFLOWY_PROD_BASE_URL``) from this project
+must go through this module. It enforces:
 
 * A global rate limit (default 9 req/s, below the 10 req/s ceiling we agreed
   to) that is shared across *all processes* on this machine via an fcntl-locked
@@ -48,6 +50,9 @@ from typing import Any
 import httpx
 
 BASE_URL = "https://workflowy.com"
+# The beta host serves the same account and data, with newer API semantics
+# (mirror-aware reads and writes, announced 2026-07-22). Same scope rules apply.
+BETA_URL = "https://beta.workflowy.com"
 SCRATCHPAD_SHORT_ID = "a846cfce4c6d"
 
 STATE_DIR = Path(
@@ -168,10 +173,18 @@ class AllowList:
 
 
 class ProdClient:
-    def __init__(self, api_key: str | None = None, timeout: float = 30.0):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        timeout: float = 30.0,
+        base_url: str | None = None,
+    ):
         self.api_key = api_key or os.environ["WORKFLOWY_API_KEY"]
+        self.base_url = base_url or os.environ.get("SYNCFLOWY_PROD_BASE_URL", BASE_URL)
+        if self.base_url not in (BASE_URL, BETA_URL):
+            raise ScopeError(f"unknown Workflowy host {self.base_url!r}")
         self.http = httpx.Client(
-            base_url=BASE_URL,
+            base_url=self.base_url,
             timeout=timeout,
             headers={"Authorization": f"Bearer {self.api_key}"},
         )
@@ -247,6 +260,8 @@ class ProdClient:
         for n in data.get("nodes") or []:
             if isinstance(n, dict):
                 new.append(n.get("id"))
+        # Beta mirror metadata (data.mirror, a list's top-level mirror) is
+        # deliberately NOT learned: it can point outside the scratchpad.
         if new:
             self.allow.add(*[n for n in new if isinstance(n, str)])
 
@@ -276,6 +291,7 @@ class ProdClient:
             "ts": t0,
             "elapsed": round(time.time() - t0, 4),
             "method": method,
+            "host": self.base_url,
             "path": path,
             "params": kw.get("params"),
             "request_json": kw.get("json"),

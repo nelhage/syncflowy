@@ -152,7 +152,26 @@ def test_v1_database_is_migrated(tmp_path: Path, clock: FakeClock) -> None:
         assert httpx.delete(f"{url}/api/v1/nodes/{nid}", headers=h).status_code == 200
         assert httpx.post(f"{url}/_mock/ui/restore", json={"id": nid}).json()["restored"] == [nid]
     con = sqlite3.connect(db)
-    assert con.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone() == ("2",)
+    assert con.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone() == ("3",)
+
+
+def test_v2_database_backfills_mirror_registry(tmp_path: Path, clock: FakeClock) -> None:
+    import sqlite3
+
+    db = tmp_path / "v2.sqlite3"
+    h = {"Authorization": "Bearer test-key"}
+    with running_mock(db_path=db, clock=clock) as url:
+        o = httpx.post(f"{url}/api/v1/nodes", json={"parent_id": "None", "name": "o"}, headers=h).json()["item_id"]
+        d = httpx.post(f"{url}/api/v1/nodes", json={"parent_id": "None", "name": "d"}, headers=h).json()["item_id"]
+        m = httpx.post(f"{url}/api/v1/nodes/{o}/mirror", json={"parent_id": d}, headers=h).json()["item_id"]
+    con = sqlite3.connect(db)
+    con.execute("DROP TABLE mirror_registry")
+    con.execute("UPDATE meta SET value = '2' WHERE key = 'schema_version'")
+    con.commit()
+    con.close()
+    with running_mock(db_path=db, clock=clock, beta_mirrors=True) as url:
+        node = httpx.get(f"{url}/api/v1/nodes/{o}", headers=h).json()["node"]
+        assert node["data"]["mirror"] == {"mirror_ids": [m]}
 
 
 # -------------------------------------------------------------------- placement

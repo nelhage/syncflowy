@@ -22,6 +22,7 @@ Reference abbreviations:
 | `T` | [text-and-content.md](text-and-content.md) |
 | `F0`/`F1`/`F2` | [followup-0.md](followup-0.md) / [followup-1.md](followup-1.md) / [followup-2.md](followup-2.md) |
 | `UP` | [upstream-api-reference.md](upstream-api-reference.md) (the vendored official docs) |
+| `UPB` | [upstream-api-reference-beta.md](upstream-api-reference-beta.md) (the vendored **beta** docs, `beta.workflowy.com`, fetched 2026-10-13); observations of the beta host are in `experiments/beta-mirrors/` |
 | `G` | [global-readonly.md](global-readonly.md) (read-only probes outside the scratchpad) |
 
 Where the per-area docs disagree, this document records the resolution (see §13).
@@ -67,7 +68,7 @@ Key order is **exactly**: [O: C§1.2, E§9]
 ```
 
 This order differs from the upstream example, which puts `parent_id` second. `data` only ever contains `layoutMode` [O].
-No mirror metadata is ever serialised [O: D§2.2].
+No mirror metadata is ever serialised [O: D§2.2]. (The **beta** API adds `data.mirror`, §10.5.)
 
 ### 1.3 JSON serialisation
 
@@ -330,6 +331,7 @@ After the UUID and short-id lookups, **an existing special-location node is also
 
 1. Parse and validate (§2.4, §2.5, model `CreateItemRequest`).
 2. Resolve `parent_id` (§3.2). A mirror shell as the parent is **not** redirected: the child goes under the shell [O: D§2.5].
+   (The beta API redirects it to the origin, §10.5.)
 3. Transform `name` into blocks (§6.2). Use the `note` verbatim (§6.3). If the note contains NUL, return **500** and create nothing [O: T§2].
 4. Block 0 becomes the created node:
    - `priority` = `assign_priority(parent, position, exclude=None)` (§7)
@@ -385,6 +387,7 @@ completion [O].
   subtree can be restored from the UI with the same ids [O: ui-findings B2].
 - No sibling renumbering. Nobody's `modifiedAt` is bumped: not the parent, and not the origin if the node is a mirror shell.
 - Mirrors elsewhere whose origin lies in the deleted subtree survive as **orphans** (`mirror_origin_id` dangling) [O].
+  (The beta API refuses such a delete instead, and bumps the origins of deleted shells, §10.5.)
 - Deleting a subtree that contains a mirror shell removes the shell and does not bump its origin [O: D§4.2].
 - The body is ignored. Returns `200 {"status": "ok"}`.
 - There is no trash or restore *API endpoint* [O]; restoring is UI-only (the mock offers `/_mock/ui/restore`).
@@ -679,6 +682,71 @@ Mirroring the same node twice into the same parent creates two shells [O].
 unchanged. An orphan can be moved, moved into, created under, updated, completed, listed and deleted like an ordinary node. As a mirror
 source it gives `Item not found`. As a mirror parent it gives `Parent item not found`. `DELETE /mirror` on it returns 200.
 
+### 10.5 Beta API: mirror-aware semantics
+
+[O: `experiments/beta-mirrors/` 01–06, 2026-10-13, about 220 requests, log tag `beta-mirrors`] unless marked otherwise.
+On 2026-07-22 Workflowy announced ([community post](https://community.workflowy.com/t/beta-api-mirrors-are-ready-to-test/1257))
+that the beta API at `https://beta.workflowy.com/api/v1` supports mirrors properly ([UPB]). The beta host serves the **same
+account and data** as production. **Production (`workflowy.com`) is unchanged**: on 2026-10-13 it still returned raw shell
+rows with no mirror metadata and still allowed deleting an origin that has mirrors [O]. The mock implements this section behind
+`beta_mirrors` (off by default).
+
+In the beta model a mirror ("mirror root", our "shell") keeps its own row and UUID but **shows its origin**:
+
+| request | beta behaviour | production (§10.1–10.4) |
+|---|---|---|
+| node object (GET, list) | A shell carries `data.mirror.origin_id`, and an origin with mirrors carries `data.mirror.mirror_ids`, **sorted by id** (not creation order: five shells made in the order 3c4f, 2933, 5578, a83b, 0987 came back as 0987, 2933, 3c4f, 5578, a83b). `mirror` comes after `layoutMode` in `data`. Other nodes have no `mirror` key, and neither does an origin whose last mirror is gone. | no metadata |
+| GET a shell | `id`, `parent_id`, `priority` and `createdAt` are the shell's. `name`, `note`, `data.layoutMode`, `completed`, `completedAt` and `modifiedAt` are the **origin's**. Short-id GETs behave the same way. | the shell's own empty fields |
+| list `parent_id=<shell>` (any form: UUID, short id) | `{"nodes": [<the origin's children>], "mirror": {"origin_id": "<origin>"}}`, each child reported with `parent_id` = the shell. The shell's **own persisted children** (moved in, or created through production) are **not listed**. They are reachable only by GET. | the shell's own children |
+| create with `parent_id` naming a shell (UUID, short id or URL) | Created under the **origin**. Nothing is bumped (§8). | under the shell |
+| update, complete, uncomplete on a shell | Applied to the **origin**, whose `modifiedAt` is bumped. The shell row is untouched (production's GET still shows `""`/`bullets`/unbumped). | applied to the shell row |
+| move a shell | Moves the shell. The origin does not move. | same |
+| move with `parent_id` = a shell | Under the shell, as a persisted child (invisible in lists, see above). The shell row's `modifiedAt` is bumped, as for any destination (§8), but that is invisible because the shell reports the origin's. | same |
+| `POST /:id/mirror` | Unchanged: a mirror `:id` or `parent_id` resolves to its origin, `Cannot mirror a node under itself` (also when `parent_id` is a shell of the origin), and the origin is bumped. | same |
+| plain `DELETE` of a subtree containing an **origin whose mirror registry is non-empty** (the node itself, any descendant, or a persisted child of a shell, even when every mirror lies inside the same subtree) | **`400 {"code": "invalid_request", "message": "Cannot delete a node that has mirrors"}`**. Nothing is deleted or bumped. The check reads the registry (below), so a **ghost entry blocks** and an unregistered live shell does not. | 200; mirrors elsewhere become orphans |
+| plain `DELETE` of a shell, or of a subtree containing shells | Deleted, including the shells' persisted children. Each affected origin's `mirror_ids` loses the shell, and **its `modifiedAt` is bumped**. | deleted; nothing bumped |
+| `DELETE /:id/mirror` | Unchanged (§10.3): it bumps the origin. It does **not** run the check above. Removing a shell whose persisted child is itself mirrored deletes that child and leaves its mirror an **orphan** (03). | same |
+| `nodes-export` | `{"nodes": [...]}`. **Every record equals the beta GET record**, covering origins, shells, orphans and plain nodes (04). An origin's children appear **once**, under the origin (not repeated under each mirror). A shell's hidden persisted children **are included**, with `parent_id` = the shell, so export is the only bulk way to see them. Both hosts export the same set of ids (13,133); only shells and origins differ. | raw rows, no metadata |
+
+**Orphans** (origin deleted). The beta API still produces them through `DELETE /mirror` (above). Production produces them
+through a plain delete, and old ones already exist.
+
+- **GET:** the shell's own row with `data.mirror.origin_id: null`.
+- **List:** `{"nodes": []}`, with no `mirror` key, even when the shell has persisted children.
+- **Update, complete, uncomplete:** `404 Item not found`.
+- **Create under it:** `404 Parent item not found`.
+- **Unchanged from production:** moving it, moving something into it, plain `DELETE`, `DELETE /mirror`, `Item not found` as a
+  mirror source, and `Parent item not found` as a mirror parent.
+
+**The mirror registry.** `mirror_ids` is a list **stored on the origin**, not a reverse lookup of the shells' `origin_id`.
+The beta delete check reads it. The two can disagree [O: 04–06]:
+
+| operation | registry effect |
+|---|---|
+| `POST /:id/mirror`, either host | adds the shell (01 §F: a production-made mirror shows in beta's `mirror_ids`) |
+| beta plain `DELETE` of a shell, or of a subtree containing shells | removes them |
+| `DELETE /:id/mirror`, either host | removes the shell |
+| **production** plain `DELETE` of a shell, or of a subtree containing one | **leaves it**: a **ghost** entry naming a deleted node |
+| UI delete of an origin with mirrors (promotion, ui-findings H6) | the promoted origin's registry ends up **empty**, although a live shell still points at it |
+
+- **A ghost blocks every beta delete of its origin, permanently.** `DELETE /<ghost>/mirror` gives `404 Item not found`. Adding and
+  removing another mirror leaves the ghost in place. Only a **production-host** delete of the origin (which skips the check) gets
+  rid of it (06).
+- **An unregistered live shell does not block.** The H6 origin `b64a9cba…` was deleted on beta with 200, and its surviving shell
+  `44ea8125…` became an orphan (04).
+- **Account-wide** on 2026-10-13 (04 §C, counts only): 13,133 nodes, 83 shells (7 of them orphans), 46 origins, 1 live shell
+  missing from its origin's registry (the H6 one), and **9 ghost entries**. 6 of the ghosts are in the scratchpad: shells we deleted
+  through production, directly or with their parent. The other 3 are in the user's own data, and their cause is unknown. No node is
+  both a shell and an origin, and every `mirror_ids` is sorted.
+- **Clients:** build the origin → shells map from the shells' `origin_id`. Treat `mirror_ids` only as "what will block a delete". Remove
+  shells with `DELETE /mirror` (or a beta plain delete), never with a production plain delete.
+
+Consequences for a client:
+- Mirrors are **detectable** (unlike §10.1) and **two-way** for content and children.
+- A shell's persisted children are a hidden trap. They are invisible in lists, and they are deleted with the shell.
+- Deleting a subtree that contains an origin fails until its mirrors are removed. An engine that pushes deletes has to handle the
+  400 (§10.5 table), and it can be stuck for good on a ghost.
+
 ---
 
 ## 11. Special locations, root, targets
@@ -725,6 +793,7 @@ source it gives `Item not found`. As a mirror parent it gives `Parent item not f
 - [ ] `assign_priority` per §7, shared by create, move and mirror.
 - [ ] `modifiedAt` table per §8.
 - [ ] Mirrors per §10. Cycle policy per §4.7.5 (reject by default, `faithful_cycles` flag).
+- [ ] Beta mirror-aware semantics per §10.5 behind a `beta_mirrors` flag (off by default).
 - [ ] List ordered by `create_seq`. JSON serialised with `json.dumps` defaults and the node key order from §1.2.
 - [ ] Root, special keys, export and targets per §4.10 and §11. Flag the remaining [U] parts (materialisation, inbox, shortcuts, the 429).
 

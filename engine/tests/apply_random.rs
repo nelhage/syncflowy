@@ -164,6 +164,7 @@ fn random_op(rng: &mut Rng, s: &Tree, root: &NodeId, next_temp: &mut u32) -> Opt
             Op::Delete {
                 node: rng.pick(&below).clone(),
                 hidden_descendants: 0,
+                mirror: false,
             }
         }
     })

@@ -1,0 +1,411 @@
+
+===== A. setup and shape
+sandbox 282d76a9-c6bf-4625-add7-1e91f78f91d4
+--- create O
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","name":"O origin","note":"o note","layoutMode":"todo"}
+    -> 200
+    {"item_id": "84b016ca-c11a-4491-9d20-78e242c46563"}
+--- create oc
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"84b016ca-c11a-4491-9d20-78e242c46563","name":"oc"}
+    -> 200
+    {"item_id": "3a45cf48-6295-4b1d-af5c-23e883a73559"}
+--- create dest
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","name":"dest","position":"bottom"}
+    -> 200
+    {"item_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232"}
+--- beta mirror O -> dest
+    [beta] POST /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563/mirror
+    req: {"parent_id":"84b7c67b-bfd4-4b9e-9541-d101ca182232"}
+    -> 200
+    {"item_id": "eebdd46f-1412-41b4-a381-80089daf53fe", "origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}
+--- beta GET O
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "O origin", "note": "o note", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "todo", "mirror": {"mirror_ids": ["eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931728, "completedAt": null}}
+--- beta GET M
+    [beta] GET /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "O origin", "note": "o note", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "todo", "mirror": {"origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}}, "createdAt": 1791931728, "modifiedAt": 1791931728, "completedAt": null}}
+--- prod GET M (raw shell row)
+    [prod] GET /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "", "note": "", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931728, "modifiedAt": 1791931728, "completedAt": null}}
+--- prod GET O
+    [prod] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "O origin", "note": "o note", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "todo"}, "createdAt": 1791931726, "modifiedAt": 1791931728, "completedAt": null}}
+--- beta GET M by short id
+    [beta] GET /api/v1/nodes/80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "O origin", "note": "o note", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "todo", "mirror": {"origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}}, "createdAt": 1791931728, "modifiedAt": 1791931728, "completedAt": null}}
+--- beta list dest
+    [beta] GET /api/v1/nodes?parent_id=84b7c67b-bfd4-4b9e-9541-d101ca182232
+    -> 200
+    {"nodes": [{"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "O origin", "note": "o note", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "todo", "mirror": {"origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}}, "createdAt": 1791931728, "modifiedAt": 1791931728, "completedAt": null}]}
+--- beta list M
+    [beta] GET /api/v1/nodes?parent_id=eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"nodes": [{"id": "3a45cf48-6295-4b1d-af5c-23e883a73559", "name": "oc", "note": null, "parent_id": "eebdd46f-1412-41b4-a381-80089daf53fe", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931727, "modifiedAt": 1791931727, "completedAt": null}], "mirror": {"origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}}
+--- beta list O
+    [beta] GET /api/v1/nodes?parent_id=84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"nodes": [{"id": "3a45cf48-6295-4b1d-af5c-23e883a73559", "name": "oc", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931727, "modifiedAt": 1791931727, "completedAt": null}]}
+--- beta list sb
+    [beta] GET /api/v1/nodes?parent_id=282d76a9-c6bf-4625-add7-1e91f78f91d4
+    -> 200
+    {"nodes": [{"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "O origin", "note": "o note", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "todo", "mirror": {"mirror_ids": ["eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931728, "completedAt": null}, {"id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "name": "dest", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 200, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931727, "modifiedAt": 1791931727, "completedAt": null}]}
+
+===== B. second mirror: mirror_ids order; mirror of a mirror; shell as parent_id
+--- beta mirror M (a mirror) -> sb bottom
+    [beta] POST /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe/mirror
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","position":"bottom"}
+    -> 200
+    {"item_id": "7bc120b0-527f-4ba4-9cd0-f779e45424c3", "origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}
+--- beta GET O
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "O origin", "note": "o note", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "todo", "mirror": {"mirror_ids": ["7bc120b0-527f-4ba4-9cd0-f779e45424c3", "eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931731, "completedAt": null}}
+--- create dest3
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","name":"dest3","position":"bottom"}
+    -> 200
+    {"item_id": "ed6d4234-1df7-4fc3-9286-65a4af455c89"}
+--- create P0
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","name":"P0","position":"bottom"}
+    -> 200
+    {"item_id": "17ff1652-a9b8-4c5b-b6aa-fb156f1397da"}
+--- beta mirror P0 -> M (shell as parent)
+    [beta] POST /api/v1/nodes/17ff1652-a9b8-4c5b-b6aa-fb156f1397da/mirror
+    req: {"parent_id":"eebdd46f-1412-41b4-a381-80089daf53fe"}
+    -> 200
+    {"item_id": "52146c27-39fe-46db-ba72-83b7823a913a", "origin_id": "17ff1652-a9b8-4c5b-b6aa-fb156f1397da"}
+--- beta GET MP0
+    [beta] GET /api/v1/nodes/52146c27-39fe-46db-ba72-83b7823a913a
+    -> 200
+    {"node": {"id": "52146c27-39fe-46db-ba72-83b7823a913a", "name": "P0", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 50, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "17ff1652-a9b8-4c5b-b6aa-fb156f1397da"}}, "createdAt": 1791931732, "modifiedAt": 1791931732, "completedAt": null}}
+--- beta list O
+    [beta] GET /api/v1/nodes?parent_id=84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"nodes": [{"id": "3a45cf48-6295-4b1d-af5c-23e883a73559", "name": "oc", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931727, "modifiedAt": 1791931727, "completedAt": null}, {"id": "52146c27-39fe-46db-ba72-83b7823a913a", "name": "P0", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 50, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "17ff1652-a9b8-4c5b-b6aa-fb156f1397da"}}, "createdAt": 1791931732, "modifiedAt": 1791931732, "completedAt": null}]}
+--- beta mirror O -> M (shell of O as parent)
+    [beta] POST /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563/mirror
+    req: {"parent_id":"eebdd46f-1412-41b4-a381-80089daf53fe"}
+    -> 400
+    {"code": "invalid_request", "message": "Cannot mirror a node under itself"}
+--- beta mirror O -> O
+    [beta] POST /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563/mirror
+    req: {"parent_id":"84b016ca-c11a-4491-9d20-78e242c46563"}
+    -> 400
+    {"code": "invalid_request", "message": "Cannot mirror a node under itself"}
+
+===== C. writes through M
+--- prod GET O before
+    [prod] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "O origin", "note": "o note", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "todo"}, "createdAt": 1791931726, "modifiedAt": 1791931731, "completedAt": null}}
+--- prod GET M before
+    [prod] GET /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "", "note": "", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931728, "modifiedAt": 1791931728, "completedAt": null}}
+--- beta update M
+    [beta] POST /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    req: {"name":"renamed via M","note":"n2","layoutMode":"h1"}
+    -> 200
+    {"status": "ok"}
+--- beta GET O
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1", "mirror": {"mirror_ids": ["7bc120b0-527f-4ba4-9cd0-f779e45424c3", "eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931734, "completedAt": null}}
+--- beta GET M
+    [beta] GET /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "renamed via M", "note": "n2", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "h1", "mirror": {"origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}}, "createdAt": 1791931728, "modifiedAt": 1791931734, "completedAt": null}}
+--- prod GET M (raw)
+    [prod] GET /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "", "note": "", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931728, "modifiedAt": 1791931728, "completedAt": null}}
+--- beta complete M
+    [beta] POST /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe/complete
+    -> 200
+    {"status": "ok"}
+--- beta GET O
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": true, "data": {"layoutMode": "h1", "mirror": {"mirror_ids": ["7bc120b0-527f-4ba4-9cd0-f779e45424c3", "eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931736, "completedAt": 1791931736}}
+--- prod GET M (raw)
+    [prod] GET /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "", "note": "", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931728, "modifiedAt": 1791931728, "completedAt": null}}
+--- beta uncomplete M
+    [beta] POST /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe/uncomplete
+    -> 200
+    {"status": "ok"}
+--- beta GET O
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1", "mirror": {"mirror_ids": ["7bc120b0-527f-4ba4-9cd0-f779e45424c3", "eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931738, "completedAt": null}}
+--- beta create under M (bottom)
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"eebdd46f-1412-41b4-a381-80089daf53fe","name":"child via M","position":"bottom"}
+    -> 200
+    {"item_id": "a1c3f385-283b-4bc3-9430-9d8eb0f2bd96"}
+--- beta GET c1
+    [beta] GET /api/v1/nodes/a1c3f385-283b-4bc3-9430-9d8eb0f2bd96
+    -> 200
+    {"node": {"id": "a1c3f385-283b-4bc3-9430-9d8eb0f2bd96", "name": "child via M", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 200, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931739, "modifiedAt": 1791931739, "completedAt": null}}
+--- beta list O
+    [beta] GET /api/v1/nodes?parent_id=84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"nodes": [{"id": "3a45cf48-6295-4b1d-af5c-23e883a73559", "name": "oc", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931727, "modifiedAt": 1791931727, "completedAt": null}, {"id": "52146c27-39fe-46db-ba72-83b7823a913a", "name": "P0", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 50, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "17ff1652-a9b8-4c5b-b6aa-fb156f1397da"}}, "createdAt": 1791931732, "modifiedAt": 1791931732, "completedAt": null}, {"id": "a1c3f385-283b-4bc3-9430-9d8eb0f2bd96", "name": "child via M", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 200, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931739, "modifiedAt": 1791931739, "completedAt": null}]}
+--- beta list M
+    [beta] GET /api/v1/nodes?parent_id=eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"nodes": [{"id": "3a45cf48-6295-4b1d-af5c-23e883a73559", "name": "oc", "note": null, "parent_id": "eebdd46f-1412-41b4-a381-80089daf53fe", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931727, "modifiedAt": 1791931727, "completedAt": null}, {"id": "52146c27-39fe-46db-ba72-83b7823a913a", "name": "P0", "note": null, "parent_id": "eebdd46f-1412-41b4-a381-80089daf53fe", "priority": 50, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "17ff1652-a9b8-4c5b-b6aa-fb156f1397da"}}, "createdAt": 1791931732, "modifiedAt": 1791931732, "completedAt": null}, {"id": "a1c3f385-283b-4bc3-9430-9d8eb0f2bd96", "name": "child via M", "note": null, "parent_id": "eebdd46f-1412-41b4-a381-80089daf53fe", "priority": 200, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931739, "modifiedAt": 1791931739, "completedAt": null}], "mirror": {"origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}}
+--- prod GET O (bumped by create?)
+    [prod] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1"}, "createdAt": 1791931726, "modifiedAt": 1791931738, "completedAt": null}}
+--- prod GET M (raw)
+    [prod] GET /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "", "note": "", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931728, "modifiedAt": 1791931728, "completedAt": null}}
+
+===== D. move into M, and move of M
+--- create x
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","name":"x","position":"bottom"}
+    -> 200
+    {"item_id": "4e4ff124-4eed-4a24-b0fb-ce698202aa4c"}
+--- beta move x -> M
+    [beta] POST /api/v1/nodes/4e4ff124-4eed-4a24-b0fb-ce698202aa4c/move
+    req: {"parent_id":"eebdd46f-1412-41b4-a381-80089daf53fe","position":"bottom"}
+    -> 200
+    {"status": "ok"}
+--- beta GET x
+    [beta] GET /api/v1/nodes/4e4ff124-4eed-4a24-b0fb-ce698202aa4c
+    -> 200
+    {"node": {"id": "4e4ff124-4eed-4a24-b0fb-ce698202aa4c", "name": "x", "note": null, "parent_id": "eebdd46f-1412-41b4-a381-80089daf53fe", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931740, "modifiedAt": 1791931742, "completedAt": null}}
+--- beta list M
+    [beta] GET /api/v1/nodes?parent_id=eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"nodes": [{"id": "3a45cf48-6295-4b1d-af5c-23e883a73559", "name": "oc", "note": null, "parent_id": "eebdd46f-1412-41b4-a381-80089daf53fe", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931727, "modifiedAt": 1791931727, "completedAt": null}, {"id": "52146c27-39fe-46db-ba72-83b7823a913a", "name": "P0", "note": null, "parent_id": "eebdd46f-1412-41b4-a381-80089daf53fe", "priority": 50, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "17ff1652-a9b8-4c5b-b6aa-fb156f1397da"}}, "createdAt": 1791931732, "modifiedAt": 1791931732, "completedAt": null}, {"id": "a1c3f385-283b-4bc3-9430-9d8eb0f2bd96", "name": "child via M", "note": null, "parent_id": "eebdd46f-1412-41b4-a381-80089daf53fe", "priority": 200, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931739, "modifiedAt": 1791931739, "completedAt": null}], "mirror": {"origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}}
+--- beta list O
+    [beta] GET /api/v1/nodes?parent_id=84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"nodes": [{"id": "3a45cf48-6295-4b1d-af5c-23e883a73559", "name": "oc", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931727, "modifiedAt": 1791931727, "completedAt": null}, {"id": "52146c27-39fe-46db-ba72-83b7823a913a", "name": "P0", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 50, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "17ff1652-a9b8-4c5b-b6aa-fb156f1397da"}}, "createdAt": 1791931732, "modifiedAt": 1791931732, "completedAt": null}, {"id": "a1c3f385-283b-4bc3-9430-9d8eb0f2bd96", "name": "child via M", "note": null, "parent_id": "84b016ca-c11a-4491-9d20-78e242c46563", "priority": 200, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931739, "modifiedAt": 1791931739, "completedAt": null}]}
+--- prod GET M (raw, bumped as destination?)
+    [prod] GET /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "", "note": "", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931728, "modifiedAt": 1791931742, "completedAt": null}}
+--- beta GET M
+    [beta] GET /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "renamed via M", "note": "n2", "parent_id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "priority": 100, "completed": false, "data": {"layoutMode": "h1", "mirror": {"origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}}, "createdAt": 1791931728, "modifiedAt": 1791931738, "completedAt": null}}
+--- beta move M -> sb bottom
+    [beta] POST /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe/move
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","position":"bottom"}
+    -> 200
+    {"status": "ok"}
+--- beta GET M
+    [beta] GET /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"node": {"id": "eebdd46f-1412-41b4-a381-80089daf53fe", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 600, "completed": false, "data": {"layoutMode": "h1", "mirror": {"origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}}, "createdAt": 1791931728, "modifiedAt": 1791931738, "completedAt": null}}
+--- beta GET O
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1", "mirror": {"mirror_ids": ["7bc120b0-527f-4ba4-9cd0-f779e45424c3", "eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931738, "completedAt": null}}
+--- prod GET O
+    [prod] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1"}, "createdAt": 1791931726, "modifiedAt": 1791931738, "completedAt": null}}
+
+===== E. deletes
+--- beta DELETE O (has mirrors)
+    [beta] DELETE /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 400
+    {"code": "invalid_request", "message": "Cannot delete a node that has mirrors"}
+--- beta GET O
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1", "mirror": {"mirror_ids": ["7bc120b0-527f-4ba4-9cd0-f779e45424c3", "eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931738, "completedAt": null}}
+--- beta list dest (M moved out)
+    [beta] GET /api/v1/nodes?parent_id=84b7c67b-bfd4-4b9e-9541-d101ca182232
+    -> 200
+    {"nodes": []}
+--- create O2
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","name":"O2","position":"bottom"}
+    -> 200
+    {"item_id": "bad96238-d9ce-4c02-8f0f-cc63d8b80726"}
+--- create o2c
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"bad96238-d9ce-4c02-8f0f-cc63d8b80726","name":"o2c"}
+    -> 200
+    {"item_id": "8056b744-7f08-4bcb-96a5-4c6b3d5bb867"}
+--- beta mirror O2 -> o2c (recursive)
+    [beta] POST /api/v1/nodes/bad96238-d9ce-4c02-8f0f-cc63d8b80726/mirror
+    req: {"parent_id":"8056b744-7f08-4bcb-96a5-4c6b3d5bb867"}
+    -> 200
+    {"item_id": "e0eaa9e4-7e9b-43d3-8a34-1ce759e5a275", "origin_id": "bad96238-d9ce-4c02-8f0f-cc63d8b80726"}
+--- beta DELETE O2 (only mirror is inside its subtree)
+    [beta] DELETE /api/v1/nodes/bad96238-d9ce-4c02-8f0f-cc63d8b80726
+    -> 400
+    {"code": "invalid_request", "message": "Cannot delete a node that has mirrors"}
+--- beta GET O2
+    [beta] GET /api/v1/nodes/bad96238-d9ce-4c02-8f0f-cc63d8b80726
+    -> 200
+    {"node": {"id": "bad96238-d9ce-4c02-8f0f-cc63d8b80726", "name": "O2", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 700, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["e0eaa9e4-7e9b-43d3-8a34-1ce759e5a275"]}}, "createdAt": 1791931745, "modifiedAt": 1791931745, "completedAt": null}}
+--- create holder
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","name":"holder","position":"bottom"}
+    -> 200
+    {"item_id": "1fcb3c1e-327b-4037-85a5-ad917fc7c577"}
+--- create O3 under holder
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"1fcb3c1e-327b-4037-85a5-ad917fc7c577","name":"O3"}
+    -> 200
+    {"item_id": "99ee9464-d2b7-428c-b5b0-0751c64520e2"}
+--- beta mirror O3 -> sb
+    [beta] POST /api/v1/nodes/99ee9464-d2b7-428c-b5b0-0751c64520e2/mirror
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","position":"bottom"}
+    -> 200
+    {"item_id": "0dbeb9d7-de2d-401b-9658-621cd66ae2c3", "origin_id": "99ee9464-d2b7-428c-b5b0-0751c64520e2"}
+--- beta DELETE holder (descendant is an origin)
+    [beta] DELETE /api/v1/nodes/1fcb3c1e-327b-4037-85a5-ad917fc7c577
+    -> 400
+    {"code": "invalid_request", "message": "Cannot delete a node that has mirrors"}
+--- create dest2
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","name":"dest2","position":"bottom"}
+    -> 200
+    {"item_id": "1b78adc6-f9ed-48bc-b480-ed9fac86706c"}
+--- beta mirror O -> dest2
+    [beta] POST /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563/mirror
+    req: {"parent_id":"1b78adc6-f9ed-48bc-b480-ed9fac86706c"}
+    -> 200
+    {"item_id": "dff5eb44-31ba-4afb-b1e7-d0f8660dcafc", "origin_id": "84b016ca-c11a-4491-9d20-78e242c46563"}
+--- beta GET O
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1", "mirror": {"mirror_ids": ["7bc120b0-527f-4ba4-9cd0-f779e45424c3", "dff5eb44-31ba-4afb-b1e7-d0f8660dcafc", "eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931748, "completedAt": null}}
+--- beta DELETE dest2 (holds shell M3)
+    [beta] DELETE /api/v1/nodes/1b78adc6-f9ed-48bc-b480-ed9fac86706c
+    -> 200
+    {"status": "ok"}
+--- beta GET M3
+    [beta] GET /api/v1/nodes/dff5eb44-31ba-4afb-b1e7-d0f8660dcafc
+    -> 404
+    {"code": "not_found", "message": "Item not found"}
+--- beta GET O (M3 detached?)
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1", "mirror": {"mirror_ids": ["7bc120b0-527f-4ba4-9cd0-f779e45424c3", "eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931750, "completedAt": null}}
+--- prod GET O (bumped?)
+    [prod] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1"}, "createdAt": 1791931726, "modifiedAt": 1791931750, "completedAt": null}}
+--- beta DELETE /mirror M2
+    [beta] DELETE /api/v1/nodes/7bc120b0-527f-4ba4-9cd0-f779e45424c3/mirror
+    -> 200
+    {"status": "ok"}
+--- beta GET O
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1", "mirror": {"mirror_ids": ["eebdd46f-1412-41b4-a381-80089daf53fe"]}}, "createdAt": 1791931726, "modifiedAt": 1791931752, "completedAt": null}}
+--- beta plain DELETE M
+    [beta] DELETE /api/v1/nodes/eebdd46f-1412-41b4-a381-80089daf53fe
+    -> 200
+    {"status": "ok"}
+--- beta GET O (no mirrors left)
+    [beta] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1"}, "createdAt": 1791931726, "modifiedAt": 1791931753, "completedAt": null}}
+--- prod GET O (bumped by plain delete of shell?)
+    [prod] GET /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"node": {"id": "84b016ca-c11a-4491-9d20-78e242c46563", "name": "renamed via M", "note": "n2", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 100, "completed": false, "data": {"layoutMode": "h1"}, "createdAt": 1791931726, "modifiedAt": 1791931753, "completedAt": null}}
+--- beta GET x (persisted child of M)
+    [beta] GET /api/v1/nodes/4e4ff124-4eed-4a24-b0fb-ce698202aa4c
+    -> 404
+    {"code": "not_found", "message": "Item not found"}
+--- beta DELETE O (now without mirrors)
+    [beta] DELETE /api/v1/nodes/84b016ca-c11a-4491-9d20-78e242c46563
+    -> 200
+    {"status": "ok"}
+
+===== F. prod-made mirrors and orphans seen through beta
+--- create Q
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","name":"Q","position":"bottom"}
+    -> 200
+    {"item_id": "9bff9e13-01e1-4d98-bf4d-60b71c3d2412"}
+--- prod mirror Q -> sb
+    [prod] POST /api/v1/nodes/9bff9e13-01e1-4d98-bf4d-60b71c3d2412/mirror
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","position":"bottom"}
+    -> 200
+    {"item_id": "5cac7ef6-0e7d-4678-b619-321be37a3160", "origin_id": "9bff9e13-01e1-4d98-bf4d-60b71c3d2412"}
+--- beta GET Q (prod-made mirror)
+    [beta] GET /api/v1/nodes/9bff9e13-01e1-4d98-bf4d-60b71c3d2412
+    -> 200
+    {"node": {"id": "9bff9e13-01e1-4d98-bf4d-60b71c3d2412", "name": "Q", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 1000, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["5cac7ef6-0e7d-4678-b619-321be37a3160"]}}, "createdAt": 1791931754, "modifiedAt": 1791931754, "completedAt": null}}
+--- beta GET MQ
+    [beta] GET /api/v1/nodes/5cac7ef6-0e7d-4678-b619-321be37a3160
+    -> 200
+    {"node": {"id": "5cac7ef6-0e7d-4678-b619-321be37a3160", "name": "Q", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 1100, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "9bff9e13-01e1-4d98-bf4d-60b71c3d2412"}}, "createdAt": 1791931754, "modifiedAt": 1791931754, "completedAt": null}}
+--- beta DELETE Q
+    [beta] DELETE /api/v1/nodes/9bff9e13-01e1-4d98-bf4d-60b71c3d2412
+    -> 400
+    {"code": "invalid_request", "message": "Cannot delete a node that has mirrors"}
+--- create R
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","name":"R","position":"bottom"}
+    -> 200
+    {"item_id": "4fef82c7-9f27-4601-909e-f14f612c8531"}
+--- prod mirror R -> sb
+    [prod] POST /api/v1/nodes/4fef82c7-9f27-4601-909e-f14f612c8531/mirror
+    req: {"parent_id":"282d76a9-c6bf-4625-add7-1e91f78f91d4","position":"bottom"}
+    -> 200
+    {"item_id": "e3f24cf1-7bdc-4497-91b9-0c6ff99cf2b6", "origin_id": "4fef82c7-9f27-4601-909e-f14f612c8531"}
+--- prod create own child under MR
+    [prod] POST /api/v1/nodes
+    req: {"parent_id":"e3f24cf1-7bdc-4497-91b9-0c6ff99cf2b6","name":"own child of MR"}
+    -> 200
+    {"item_id": "eaa86e52-8894-4b33-9d23-a3ac2021fbc3"}
+--- prod DELETE R (prod allows; orphans MR)
+    [prod] DELETE /api/v1/nodes/4fef82c7-9f27-4601-909e-f14f612c8531
+    -> 200
+    {"status": "ok"}
+--- beta GET MR (orphan)
+    [beta] GET /api/v1/nodes/e3f24cf1-7bdc-4497-91b9-0c6ff99cf2b6
+    -> 200
+    {"node": {"id": "e3f24cf1-7bdc-4497-91b9-0c6ff99cf2b6", "name": "", "note": "", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 1300, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": null}}, "createdAt": 1791931755, "modifiedAt": 1791931755, "completedAt": null}}
+--- beta list MR (orphan)
+    [beta] GET /api/v1/nodes?parent_id=e3f24cf1-7bdc-4497-91b9-0c6ff99cf2b6
+    -> 200
+    {"nodes": []}
+--- beta update MR (orphan)
+    [beta] POST /api/v1/nodes/e3f24cf1-7bdc-4497-91b9-0c6ff99cf2b6
+    req: {"name":"orphan edit"}
+    -> 404
+    {"code": "not_found", "message": "Item not found"}
+--- prod GET MR (raw)
+    [prod] GET /api/v1/nodes/e3f24cf1-7bdc-4497-91b9-0c6ff99cf2b6
+    -> 200
+    {"node": {"id": "e3f24cf1-7bdc-4497-91b9-0c6ff99cf2b6", "name": "", "note": "", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 1300, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931755, "modifiedAt": 1791931755, "completedAt": null}}
+--- beta create under MR (orphan)
+    [beta] POST /api/v1/nodes
+    req: {"parent_id":"e3f24cf1-7bdc-4497-91b9-0c6ff99cf2b6","name":"under orphan"}
+    -> 404
+    {"code": "not_found", "message": "Parent item not found"}
+
+===== G. errors and leftovers
+--- beta list sb
+    [beta] GET /api/v1/nodes?parent_id=282d76a9-c6bf-4625-add7-1e91f78f91d4
+    -> 200
+    {"nodes": [{"id": "84b7c67b-bfd4-4b9e-9541-d101ca182232", "name": "dest", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 200, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931727, "modifiedAt": 1791931727, "completedAt": null}, {"id": "ed6d4234-1df7-4fc3-9286-65a4af455c89", "name": "dest3", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 400, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931732, "modifiedAt": 1791931732, "completedAt": null}, {"id": "17ff1652-a9b8-4c5b-b6aa-fb156f1397da", "name": "P0", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 500, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931732, "modifiedAt": 1791931754, "completedAt": null}, {"id": "bad96238-d9ce-4c02-8f0f-cc63d8b80726", "name": "O2", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 700, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["e0eaa9e4-7e9b-43d3-8a34-1ce759e5a275"]}}, "createdAt": 1791931745, "modifiedAt": 1791931745, "completedAt": null}, {"id": "1fcb3c1e-327b-4037-85a5-ad917fc7c577", "name": "holder", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 800, "completed": false, "data": {"layoutMode": "bullets"}, "createdAt": 1791931746, "modifiedAt": 1791931746, "completedAt": null}, {"id": "0dbeb9d7-de2d-401b-9658-621cd66ae2c3", "name": "O3", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 900, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "99ee9464-d2b7-428c-b5b0-0751c64520e2"}}, "createdAt": 1791931746, "modifiedAt": 1791931746, "completedAt": null}, {"id": "9bff9e13-01e1-4d98-bf4d-60b71c3d2412", "name": "Q", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 1000, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"mirror_ids": ["5cac7ef6-0e7d-4678-b619-321be37a3160"]}}, "createdAt": 1791931754, "modifiedAt": 1791931754, "completedAt": null}, {"id": "5cac7ef6-0e7d-4678-b619-321be37a3160", "name": "Q", "note": null, "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 1100, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": "9bff9e13-01e1-4d98-bf4d-60b71c3d2412"}}, "createdAt": 1791931754, "modifiedAt": 1791931754, "completedAt": null}, {"id": "e3f24cf1-7bdc-4497-91b9-0c6ff99cf2b6", "name": "", "note": "", "parent_id": "282d76a9-c6bf-4625-add7-1e91f78f91d4", "priority": 1300, "completed": false, "data": {"layoutMode": "bullets", "mirror": {"origin_id": null}}, "createdAt": 1791931755, "modifiedAt": 1791931755, "completedAt": null}]}
+
+done; sandbox 282d76a9-c6bf-4625-add7-1e91f78f91d4

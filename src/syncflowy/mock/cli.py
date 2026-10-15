@@ -60,6 +60,13 @@ def main(argv: list[str] | None = None) -> None:
         help="mock-only check that API-written names/notes are well-formed WF-HTML: off, warn "
         "(default; GET /_mock/warnings) or reject (mock-specific 400)",
     )
+    p.add_argument(
+        "--beta-mirrors",
+        action="store_true",
+        help="mirror-aware semantics of the beta API (beta.workflowy.com): data.mirror metadata, "
+        "reads and writes through a mirror reach its origin, origins with mirrors cannot be deleted "
+        "(default: production's observed behaviour)",
+    )
     p.add_argument("--log-level", default="info")
     args = p.parse_args(argv)
 
@@ -71,6 +78,7 @@ def main(argv: list[str] | None = None) -> None:
             faithful_cycles=args.faithful_cycles,
             export_min_interval=args.export_min_interval,
             xml_check=args.xml_check,
+            beta_mirrors=args.beta_mirrors,
         ),
         id_seed=args.id_seed,
     )

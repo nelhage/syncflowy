@@ -20,6 +20,7 @@
 //!                            │
 //!  nodes-export ──► Remote tree R ──┐                   ┌── mdblock::parse(current .md) ◄── file
 //!  (wfclient)       (tree::Tree)    ├─► merge::merge ◄──┤
+//!     (per root: mirrors::view_tree)│
 //!           base_wf ───────────────►┘     │             └── mdblock::parse(base_md)
 //!                                         ▼
 //!                                   MergeResult (M + provenance)
@@ -31,8 +32,8 @@
 //!         apply::Applier + Journal ──► re-export R' ──► verify ≈ M
 //! ```
 //!
-//! **The core is pure** (§3): [`tree`], [`wfhtml`], [`mdinline`], [`mdblock`], [`merge`]
-//! and [`plan`] take values and return values, with no I/O, no clock and no randomness
+//! **The core is pure** (§3): [`tree`], [`wfhtml`], [`mdinline`], [`mdblock`], [`merge`],
+//! [`mirrors`] and [`plan`] take values and return values, with no I/O, no clock and no randomness
 //! (temp ids are deterministic). I/O lives in [`wfclient`], [`apply`], [`state`],
 //! [`sync`] and [`daemon`]. Property tests (`proptest`) and snapshot tests (`insta`) are
 //! expected for the pure modules; I/O modules are tested against the mock.
@@ -46,6 +47,7 @@
 //! | [`mdinline`] | WF-HTML inline <-> Markdown inline, tiers, §5.2 lossy writes, id-tag syntax (§4.2, §4.4, §5.2, §5.3) | `wf_to_md`, `md_to_wf`, `classify` -> [`mdinline::Tier`], `write_value`, `find_tags`/`format_tag` ([`mdinline::IdTag`], [`mdinline::TagForm`], `TagFlag::ReadOnly`), `InlineConfig`, the escaping contract EC | `wfhtml`, `tree` |
 //! | [`mdblock`] | the file format: frontmatter, parse to [`mdblock::LocalDoc`], [`mdblock::View`] of a tree, `render` (§4.1, §4.3–§4.5, §5.3, §6.1 markers, §9.1 `gen`/controls, §10) | `parse`, `parse_frontmatter`, `render`, `normalize`, `equivalent`, `View::build`, [`mdblock::Frontmatter`], [`mdblock::DocConfig`] (headings, tag style, checkbox policy, dates, depth), `LocalItem`, `ItemKind`, `Checkbox`, `ConflictMarker`, `ViewExtras`, `Sticky` | `tree`, `mdinline` |
 //! | [`merge`] | three-way merge of fields, structure, completion, order; identity repair; conflicts; report (§4.4, §4.5, §5.1, §5.2, §6, §9.1 guards 1–3, §10) | `merge(&MergeInput) -> MergeResult` (`merged` tree M with temp ids, `pushes`, `creates`, `moves`, `ticks`, `deletes` with hidden counts, `orders`, `conflicts`, `report`, `stats`), `MergeConfig`, `CrossFile`, `ReportEvent` | `tree`, `mdblock`, `mdinline`, `apply::Adoption` (type only) |
+//! | [`mirrors`] | mirrors as their origins (§15.1, DM§10.5): the per-root **view tree** (shells show their origin, one full placement per content, stubs elsewhere), the **real tree** the planner runs on, the translation of a merge result between them, and the scope-through-mirrors check of the boundary guards | `view_tree`, `real_tree`, `to_real`, `full_placements`, `placements_of`, `full_placement_of`, [`mirrors::MirrorIndex`] (`in_scope`) | `tree`, `merge` (types) |
 //! | [`plan`] | API ops from M vs R in §7.1 order; §8.1 reorders; §8.2 guards; §8.3 brakes; simulation | `plan(&MergeResult, &Tree, &PlanConfig) -> Result<Plan, PlanError>`, [`plan::Op`], `CreateName` (§7.2), `reorder_moves`, `create_name_is_safe`, `simulate`/`simulate_op`, `BrakeConfig`, `Brake` | `merge`, `tree` |
 //! | [`apply`] | execute a plan: journal, pre-write GET checks, two-step creates with nonces, temp->real ids, verification export; crash recovery (§7.1–§7.3, §8.2) | `Applier::apply`, `Journal` (JSONL, `JournalEntry`), `ApplyOutcome`, `recover -> Recovery { adoptions }`, `Adoption` | `plan`, `wfclient`, `tree` |
 //! | [`state`] | checkpoint + render history + pending deletes on disk; atomic writes; per-root lock (§3, §5.1, §9.1 guards 1–2) | `Checkpoint`, `HistoryEntry`, `HistoryLimits`, `PendingDeletes`, `fingerprint`, `StateStore` (`load_checkpoint`, `save_checkpoint`, `put_history`, `get_history`, `prune_history`, `journal_path`, `lock`), `atomic_write` (keeps symlinks and modes, `write_target`) | `tree`, `mdblock::DocConfig` |
@@ -70,7 +72,9 @@
 //!   `MergeConfig::doc.inline`. Identity is the winning tag (`LocalItem::tag`), resolved
 //!   through `IdMap`. Conflict markers are `LocalItem`s with
 //!   `ItemKind::ConflictMarker`, attached to their parent item's node.
-//! * **merge -> plan.** `MergeResult` lists exactly what to push; `merged` (M) is the
+//! * **merge -> mirrors -> plan.** On a beta export the merge runs on the view tree and
+//!   `mirrors::to_real` rewrites its result onto the real tree (content ids, shells as
+//!   leaves) before the planner sees it; `sync` keeps both. `MergeResult` lists exactly what to push; `merged` (M) is the
 //!   expected outcome (temp ids for creates), and `orders` the visible sibling orders.
 //!   Every pushed text is canonical WF-HTML.
 //! * **merge -> mdblock (render).** `MergeResult::conflicts` go into
@@ -100,6 +104,7 @@ pub mod error;
 pub mod mdblock;
 pub mod mdinline;
 pub mod merge;
+pub mod mirrors;
 pub mod plan;
 pub mod state;
 pub mod sync;
