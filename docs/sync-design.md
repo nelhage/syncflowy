@@ -628,7 +628,7 @@ The API exposes no mirror metadata (DM§10.1). A shell looks like an empty node 
   exist, and API-made shells can have children of their own.
 
 Policy for now: render every node that matches the heuristic as a marked, **read-only** placeholder (for
-example `- ⧉ (empty or mirror)`), never render its children, and do not push edits to it or deletes of it
+example `- ⧉ (empty or mirror)`: the label stays ambiguous because, without mirror metadata, it is), never render its children, and do not push edits to it or deletes of it
 without `--force`. Accept that mirrors are a hole: their content does not appear in Markdown. UI deletion of
 an origin shows up as "origin moved, shell vanished" (UI:H6), which the general move logic already handles.
 This is the one place where "collaborators won't notice" is not fully achievable, and the gap is in what *we*
@@ -836,7 +836,8 @@ and the content staying, which is what the WF user saw.
 #### Orphans, and creating mirrors
 
 - **Orphan shells** only arise from API deletes, and the UI behaviour for them is unknown. Render them as
-  read-only placeholders.
+  read-only placeholders, labelled as what they are known to be (`- ⧉ (mirror of a deleted item)`) rather than
+  with §10's "empty or mirror".
 - **Creating a mirror from Markdown** is a natural later feature: a stub line `- ⧉ [[#^wf-…]]` with no tag of
   its own, placed by the user, becomes `POST /nodes/<origin>/mirror`. It is not needed for the first version.
 
@@ -863,7 +864,8 @@ module docs have the details.
   kept as a conflict marker); deleting the origin's own placement while shells exist is refused and reported, like any
   delete whose subtree holds an origin that still has mirrors (the UI's promotion of a shell, H6, is not emulated),
   and the refused subtree is kept whole; a refused mirror delete is not overridden by `--force`. Orphan shells are
-  placeholders. Mirrors are not created from Markdown. A shell's hidden persisted children (DM§10.5) are dropped from
+  placeholders with their own label, `⧉ (mirror of a deleted item)`; `⧉ (empty or mirror)` is used only for §10's
+  heuristic, on an export without mirror metadata, where the two cannot be told apart. Mirrors are not created from Markdown. A shell's hidden persisted children (DM§10.5) are dropped from
   every tree the engine looks at, so they are never shown and are not counted when the shell is removed.
 - **Nodes moved out of the file in Workflowy.** The design does not cover edits to such a node. The engine still
   pushes your edits and ticks to it where it now is. If both sides edited the same field, Workflowy wins and the

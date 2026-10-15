@@ -99,6 +99,7 @@ const PIECES: &[&str] = &[
     "~~~",
     "🔒 ",
     "⧉ (empty or mirror)",
+    "⧉ (mirror of a deleted item)",
     "⚠ ",
     "📅",
     "📅 2026-01-15",
@@ -680,7 +681,7 @@ fn wild_line() -> impl Strategy<Value = String> {
         6 => piece(),
         2 => prop::sample::select(&[
             "[ ] ", "[x] ", "[X] ", "🔒 ", "⚠ ", "> ", "```", "````", "~~~", "---",
-            "⧉ (empty or mirror)", "local note",
+            "⧉ (empty or mirror)", "⧉ (mirror of a deleted item)", "local note",
         ][..]).prop_map(str::to_owned),
         2 => (
             prop::sample::select(&["000000000002", "000000000003", "8E1F00AA2B3C"][..]),

@@ -5,8 +5,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use syncflowy::mdblock::{
     Checkbox, CheckboxPolicy, ConflictMarker, DocConfig, Frontmatter, ItemKind, ItemPath, LocalDoc,
-    PLACEHOLDER_TEXT, ParseError, RootRef, Sticky, TagStyle, View, ViewError, ViewExtras,
-    WarningKind, equivalent, normalize, parse, parse_frontmatter, render,
+    ORPHAN_PLACEHOLDER_TEXT, PLACEHOLDER_TEXT, ParseError, RootRef, Sticky, TagStyle, View,
+    ViewError, ViewExtras, WarningKind, equivalent, normalize, parse, parse_frontmatter, render,
 };
 use syncflowy::mdinline::{ConflictField, InlineConfig, TagFlag, TagForm, Tier};
 use syncflowy::tree::{IdMap, Node, NodeId, ShortId, Tree};
@@ -699,11 +699,21 @@ fn placeholder_needs_flag_and_exact_text() {
         "- {PLACEHOLDER_TEXT} ^wf-000000000002-ro\n\t- child\n- {PLACEHOLDER_TEXT} ^wf-000000000003\n- {PLACEHOLDER_TEXT}!  ^wf-000000000004-ro\n"
     ));
     assert_eq!(d.items[0].kind, ItemKind::Placeholder);
-    assert_eq!(d.items[0].name_md, "");
+    assert_eq!(d.items[0].name_md, PLACEHOLDER_TEXT);
     assert_eq!(d.items[0].children.len(), 1);
     assert_eq!(d.items[1].kind, ItemKind::Bullet);
     assert_eq!(d.items[1].name_md, PLACEHOLDER_TEXT);
     assert_eq!(d.items[2].kind, ItemKind::Bullet);
+}
+
+#[test]
+fn orphan_placeholder_text_is_a_placeholder() {
+    let src = format!("- {ORPHAN_PLACEHOLDER_TEXT} ^wf-000000000002-ro\n");
+    let d = doc(&src);
+    assert_eq!(d.items[0].kind, ItemKind::Placeholder);
+    assert_eq!(d.items[0].name_md, ORPHAN_PLACEHOLDER_TEXT);
+    // The label round-trips: the writer keeps the text it read.
+    assert_eq!(body(&normalize(&d)), src);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -968,7 +978,7 @@ fn view_empty_items_other_than_bullets_are_not_placeholders() {
             (ItemKind::Bullet, "", 2),
             (ItemKind::Code, "", 1),
             (ItemKind::Quote, "", 1),
-            (ItemKind::Placeholder, "", 0),
+            (ItemKind::Placeholder, "⧉ (empty or mirror)", 0),
         ]
     );
 }

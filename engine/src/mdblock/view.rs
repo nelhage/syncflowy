@@ -121,7 +121,21 @@ impl Builder<'_> {
         } else {
             FieldKind::Name
         };
-        let (name, note) = if kind == ItemKind::MirrorStub {
+        let (name, note) = if kind == ItemKind::Placeholder {
+            // §10: the label says what the node is known to be.
+            let text = if node.is_orphan_shell() {
+                super::ORPHAN_PLACEHOLDER_TEXT
+            } else {
+                super::PLACEHOLDER_TEXT
+            };
+            (
+                MdText {
+                    text: text.to_owned(),
+                    tier: Tier::Exact,
+                },
+                None,
+            )
+        } else if kind == ItemKind::MirrorStub {
             (
                 MdText {
                     text: self.stub_text(node),

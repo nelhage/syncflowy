@@ -451,7 +451,7 @@ fn an_orphan_shell_is_a_placeholder() {
     let text = read(&f.file);
     assert!(text.contains(&format!(
         "- {} ^wf-{}-ro",
-        mdblock::PLACEHOLDER_TEXT,
+        mdblock::ORPHAN_PLACEHOLDER_TEXT,
         short(&s3)
     )));
     assert_settled(&f);

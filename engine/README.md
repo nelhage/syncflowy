@@ -139,6 +139,7 @@ A note on "Planning": the lines right under the heading.
 	x = 1
 	```
 - ⧉ (empty or mirror) ^wf-b2863eed4436-ro
+- ⧉ (mirror of a deleted item) ^wf-5e6f7a8b3c4d-ro
 - Weekly review ^wf-3c4d5e6f7a8b
 	- ⧉ [[#^wf-472caa53fd65|Draft the spec]] ^wf-11aa22bb33cc-ro
 ```
@@ -199,13 +200,15 @@ A note on "Planning": the lines right under the heading.
   under it are lifted to its parent and reported, and the choice of which placement is full sticks across
   renders. A delete whose subtree holds an origin that still has mirrors is refused and reported (`--force`
   does not override it: the API refuses too, and removing a mirror is a visible change for Workflowy users);
-  remove the mirrors in Workflowy first. A mirror whose origin was deleted (an orphan) renders as the
-  placeholder below. Creating a mirror from Markdown and the UI's promotion of a mirror when its origin is
-  deleted are not supported.
+  remove the mirrors in Workflowy first. A mirror whose origin was deleted (an orphan) renders as a read-only
+  placeholder `⧉ (mirror of a deleted item)` with the `-ro` flag: its children are not shown, and edits or
+  deletes of it are refused without `--force`, as for the placeholders below. Creating a mirror from Markdown
+  and the UI's promotion of a mirror when its origin is deleted are not supported.
 * **Shells and placeholders** (§10), on **production**, whose API has no mirror metadata. Mirrors appear as
-  empty "shell" nodes. They render as `⧉ (empty or mirror)` with the `-ro` flag, their children are not shown,
-  and edits or deletes of them are refused without `--force`. The test is: empty name, no note, layout `bullets`.
-  A genuinely empty bullet looks the same. On an export with mirror metadata the heuristic is off.
+  empty "shell" nodes. They render as `⧉ (empty or mirror)` with the `-ro` flag (the label is ambiguous because
+  the heuristic is), their children are not shown, and edits or deletes of them are refused without `--force`.
+  The test is: empty name, no note, layout `bullets`. A genuinely empty bullet looks the same. On an export with
+  mirror metadata the heuristic is off.
 * **Safe mode** (§9.1 guard 1). If the file's `gen` is missing or no longer in the render history (for example a
   hand-written or stale file), the engine cannot know what you changed. It then pushes text edits and creates,
   but applies no deletes, moves or reorders, and says so in the report.

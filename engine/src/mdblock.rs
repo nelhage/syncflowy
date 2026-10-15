@@ -32,6 +32,7 @@
 //!     x = 1
 //!     ```
 //! - ⧉ (empty or mirror) ^wf-77aa12cd0e9f-ro
+//! - ⧉ (mirror of a deleted item) ^wf-9f77aa12cd0e-ro
 //! - 🔒 best-effort text of a malformed name ^wf-0e9f77aa12cd-ro
 //! ```
 //!
@@ -95,11 +96,13 @@
 //!   list items, `%%wf:…%%` on headings, where block ids are not allowed).
 //! * **Read-only forms** (§5.3, §10, §15.1): an item whose id tag has the `ro` flag is
 //!   rendered from a value of tier `ReadOnly` (text prefixed with `🔒 `), is a mirror
-//!   placeholder (text exactly [`PLACEHOLDER_TEXT`], children never rendered), or is a
+//!   placeholder (text exactly [`PLACEHOLDER_TEXT`] for a §10 heuristic match, or
+//!   [`ORPHAN_PLACEHOLDER_TEXT`] for an orphan shell; children never rendered), or is a
 //!   **mirror stub** (text `⧉ [[#^wf-<full>|<name>]]`, see [`stub_text`]: a link to the
 //!   placement that renders the same content in full; no children). The parser strips
 //!   the `🔒 ` prefix only when the `ro` flag is present, recognises a placeholder only
-//!   by `ro` + the exact text, and a stub only by `ro` + the [`STUB_PREFIX`].
+//!   by `ro` + one of the exact texts (kept verbatim as its name), and a stub only by
+//!   `ro` + the [`STUB_PREFIX`].
 //! * **Conflict markers** (§6.1, §12.5): the local version of a conflicted field is kept
 //!   in the file only, as an item placed **before the real children** of the conflicted
 //!   node (at the top of the body for the root): `- ⚠ <local name md>
@@ -190,8 +193,19 @@ use crate::tree::{IdMap, NodeId, ShortId, Tree};
 
 use emit::RItem;
 
-/// The text of a mirror placeholder item (§10).
+/// The text of a §10 placeholder found by the heuristic, on an export without mirror
+/// metadata (production): the node may be a mirror shell or a genuinely empty bullet.
 pub const PLACEHOLDER_TEXT: &str = "⧉ (empty or mirror)";
+/// The text of the placeholder for an **orphan shell** (DM§10.4) on an export with
+/// mirror metadata (the beta API): a known mirror whose origin was deleted, so there is
+/// no content to show.
+pub const ORPHAN_PLACEHOLDER_TEXT: &str = "⧉ (mirror of a deleted item)";
+
+/// True if `t` is the text of a placeholder ([`PLACEHOLDER_TEXT`] or
+/// [`ORPHAN_PLACEHOLDER_TEXT`]).
+pub fn is_placeholder_text(t: &str) -> bool {
+    t == PLACEHOLDER_TEXT || t == ORPHAN_PLACEHOLDER_TEXT
+}
 /// The start of a mirror stub's text (§15.1): `⧉ [[#^wf-<short of the full placement>`.
 pub const STUB_PREFIX: &str = "⧉ [[#^wf-";
 
@@ -362,7 +376,9 @@ pub enum ItemKind {
     Quote,
     /// `- ---` (`divider` layout with an empty name).
     Divider,
-    /// A read-only mirror placeholder (§10): `ro` tag and [`PLACEHOLDER_TEXT`].
+    /// A read-only placeholder (§10): `ro` tag and [`PLACEHOLDER_TEXT`] (heuristic, no
+    /// mirror metadata) or [`ORPHAN_PLACEHOLDER_TEXT`] (an orphan shell); the text is
+    /// the item's name.
     Placeholder,
     /// A read-only mirror stub (§15.1): `ro` tag and a text starting with
     /// [`STUB_PREFIX`] (see [`stub_text`]); never has children.
