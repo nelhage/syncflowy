@@ -241,7 +241,11 @@ the server that talks to Workflowy: there must be only one engine per account.
 
 ## Known limitations
 
-* One engine, one writer. Several engines on one root are not supported.
+* One engine, one writer. Several engines on one root are not supported, and nothing detects them: use one
+  state directory per vault and account, and run every `sync`, `render` and `daemon` for those files with it. The
+  per-root lock covers only one state directory. Two engines with separate state directories on the same files
+  read each other's `gen` as unknown (safe mode, with no hint why) or, worse, as one of their own generations
+  with different text, and then merge against the wrong base.
 * The engine needs the beta API (§10); it does not run against production. Mirrors are never
   created from Markdown, a stub is read-only, and an origin that still has mirrors cannot be deleted from
   Markdown. A mirror's hidden persisted children (DM§10.5) are never shown and go with the mirror when it is
