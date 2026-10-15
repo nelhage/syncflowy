@@ -455,6 +455,34 @@ fn heading_first_level_coerced() {
             WarningKind::HeadingBeyondConfig
         ]
     );
+    assert_eq!(
+        d.warnings[1].message,
+        "heading at depth 1 but headings: 0; it becomes an item, and the item after it \
+         becomes its child"
+    );
+    // The warning names how many items the heading took (not markers).
+    let d = parse(
+        "---\nworkflowy: 000000000001\nsyncflowy: {headings: 1}\n---\n# One\n- a\n\
+         ### Skipped\n- ⚠ mine %%wf-conflict:name%%\n- b\n\t- b1\n- c\n## Empty\n",
+    )
+    .unwrap();
+    let beyond: Vec<(usize, &str)> = d
+        .warnings
+        .iter()
+        .filter(|w| w.kind == WarningKind::HeadingBeyondConfig)
+        .map(|w| (w.line, w.message.as_str()))
+        .collect();
+    assert_eq!(
+        beyond,
+        [
+            (
+                7,
+                "heading at depth 2 but headings: 1; it becomes an item, and the 2 items \
+                 after it become its children"
+            ),
+            (12, "heading at depth 2 but headings: 1; it becomes an item"),
+        ]
+    );
     // Indented `#` lines are not headings.
     let d = doc("- a\n\t# b\n");
     assert_eq!(d.items[0].note_md, vec!["# b"]);
@@ -483,7 +511,8 @@ fn kinds_code_quote_divider() {
     );
     let c = &d.items[0];
     assert_eq!(c.kind, ItemKind::Code);
-    assert_eq!(c.name_md, "python\nx = 1\n\n    y");
+    // The info string (a language) is dropped and reported (Workflowy code has none).
+    assert_eq!(c.name_md, "x = 1\n\n    y");
     assert_eq!(c.note_md, vec!["note after"]);
     assert_eq!((c.line, c.end_line), (4, 9));
     assert_eq!(
@@ -509,7 +538,20 @@ fn kinds_code_quote_divider() {
         (d.items[7].kind, d.items[7].name_md.as_str()),
         (ItemKind::Code, "a")
     );
-    assert!(d.warnings.is_empty());
+    assert_eq!(kinds(&d), vec![WarningKind::DroppedInfoString]);
+    assert_eq!(d.warnings[0].line, 4);
+    assert_eq!(
+        d.warnings[0].message,
+        "the code block's language \"python\" was dropped (Workflowy code blocks have none)"
+    );
+    // At heading depth too.
+    let d = parse(
+        "---\nworkflowy: 000000000001\nsyncflowy: {headings: 1}\n---\n\
+         # ```rust %%wf:000000000002%%\nfn x() {}\n```\n",
+    )
+    .unwrap();
+    assert_eq!(d.items[0].name_md, "fn x() {}");
+    assert_eq!(kinds(&d), vec![WarningKind::DroppedInfoString]);
 }
 
 #[test]

@@ -884,6 +884,8 @@ module docs have the details.
   "maybe applied" and settled by the nonce scan of §7.3. No gateway 5xx or 429 has been observed.
 - **Dry run** does not recover a leftover journal, since recovery writes.
 - **Code blocks** with a ``` line are written with a longer fence and stay editable; the design left this open.
+  A fence's info string (a language typed in Obsidian) is dropped with a warning, since Workflowy code blocks
+  have none; the API's create pipeline would have made it the first line of the code.
 - **Obsidian syntax** (`[[x]]`, `![[x]]`, `==x==`, `$x$`) is written back unescaped (§4.2), except a `$` before a
   digit when the value holds another `$`, to keep prices from reading as math.
 - **Dates, locale variants and link titles** have no compact or structured form; they stay literal.

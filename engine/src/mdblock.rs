@@ -87,9 +87,10 @@
 //!   not as a leaf.
 //! * **Kinds** (§4.3): a fenced block as the item text (```` - ``` ````, content indented
 //!   one level, closing fence at the same indentation as the content) is a `code-block`
-//!   node, its name being the code; a non-empty info string on the opening fence is
-//!   folded into the code as its first line (as the API's create pipeline does, DM§6.2
-//!   step 7; rendering always writes an empty info string). `- > text` is a
+//!   node, its name being the code; a non-empty info string on the opening fence (a
+//!   language) is dropped with [`WarningKind::DroppedInfoString`], since Workflowy code
+//!   blocks have none (the API's create pipeline would fold it into the code as its
+//!   first line, DM§6.2 step 7; rendering always writes an empty info string). `- > text` is a
 //!   `quote-block`. `- ---` is a `divider` (only rendered for dividers with an empty
 //!   name). All other layouts render as plain items and are preserved in the checkpoint.
 //! * **Id tags** (§4.4): found anywhere on an item's first line with
@@ -417,7 +418,7 @@ pub struct LocalItem {
     /// The name as Markdown: the first line with indentation, marker, checkbox, kind
     /// prefix (`> `, `🔒 ` with `ro`, `⚠ ` with a conflict tag) and tags removed, trailing
     /// whitespace trimmed; not unescaped (feed it to `mdinline::md_to_wf`). For
-    /// [`ItemKind::Code`]: the code lines (info string folded in), joined with `\n`,
+    /// [`ItemKind::Code`]: the code lines (without the fence's info string), joined with `\n`,
     /// dedented. For a marker: the local name text (empty for a note marker).
     pub name_md: String,
     /// Note lines (or a note marker's local note lines), with the item's continuation
@@ -449,7 +450,8 @@ pub struct ItemPath(pub Vec<usize>);
 pub enum WarningKind {
     /// A heading skipped a level and was coerced.
     HeadingLevelSkipped,
-    /// A heading deeper than `headings` (kept as a heading at its structural depth).
+    /// A heading deeper than `headings` (parsed as a heading at its structural depth, so
+    /// it owns the items after it; rendered as a list item). The message counts them.
     HeadingBeyondConfig,
     /// Indentation was inconsistent and was coerced.
     Indentation,
@@ -468,6 +470,9 @@ pub enum WarningKind {
     UnclosedFence,
     /// A conflict marker outside any item list position that makes sense (kept).
     MisplacedMarker,
+    /// A code fence's info string (a language) was dropped: Workflowy code blocks have
+    /// none.
+    DroppedInfoString,
 }
 
 /// A non-fatal parse problem.

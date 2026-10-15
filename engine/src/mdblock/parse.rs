@@ -163,6 +163,9 @@ struct Parser<'a> {
     warnings: Vec<ParseWarning>,
     /// `headings:` of the file's config (for [`WarningKind::HeadingBeyondConfig`]).
     headings_cfg: u8,
+    /// Headings deeper than `headings_cfg`: (index into `warnings`, slot), so that the
+    /// warning can name the children they took once the file is read.
+    beyond: Vec<(usize, usize)>,
 }
 
 /// Parse a whole file (see [`super::parse`]).
@@ -199,8 +202,10 @@ pub(super) fn parse(text: &str) -> Result<LocalDoc, ParseError> {
         pending: Vec::new(),
         warnings: fm.warnings,
         headings_cfg: fm.fm.config.headings,
+        beyond: Vec::new(),
     };
     p.run();
+    p.describe_beyond();
     let mut slots: Vec<Option<Slot>> = p.slots.into_iter().map(Some).collect();
     let items = p.top.iter().map(|&i| assemble(&mut slots, i)).collect();
     let mut warnings = p.warnings;
@@ -227,6 +232,25 @@ impl<'a> Parser<'a> {
             kind,
             message: message.into(),
         });
+    }
+
+    /// §4.1: a heading deeper than `headings:` is parsed as Markdown reads it (it owns the
+    /// lines after it) but is rendered as a list item; say which items it took as
+    /// children.
+    fn describe_beyond(&mut self) {
+        for &(w, s) in &self.beyond {
+            let n = self.slots[s]
+                .children
+                .iter()
+                .filter(|&&c| !self.slots[c].item.is_marker())
+                .count();
+            let message = &mut self.warnings[w].message;
+            match n {
+                0 => {}
+                1 => message.push_str(", and the item after it becomes its child"),
+                n => message.push_str(&format!(", and the {n} items after it become its children")),
+            }
+        }
     }
 
     fn owner(&self) -> Owner {
@@ -416,12 +440,14 @@ impl<'a> Parser<'a> {
                 format!("heading level {raw_level} coerced to {level}"),
             );
         }
-        if level > self.headings_cfg {
+        // The index of its warning, which `describe_beyond` completes.
+        let beyond = (level > self.headings_cfg).then_some(self.warnings.len());
+        if beyond.is_some() {
             self.warn(
                 no,
                 WarningKind::HeadingBeyondConfig,
                 format!(
-                    "heading at depth {level} but headings: {}; kept as a heading",
+                    "heading at depth {level} but headings: {}; it becomes an item",
                     self.headings_cfg
                 ),
             );
@@ -449,6 +475,9 @@ impl<'a> Parser<'a> {
             );
         }
         let s = self.new_slot(item, 0);
+        if let Some(w) = beyond {
+            self.beyond.push((w, s));
+        }
         self.attach(parent, s);
         if let Owner::Slot(p) = parent {
             self.mark_marker_parent(p, no);
@@ -612,15 +641,21 @@ impl<'a> Parser<'a> {
     }
 
     fn finish_code(&mut self, s: usize, info: &str, content: Vec<String>, last: usize) {
-        // §4.3: a non-empty info string is folded into the code as its first line, as the
-        // API's create pipeline does (DM§6.2 step 7).
-        let mut lines = Vec::with_capacity(content.len() + 1);
+        // §4.3: Workflowy code blocks have no language, so a non-empty info string (as
+        // Obsidian users type it) is dropped and reported, not folded into the code.
         if !info.is_empty() {
-            lines.push(info.to_owned());
+            let no = self.slots[s].item.line;
+            self.warn(
+                no,
+                WarningKind::DroppedInfoString,
+                format!(
+                    "the code block's language {info:?} was dropped (Workflowy code blocks \
+                     have none)"
+                ),
+            );
         }
-        lines.extend(content);
         let it = &mut self.slots[s].item;
-        it.name_md = lines.join("\n");
+        it.name_md = content.join("\n");
         it.end_line = it.end_line.max(last);
     }
 
