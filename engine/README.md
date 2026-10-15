@@ -40,12 +40,15 @@ pipeline. The tests never contact production. Use `cargo test --test <file>` for
 | API base URL | `--api-url` | `WORKFLOWY_API_URL` | `https://workflowy.com` |
 | state directory | `--state-dir` | `SYNCFLOWY_STATE_DIR` | `$XDG_STATE_HOME/syncflowy`, else `~/.local/state/syncflowy` |
 | request log | `--request-log FILE` | | none; appends every API request as JSONL |
-| verbosity | `-v` (info), `-vv` (debug) | `RUST_LOG` also works | warnings only |
+| verbosity | `-v` (info), `-vv` (debug) | `RUST_LOG` (when set, it replaces `-v`/`-vv`) | warnings only |
 
 The state directory holds the checkpoints and must be **outside the vault** (see [State directory](#state-directory)).
 
-Exit codes: `0` success, `1` the run needs attention (a brake, a skipped or paused file, an error in one file of a
-`sync`), `2` a fatal error (no API key, unusable state, unknown root, ...).
+Exit codes: `0` success (this includes a file paused by `paused: true`, conflicts and safe mode: read the report),
+`1` the run needs attention (a brake, a skipped file, a missing file, two files claiming one root, or an error in
+one file of a `sync` such as an unknown root or a missing checkpoint; the other files are still synced), `2` a
+fatal error (no API key, a 401, the API unreachable, unusable state, an unknown root given to `render` or
+`status FILE`, ...).
 
 ## Commands
 
@@ -59,8 +62,10 @@ S="--api-url http://127.0.0.1:8765 --state-dir /tmp/st"
 ### `render <ROOT> <OUT.md> [--headings N] [--force]`
 
 Renders the subtree under `ROOT` (a short id, a full UUID, or a `https://workflowy.com/#/<short>` URL) into a new
-file and records the first checkpoint, which starts the sync. `--headings N` renders depth 1..N as `#` headings.
-It refuses to overwrite an existing file or checkpoint unless `--force` is given.
+file and records the first checkpoint, which starts the sync. `--headings N` renders depth 1..N as `#` headings;
+use 0..6 (a larger value is not rejected here, but every later `sync` then skips the file with
+`bad syncflowy config headings`). It refuses to overwrite an existing file or checkpoint unless `--force` is given.
+`render --force` starts the frontmatter over: options and custom keys of the old file are lost.
 
 ```console
 $ syncflowy $S render 5e23116b-0a18-4c58-82b5-cbe4cb0343ff vault/plan.md
@@ -101,14 +106,17 @@ identified by root, not by path, so renaming a file needs no handling.
 | `--delete-grace SECS` | 600 | grace period of deferred deletes |
 | `--status-note PATH` | `Workflowy Sync Status.md` | the status note, relative to the vault |
 
-The daemon never exits on a per-file error; it logs it (use `-v`) and shows it in the status note. It exits on a
-fatal error, such as an unusable state directory or an API 401.
+The daemon never exits on a per-file error; it logs it (use `-v`) and shows it in the status note. Network and
+other API failures are retried at the next cycle, indefinitely. It exits only on a fatal error: an unusable state
+directory, a vault that is not a directory, or an API 401. It has no signal handling; stop it with SIGTERM or
+Ctrl-C. A file without a checkpoint is adopted (in safe mode) when its frontmatter says `syncflowy: {force: true}`.
 
 ### `status [FILE.md]...`
 
-Prints the local state without calling the API: for each root its generation, when it last synced, which file
-holds it, whether the file has local changes, whether an interrupted cycle awaits recovery, and the pending
-deletes.
+Prints the local state without calling the API (it does create the state directory if it is missing): for each
+root its generation, when it last synced, which file holds it, whether the file has local changes, whether an
+interrupted cycle awaits recovery, and the pending deletes. `status FILE` for a root without a checkpoint, or for a
+missing file, is a fatal error (exit 2).
 
 ```console
 $ syncflowy $S status
@@ -161,8 +169,9 @@ A note on "Planning": the lines right under the heading.
   completed"). A fenced block is a code-block node, `- > text` a quote, `- ---` a divider, `1.` markers are a
   numbered list. Other layouts render as plain items and keep their layout in the checkpoint.
 * **Completed nodes are not in the file.** `- [x]` is a command: see ticking below.
-* A node whose text cannot be represented exactly is shown with `🔒` and the `-ro` tag flag, and edits to it are
-  refused.
+* A node whose text cannot be represented exactly is shown with `🔒` and the `-ro` tag flag. Edits to its text are
+  refused and rewritten (`--force` pushes them); ticking it, deleting it and editing its children work as usual.
+  Removing the `-ro` flag does not unlock it.
 * **Mirrors** (beta API only, see Safety): a mirror shows its origin's content in place, with the mirror's own
   tag. When the same content appears twice in a file, the second placement is a **stub**: `⧉ [[#^wf-<full>|name]]`,
   a read-only link to the line that renders it in full.
@@ -172,14 +181,16 @@ A note on "Planning": the lines right under the heading.
 * **Ticking is not deleting.** Ticking `[x]` on a line completes the node in Workflowy (only that node, not its
   children) and removes the line and its subtree from the file. It can only be undone in Workflowy, where
   un-completing makes it reappear. **Deleting a line deletes the node** (to the Workflowy trash), together with
-  its hidden, completed descendants, which you cannot see.
+  the descendants you cannot see: the completed ones and, with the `depth` option, the ones below the cut-off
+  (the report's `(+N hidden)` count may not include the latter).
 * **Mass-change brakes** (§8.3) stop a run before anything is written, report `refused: ...` and exit 1:
-  * the file is empty (or has no items) while the base showed items and the merge deletes nodes,
-  * the deletes (visible plus hidden) exceed 50, or 20% of the base's visible nodes once there are at least 5,
-  * the completions exceed 200, or 50% of the visible nodes once there are at least 10.
+  * every visible node of the base would be deleted (the file is empty, has no items, or keeps only new lines),
+  * the deletes (visible plus hidden) exceed 50, or there are at least 5 of them and they exceed 20% of the base's
+    visible nodes,
+  * the completions exceed 200, or there are at least 10 of them and they exceed 50% of the visible nodes.
 
-  `--force` on the command line, or `force: true` in the frontmatter, overrides them (the engine clears the
-  frontmatter key). A missing file only pauses its root; nothing is deleted.
+  `--force` on the command line, or `syncflowy: {force: true}` in the frontmatter, overrides them (the engine
+  clears the frontmatter key). A missing file only pauses its root; nothing is deleted.
 * **Pending deletes** (daemon, §9.1 guard 2). A removed line is not deleted right away. It waits for the grace
   period and one more cycle in which the file is unchanged. Putting the line back cancels it; pasting its tag
   into another synced file turns it into a move. While another synced file has edits waiting for their debounce,
@@ -210,12 +221,14 @@ A note on "Planning": the lines right under the heading.
   A genuinely empty bullet looks the same. On an export with mirror metadata the heuristic is off.
 * **Safe mode** (§9.1 guard 1). If the file's `gen` is missing or no longer in the render history (for example a
   hand-written or stale file), the engine cannot know what you changed. It then pushes text edits and creates,
-  but applies no deletes, moves or reorders, and says so in the report.
+  but applies no deletes, moves, reorders or ticks, and says so in the report.
 * **Other guards.** Every update checks the remote value just before writing it (a collaborator's later edit
   becomes a conflict, not an overwrite). Creates are journaled and nonce-tagged so a crash never duplicates a
   node; an interrupted cycle is recovered by the next run. A file that cannot be parsed (frontmatter) is skipped,
-  never read as "everything deleted". Two files claiming one root are both skipped. A synced file that is a
-  symlink stays a symlink and keeps its mode. `paused: true` in the frontmatter stops syncing a file.
+  never read as "everything deleted". Two files claiming one root are both paused, but `sync` only compares the
+  files named on its command line; the daemon compares the whole vault. A synced file that is a symlink stays a
+  symlink and keeps its mode. `syncflowy: {paused: true}` in the frontmatter stops syncing a file (a top-level
+  `paused:` key is ignored).
 * **The status note** (daemon): `Workflowy Sync Status.md` in the vault, rewritten after every cycle. It lists each
   root with its file, last sync, generation and state, the conflicts awaiting resolution, the pending deletes, per-file
   problems, safe-mode episodes, dropped resurrections and stale echoes, API errors, and other events. It has no
@@ -234,7 +247,7 @@ A note on "Planning": the lines right under the heading.
 ```
 
 It must be outside the vault so that Obsidian Sync never carries it. Losing the checkpoint of a root means
-`sync` refuses (`NoCheckpoint`) until `--force` bootstraps it again; `render --force` starts over. Keep it with
+`sync` refuses (`NoCheckpoint`, exit 1) until `--force` bootstraps it again; `render --force` starts over. Keep it with
 the server that talks to Workflowy: there must be only one engine per account.
 
 ## Known limitations
