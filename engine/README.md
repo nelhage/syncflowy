@@ -146,7 +146,9 @@ A note on "Planning": the lines right under the heading.
 
 * **Frontmatter**: `workflowy:` names the sync root. `syncflowy:` holds options (`headings`, `ids`, `checkboxes`,
   `dates`, `depth`, `paused`, `force`) and `gen`, the render generation the file came from (written by the
-  engine; do not edit). Other frontmatter keys are kept as written.
+  engine; do not edit). Other frontmatter keys are kept as written. An option written outside `syncflowy:`
+  (`paused: true` on its own line) is kept too, with a warning; only a top-level `paused: true` takes effect, a
+  top-level `force` never does.
 * **Items**: `- ` list items, indented with tabs when written (tabs or consistent spaces are read). The first line
   is the node's name, the indented lines after it are its note, nested items are children. The text between the
   frontmatter and the first item is the root's note. The root's own name is not in the file.
@@ -205,9 +207,10 @@ A note on "Planning": the lines right under the heading.
   placeholder `⧉ (mirror of a deleted item)` with the `-ro` flag: its children are not shown, and edits or
   deletes of it are refused without `--force` (§10). Creating a mirror from Markdown and the UI's promotion of a
   mirror when its origin is deleted are not supported. An empty node is an ordinary, editable item.
-* **Safe mode** (§9.1 guard 1). If the file's `gen` is missing or no longer in the render history (for example a
-  hand-written or stale file), the engine cannot know what you changed. It then pushes text edits and creates,
-  but applies no deletes, moves or reorders, and says so in the report.
+* **Safe mode** (§9.1 guard 1). If the file's `gen` is missing, not a number, or no longer in the render history
+  (for example a hand-written or stale file), the engine cannot know what you changed. It then pushes text edits
+  and creates, but applies no deletes, moves, reorders or ticks, and says so in the report
+  (`the file's gen (999) is unknown: safe mode (no deletes, moves, reorders or ticks)`).
 * **Other guards.** Every update checks the remote value just before writing it (a collaborator's later edit
   becomes a conflict, not an overwrite). Creates are journaled and nonce-tagged so a crash never duplicates a
   node; an interrupted cycle is recovered by the next run. A file that cannot be parsed (frontmatter) is skipped,

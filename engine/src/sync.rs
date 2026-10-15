@@ -686,13 +686,17 @@ fn prepare(
     };
     match kind {
         _ if a.rebase.is_some() => {}
-        BaseKind::Safe => a.report.warnings.push(format!(
-            "the file's gen ({}) is unknown: safe mode (no deletes, moves or reorders)",
-            a.doc
-                .frontmatter
-                .generation
-                .map_or_else(|| "missing".to_owned(), |g| g.to_string())
-        )),
+        BaseKind::Safe => {
+            let fm = &a.doc.frontmatter;
+            let why = match (fm.generation, &fm.generation_text) {
+                (Some(g), _) => format!("the file's gen ({g}) is unknown"),
+                (None, Some(t)) => format!("the file's gen ({t:?}) is not a number"),
+                (None, None) => "the file's gen (missing) is unknown".to_owned(),
+            };
+            a.report.warnings.push(format!(
+                "{why}: safe mode (no deletes, moves, reorders or ticks)"
+            ));
+        }
         BaseKind::Bootstrap => a
             .report
             .warnings

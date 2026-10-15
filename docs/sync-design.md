@@ -529,7 +529,8 @@ Details:
   takes the engine's side. That is right when the merge was good. Guard 3 covers bad merges.
 - If `gen` is missing, unparseable, or older than the kept history (keep, say, 30 days or 200 generations),
   use **safe mode**: field edits are applied only where the text differs from *every* known version of that
-  node (Guard 3), and there are no deletes, no moves and no reorders. Report it.
+  node (Guard 3), and there are no deletes, no moves, no reorders and no ticks (a line typed as `[x]` is
+  created unticked). Report it.
 
 #### Guard 2: deferred deletes
 
@@ -611,7 +612,8 @@ With the engine on a headless server, the vault is also its user interface:
   when they fire, safe-mode episodes, resurrections dropped, and API errors.
 - Per-root controls live in the file's frontmatter, so they can be set from any device. Examples:
   `syncflowy: {paused: true}` and `syncflowy: {force: true}`, the latter for a one-time override of the
-  mass-change brake, which the engine clears after use.
+  mass-change brake, which the engine clears after use. An option typed outside `syncflowy:` gets a warning;
+  a top-level `paused: true` is honoured anyway (pausing is the safe direction), a top-level `force` never is.
 - Obsidian Sync's own version history is a second safety net for the Markdown side. The engine's base history
   is the safety net for "what did we believe and push", and it should be kept long enough to reconstruct any
   push from the sync logs.

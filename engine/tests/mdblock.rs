@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use syncflowy::mdblock::{
     Checkbox, CheckboxPolicy, ConflictMarker, DocConfig, Frontmatter, ItemKind, ItemPath, LocalDoc,
     PLACEHOLDER_TEXT, ParseError, RootRef, Sticky, TagStyle, View, ViewError, ViewExtras,
-    WarningKind, equivalent, normalize, parse, parse_frontmatter, render,
+    WarningKind, equivalent, misplaced_option, normalize, parse, parse_frontmatter, render,
 };
 use syncflowy::mdinline::{ConflictField, InlineConfig, TagFlag, TagForm, Tier};
 use syncflowy::tree::{IdMap, Mirror, Node, NodeId, ShortId, Tree};
@@ -224,7 +224,55 @@ fn frontmatter_unknown_key_warns_and_gen_is_lenient() {
     assert_eq!(kinds(&d), vec![WarningKind::UnknownConfigKey]);
     assert_eq!(d.warnings[0].line, 3);
     assert_eq!(d.frontmatter.generation, None);
+    assert_eq!(d.frontmatter.generation_text.as_deref(), Some("soon"));
     assert!(!normalize(&d).contains("colour"));
+    // A numeric gen keeps no text; a quoted word is unquoted.
+    let f = parse_frontmatter("---\nworkflowy: 000000000001\nsyncflowy: {gen: 7}\n---\n").unwrap();
+    assert_eq!((f.generation, f.generation_text), (Some(7), None));
+    let f = parse_frontmatter("---\nworkflowy: 000000000001\nsyncflowy: {gen: \"three\"}\n---\n")
+        .unwrap();
+    assert_eq!(
+        (f.generation, f.generation_text.as_deref()),
+        (None, Some("three"))
+    );
+}
+
+#[test]
+fn frontmatter_top_level_options_warn_and_only_paused_is_honoured() {
+    let d = parse(
+        "---\nworkflowy: 000000000001\ntags: [a]\npaused: true\nforce: true\nheadings: 2\n\
+         syncflowy: {gen: 3}\n---\n- x\n",
+    )
+    .unwrap();
+    assert_eq!(kinds(&d), vec![WarningKind::MisplacedConfigKey; 3]);
+    let lines: Vec<usize> = d.warnings.iter().map(|w| w.line).collect();
+    assert_eq!(lines, [4, 5, 6]);
+    assert_eq!(
+        d.warnings[0].message,
+        "\"paused\" is a syncflowy option; write it as syncflowy: {paused: true} \
+         (the file is paused anyway)"
+    );
+    assert!(
+        d.warnings[1].message.ends_with("(ignored here)"),
+        "{:?}",
+        d.warnings
+    );
+    let f = &d.frontmatter;
+    assert!(f.paused, "a top-level paused: true pauses the file");
+    assert!(!f.force, "a top-level force never forces");
+    assert_eq!(f.config.headings, 0);
+    assert_eq!(f.generation, Some(3));
+    // The lines are kept verbatim.
+    assert_eq!(
+        f.other,
+        ["tags: [a]", "paused: true", "force: true", "headings: 2"]
+    );
+    assert_eq!(misplaced_option("paused: true"), Some("paused"));
+    assert_eq!(misplaced_option("tags: [a]"), None);
+    // `paused: false` at the top level pauses nothing (and still warns).
+    let d = parse("---\nworkflowy: 000000000001\npaused: False\n---\n- x\n").unwrap();
+    assert_eq!(kinds(&d), vec![WarningKind::MisplacedConfigKey]);
+    assert!(!d.frontmatter.paused);
 }
 
 #[test]

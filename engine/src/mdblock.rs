@@ -51,13 +51,17 @@
 //!   true), `depth` (positive int, default unlimited), `paused` (bool, default false),
 //!   `force` (bool; consumed by the engine: `sync` clears it before rendering, and
 //!   [`Frontmatter::render`] writes what it is given), `gen` (u64, always written once
-//!   known; an unparseable value reads as `None`, not as an error). Unknown keys inside
+//!   known; an unparseable value reads as `None`, not as an error, and is kept in
+//!   [`Frontmatter::generation_text`]). Unknown keys inside
 //!   `syncflowy:` produce a warning and are dropped on the next render. Booleans are
 //!   `true`/`false` (any case); values may be quoted; `# comments` are ignored; a flow
 //!   mapping may continue on the following lines. An invalid value of a known key is
 //!   [`ParseError::BadConfig`] (skip the cycle rather than guess).
 //! * Every other frontmatter line is preserved verbatim, in order, after the two engine
-//!   keys. The `workflowy:` value is kept as written ([`RootRef::raw`], comment
+//!   keys. A top-level key that is a `syncflowy:` option name (`paused: true` on its own
+//!   line) is such a line too, with [`WarningKind::MisplacedConfigKey`]; a top-level
+//!   `paused: true` also pauses the file (the safe direction), a top-level `force` never
+//!   forces anything. The `workflowy:` value is kept as written ([`RootRef::raw`], comment
 //!   included); a second `workflowy:` key naming another root is [`ParseError::BadRoot`].
 //!
 //! ## Body
@@ -321,6 +325,10 @@ pub struct Frontmatter {
     /// The render generation this file came from (§9.1 guard 1), the `gen:` key; `None`
     /// if absent or unparseable (then `sync` uses safe mode).
     pub generation: Option<u64>,
+    /// The value of a `gen:` that is not a number (then `generation` is `None`), for the
+    /// safe-mode warning. Never rendered, and ignored by [`equivalent`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation_text: Option<String>,
     /// `paused: true`: do not sync this root (§9.1 controls).
     pub paused: bool,
     /// `force: true`: one-shot override of the mass-change brake and placeholder guards
@@ -337,6 +345,7 @@ impl Frontmatter {
             root,
             config: DocConfig::default(),
             generation: None,
+            generation_text: None,
             paused: false,
             force: false,
             other: Vec::new(),
@@ -446,6 +455,9 @@ pub enum WarningKind {
     UnknownTagFlag,
     /// An unknown key in `syncflowy:` (dropped on the next render).
     UnknownConfigKey,
+    /// A `syncflowy:` option written as a top-level key (kept verbatim; only
+    /// `paused: true` is honoured there).
+    MisplacedConfigKey,
     /// A line that fit nowhere was attached to the nearest item's note.
     StrayLine,
     /// A code fence was not closed before the item ended.
@@ -550,6 +562,12 @@ impl LocalDoc {
 /// Parse a whole file. Never fails on body content (module docs).
 pub fn parse(text: &str) -> Result<LocalDoc, ParseError> {
     parse::parse(text)
+}
+
+/// The key of a top-level frontmatter line that is a `syncflowy:` option written outside
+/// it (`paused: true` on its own line), if [`Frontmatter::other`]'s `line` is one.
+pub fn misplaced_option(line: &str) -> Option<&str> {
+    frontmatter::misplaced_option(line)
 }
 
 /// Parse only the frontmatter (cheap; used by `daemon` discovery, §9.1 guard 5).

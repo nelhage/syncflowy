@@ -672,6 +672,59 @@ fn paused_file_is_not_synced() {
 }
 
 #[test]
+fn top_level_paused_pauses_but_top_level_force_does_not_force() {
+    let f = fixture();
+    let text = read(&f.file);
+    edit(
+        &f.file,
+        "syncflowy: {gen: 1}",
+        "paused: true\nsyncflowy: {gen: 1}",
+    );
+    edit(&f.file, "Buy milk", "Buy soy milk");
+    let before = f.env.snapshot();
+    let api = TestApi::new(&f.env.client);
+    let r = sync::sync_once(&api, &f.file, &f.env.cfg).unwrap();
+    assert_eq!(r.outcome, SyncOutcome::Paused(PauseReason::Frontmatter));
+    assert!(api.calls().is_empty(), "{:?}", api.calls());
+    assert_eq!(f.env.snapshot(), before);
+
+    // A top-level `force: true` is warned about and overrides no brake.
+    let truncated: String = text
+        .replace("syncflowy: {gen: 1}", "force: true\nsyncflowy: {gen: 1}")
+        .lines()
+        .take_while(|l| !l.contains("Errands"))
+        .map(|l| format!("{l}\n"))
+        .collect();
+    write(&f.file, &truncated);
+    let mut braking = f.env.cfg.clone();
+    braking.brakes.max_deletes = 1;
+    let r = sync::sync_once(&f.env.client, &f.file, &braking).unwrap();
+    assert!(matches!(r.outcome, SyncOutcome::Braked(_)), "{r:#?}");
+    assert!(
+        r.warnings
+            .iter()
+            .any(|w| w.starts_with("line 3: \"force\" is a syncflowy option")),
+        "{r:#?}"
+    );
+}
+
+#[test]
+fn unparseable_gen_is_named_in_the_safe_mode_warning() {
+    let f = fixture();
+    edit(&f.file, "syncflowy: {gen: 1}", "syncflowy: {gen: three}");
+    let r = f.env.sync(&f.file);
+    assert!(
+        r.warnings.contains(
+            &"the file's gen (\"three\") is not a number: safe mode (no deletes, moves, \
+              reorders or ticks)"
+                .to_owned()
+        ),
+        "{r:#?}"
+    );
+    assert!(read(&f.file).contains("gen: 2"));
+}
+
+#[test]
 fn no_checkpoint_errors_and_force_bootstraps() {
     let f = fixture();
     std::fs::remove_dir_all(&f.env.cfg.state_dir).unwrap();
