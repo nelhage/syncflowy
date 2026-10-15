@@ -77,6 +77,15 @@ or `unchanged`, `paused`, `refused: ...` (a brake) or `skipped: ...`.
   file that has no checkpoint (see Limitations).
 * `--dry-run` plans and prints the operations, and writes nothing. It does not recover a leftover journal; it
   warns that one is pending.
+* **Moving a line between files**: cut the tagged line from one file, paste it into the other, and sync both
+  files in one command. The node moves with its id, children and Workflowy-only attributes. If you sync only the
+  file you cut from, the engine finds the tag in the other file (it reads the files recorded in the state
+  directory's other checkpoints) and holds the delete back with
+  `warning: "Item E" (67edfe175330) is in other.md; sync both files in one command to move it`. The line stays
+  out of the file and the delete stays pending until a run syncs both files (a move) or no longer finds the tag
+  (the delete is sent). Syncing only the file you pasted into makes the line a new node, since its tag belongs to
+  a file outside the run, and the original is then deleted. A tagged line *copied* into another file while it
+  stays in its own file becomes a new node there, as a copied line does within one file.
 
 ```console
 $ syncflowy $S sync --dry-run vault/plan.md
@@ -183,7 +192,8 @@ A note on "Planning": the lines right under the heading.
   period and one more cycle in which the file is unchanged. Putting the line back cancels it; pasting its tag
   into another synced file turns it into a move. While another synced file has edits waiting for their debounce,
   no pending delete is sent. `status` and the status note list them. Plain `sync` (no grace period) sends
-  deletes at once.
+  deletes at once, except the delete of a line whose tag is in another synced file (see `sync`). The brakes
+  count a held or deferred delete when it is first seen.
 * **Conflict markers** (§6.1). When you and a collaborator both changed a node's name or note, Workflowy's
   version stays and yours is kept as a child line `- ⚠ your text %%wf-conflict:name%%` (or `:note`) before the
   node's real children. It is never synced. Edit the real line if you want your version, then delete the

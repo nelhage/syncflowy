@@ -49,7 +49,10 @@
 //!    identity, so a pasted copy of a subtree is created whole and the original
 //!    children stay under the original.
 //! 2. A tag resolving to a node inside another managed root (`cross.other_roots`, the
-//!    roots themselves excluded) is a cross-file move into this file (§6.4). Any other
+//!    roots themselves excluded) is a cross-file move into this file (§6.4), unless the
+//!    tag is still on its line in its own file (`cross.still_in_own_file`): then the
+//!    line is a copy and a new node, as a duplicated tag within one file
+//!    ([`ReportEvent::CopiedTag`]). Any other
 //!    tag (unknown, ambiguous, or a node elsewhere in the account) is ignored with
 //!    [`ReportEvent::ForeignTag`] and the item is new. UNVERIFIED design choice: §4.4
 //!    would move any existing node; we only move nodes out of managed roots, to avoid
@@ -153,7 +156,9 @@
 //! Placeholders are never deleted unless `force` ([`ReportEvent::PlaceholderDeleteRefused`]).
 //! A node missing from `local_doc` whose tag is in `cross.claimed_elsewhere` moved to
 //! another file: it is neither deleted nor moved here (the other file's merge moves
-//! it); it stays in `M` at its remote position.
+//! it); it stays in `M` at its remote position. So does a locally deleted (or pending)
+//! node with such a node below it that was hidden in the base: its delete loses
+//! ([`ReportEvent::DeleteLost`]), as when that node's line was visible.
 //!
 //! **Mirrors (§15.1, `crate::mirrors`).** On a view tree (base and remote alike) a
 //! shell placement that renders its origin in full is an ordinary item whose edits,
@@ -274,6 +279,11 @@ pub struct CrossFile {
     /// Nodes whose tags appear in another file's current text (a cut from this file
     /// pasted there): missing here means "moved away", not "deleted".
     pub claimed_elsewhere: BTreeSet<NodeId>,
+    /// Nodes of the other roots whose tags are still in their own file's current text: a
+    /// line carrying one here is a copy, so it is a new node (as a duplicated tag within
+    /// one file, §4.4), not a move.
+    #[serde(default)]
+    pub still_in_own_file: BTreeSet<NodeId>,
     /// For nodes of the other roots whose tags appear in this file (a cut from another
     /// file pasted here): that file's base for them, against which the pasted line is
     /// merged. A node without an entry never has its fields pushed.
@@ -510,6 +520,9 @@ pub enum ReportEvent {
     DeleteLost { node: NodeId },
     /// A tag that does not belong to this file was ignored (§4.4).
     ForeignTag { short: ShortId, line: usize },
+    /// A tag of another file of the run that is still on its line there: the line here
+    /// is a copy and became a new node (§4.4, §6.4).
+    CopiedTag { short: ShortId, line: usize },
     /// A duplicated tag: `kept_line` kept the identity, the lines in `other_tag_lines`
     /// kept the node of another tag they carry (§4.4), the others became new nodes.
     DuplicateTag {
@@ -627,6 +640,9 @@ impl ReportEvent {
                     "line {line}: id tag {short} does not belong to this file; treated as a new item"
                 )
             }
+            ReportEvent::CopiedTag { short, line } => format!(
+                "line {line}: id tag {short} is still in the file it comes from; treated as a copy (a new item)"
+            ),
             ReportEvent::DuplicateTag {
                 short,
                 lines,
@@ -715,7 +731,7 @@ impl ReportEvent {
 }
 
 /// `"<plain text of the name>" (<short id>)`, or the id alone if unknown.
-fn node_label(tree: &Tree, id: &NodeId) -> String {
+pub(crate) fn node_label(tree: &Tree, id: &NodeId) -> String {
     let short = id
         .short()
         .map(|s| s.to_string())
@@ -909,6 +925,10 @@ mod tests {
             },
             ReportEvent::DeleteLost { node: a.clone() },
             ReportEvent::ForeignTag {
+                short: short.clone(),
+                line: 3,
+            },
+            ReportEvent::CopiedTag {
                 short: short.clone(),
                 line: 3,
             },

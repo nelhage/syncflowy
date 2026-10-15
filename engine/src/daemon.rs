@@ -588,6 +588,7 @@ fn event_kind(e: &ReportEvent) -> Option<EventKind> {
         | ReportEvent::DroppedMove { .. }
         | ReportEvent::DeleteLost { .. }
         | ReportEvent::ForeignTag { .. }
+        | ReportEvent::CopiedTag { .. }
         | ReportEvent::DuplicateTag { .. }
         | ReportEvent::ReadOnlyEditRefused { .. }
         | ReportEvent::PlaceholderDeleteRefused { .. }

@@ -370,7 +370,12 @@ on either side of C. Nobody in Markdown can tell, and WF users with "show comple
 
 A single export serves every synced file in the vault, so run all of them in one pass with a global id map.
 This turns "deleted in `a.md`, appears with its tag in `b.md`" into a **move** instead of a delete plus an
-unknown id. Sync roots must not nest. Alternatively, a nested root could render in the outer file as a link or
+unknown id. A tag that is still on its line in its own file was copied, not moved: the pasted line is a new
+node, as for a duplicated tag within one file (§4.4). When files are synced one at a time (the CLI), a run
+that would delete a node whose tag (or a descendant's) is in another synced file outside the run (found
+through the files the other checkpoints record) holds the delete back as a pending delete (§9.1 guard 2) and
+asks for both files to be synced together; a stale or missing recorded file only costs the check. Sync roots
+must not nest. Alternatively, a nested root could render in the outer file as a link or
 an `![[embed]]` and be treated there as a hidden subtree.
 
 ## 7. Applying changes to Workflowy
@@ -877,7 +882,13 @@ module docs have the details.
   pushes your edits and ticks to it where it now is. If both sides edited the same field, Workflowy wins and the
   local text is only logged (a marker cannot be shown because the line leaves the file).
 - **Cross-file moves (§6.4)** compare the pasted line against the source file's base, so a collaborator's edit is
-  not reverted. Without such a base nothing is pushed for the move.
+  not reverted. Without such a base nothing is pushed for the move. A node whose delete is pending in the source
+  file is compared against its line rendered from the source's `base_wf`, which equals the line that was cut
+  (a remote change cancels a pending delete).
+- **Files synced one at a time (§6.4).** The CLI holds back a delete whose node is tagged in another synced file
+  outside the run (read through `Checkpoint::file`), as a pending delete, so that a cut and paste synced in two
+  commands is not a delete and a create. The brakes count it when first seen, as they count the daemon's
+  deferred deletes; a file emptied into another file and synced alone is therefore still braked.
 - **Safe mode (§9.1 guard 1)** also applies to a bootstrap with `--force` and no checkpoint, which takes the remote
   as the base.
 - **Deferred deletes (guard 2)** are held while another synced file has edits waiting for its debounce, which the

@@ -616,10 +616,20 @@ impl<'a, 'c> Engine<'a, 'c> {
         if self.base_sub.contains(n) || self.remote_sub.contains(n) {
             return Some(Cand::Local(n.clone()));
         }
-        if self.inp.remote.contains(n) {
+        if self.inp.remote.contains(n) && !self.inp.cross.still_in_own_file.contains(n) {
             return self.other_root_of(n).map(|r| Cand::Cross(n.clone(), r));
         }
         None
+    }
+
+    /// The tag names a node of another file of the run whose line is still there: a
+    /// paste here is a copy, not a move (`CrossFile::still_in_own_file`).
+    fn copied_tag(&self, t: &IdTag) -> bool {
+        self.inp.ids.get(&t.short).is_some_and(|n| {
+            self.inp.cross.still_in_own_file.contains(n)
+                && !self.base_sub.contains(n)
+                && !self.remote_sub.contains(n)
+        })
     }
 
     fn identify(&mut self) {
@@ -632,9 +642,17 @@ impl<'a, 'c> Engine<'a, 'c> {
             let Some(first) = tags.first() else { continue };
             *slot = tags.iter().find_map(|t| self.classify_tag(t));
             if slot.is_none() {
-                self.report.push(ReportEvent::ForeignTag {
-                    short: first.short.clone(),
-                    line: it.line,
+                // §4.4, §6.4: a tag still on its line in the other file is a copy.
+                let copied = tags.iter().find(|t| self.copied_tag(t));
+                self.report.push(match copied {
+                    Some(t) => ReportEvent::CopiedTag {
+                        short: t.short.clone(),
+                        line: it.line,
+                    },
+                    None => ReportEvent::ForeignTag {
+                        short: first.short.clone(),
+                        line: it.line,
+                    },
                 });
             }
         }
@@ -1899,8 +1917,13 @@ impl<'a, 'c> Engine<'a, 'c> {
                 // Visible in the file and not deleted, or a remote addition.
                 true
             } else {
-                // A hidden descendant: deleted with it unless it changed.
+                // A hidden descendant: deleted with it unless it changed, or unless it
+                // (or a node below it) was pasted into another file of the run, whose
+                // merge moves it (a pending delete whose node's line was hidden).
+                let claimed = &self.inp.cross.claimed_elsewhere;
                 self.changed_deep(&c)
+                    || claimed.contains(&c)
+                    || self.m.descendants(&c).iter().any(|d| claimed.contains(d))
             };
             keep |= ck;
         }

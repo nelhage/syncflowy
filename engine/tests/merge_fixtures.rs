@@ -109,6 +109,8 @@ struct CrossSpec {
     other_roots: Vec<String>,
     #[serde(default)]
     claimed_elsewhere: Vec<String>,
+    #[serde(default)]
+    still_in_own_file: Vec<String>,
     /// The base of the file a pasted line was cut from (`CrossFile::bases`).
     #[serde(default)]
     source: Option<SourceSpec>,
@@ -300,6 +302,7 @@ fn case_of(f: &Fixture) -> Case {
     case.cross = CrossFile {
         other_roots: f.cross.other_roots.iter().map(|r| id(r)).collect(),
         claimed_elsewhere: f.cross.claimed_elsewhere.iter().map(|r| id(r)).collect(),
+        still_in_own_file: f.cross.still_in_own_file.iter().map(|r| id(r)).collect(),
         bases: cross_bases_of(&f.cross, &case.cfg.doc),
     };
     case
