@@ -421,6 +421,41 @@ fn changed_options_rewrite_the_file() {
 }
 
 #[test]
+fn checkboxes_none_hides_todo_boxes_but_keeps_todos() {
+    let f = fixture();
+    let todo = f.env.ui_create_with(
+        Some(&f.later),
+        json!({"text": "A todo", "layoutMode": "todo"}),
+    );
+    edit(
+        &f.file,
+        "syncflowy: {gen: 1}",
+        "syncflowy: {checkboxes: none, gen: 1}",
+    );
+    f.env.sync(&f.file);
+    let text = read(&f.file);
+    assert!(!text.contains("[ ]"), "{text}");
+    assert_eq!(
+        line_of(&text, &todo).trim_start(),
+        format!("- A todo ^wf-{}", short(&todo))
+    );
+    assert_settled(&f);
+    // An edit of the box-less line keeps the layout; typing `[x]` still ticks it.
+    edit(&f.file, "- A todo", "- A todo, renamed");
+    f.env.sync(&f.file);
+    let node = f.env.export().get(&todo).unwrap().clone();
+    assert_eq!(
+        (node.name.as_str(), node.layout.as_str()),
+        ("A todo, renamed", "todo")
+    );
+    edit(&f.file, "- A todo, renamed", "- [x] A todo, renamed");
+    f.env.sync(&f.file);
+    assert!(f.env.export().get(&todo).unwrap().completed);
+    assert!(!read(&f.file).contains("A todo"));
+    assert_settled(&f);
+}
+
+#[test]
 fn local_move_between_parents_is_pushed() {
     let f = fixture();
     let text = read(&f.file);

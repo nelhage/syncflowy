@@ -888,7 +888,9 @@ module docs have the details.
   digit when the value holds another `$`, to keep prices from reading as math.
 - **Dates, locale variants and link titles** have no compact or structured form; they stay literal.
 - **Checkbox policy, id tag form, depth, headings** are frontmatter options (`checkboxes`, `ids`, `depth`,
-  `headings`); the design only recommended making the tag form configurable.
+  `headings`); the design only recommended making the tag form configurable. `checkboxes: none` shows no boxes,
+  `todo` nodes included (their layout is kept). A node whose children are hidden by `depth` counts as interior
+  for the box, so it does not look like a leaf.
 - **Files** are written in place through symlinks and keep their mode. The state directory layout (checkpoint,
   pending deletes, history, journal, lock) is described in `engine/src/state.rs`.
 - **Not done:** several engines on one account, any

@@ -83,7 +83,8 @@
 //! * **Checkboxes** (§4.3): `- [ ] ` and `- ` both mean "incomplete"; `- [x] ` / `- [X] `
 //!   (on any item kind, including headings and ordered items) means "complete this
 //!   node". Which incomplete items show `[ ]` is cosmetic ([`CheckboxPolicy`],
-//!   [`Sticky`]).
+//!   [`Sticky`]); a node whose children are all cut off by `depth:` counts as interior,
+//!   not as a leaf.
 //! * **Kinds** (§4.3): a fenced block as the item text (```` - ``` ````, content indented
 //!   one level, closing fence at the same indentation as the content) is a `code-block`
 //!   node, its name being the code; a non-empty info string on the opening fence is
@@ -261,7 +262,8 @@ pub enum CheckboxPolicy {
     TodosOnly,
     /// Every list item.
     All,
-    /// None (ticking still works by typing `[x]`).
+    /// No boxes on incomplete items, `todo` layout included (ticking still works by
+    /// typing `[x]` on any item; the layout is kept).
     None,
 }
 
@@ -732,7 +734,8 @@ pub struct ConflictMarker {
 pub struct Sticky {
     /// The checkbox each item had in the previous file (`Ticked` never appears: ticked
     /// nodes are gone). For a list item whose layout is not `todo`, a recorded value wins
-    /// over [`CheckboxPolicy`]; `todo` always renders `Open`.
+    /// over [`CheckboxPolicy`]; `todo` always renders `Open`, except under
+    /// [`CheckboxPolicy::None`], where it is treated like any other item.
     pub checkbox: BTreeMap<NodeId, Checkbox>,
     /// §15.1 (mirrors as origins): content node -> placement that got the full rendering
     /// in the previous render. Informational here: `sync` feeds it to

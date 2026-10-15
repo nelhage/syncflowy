@@ -138,7 +138,16 @@ impl Builder<'_> {
         } else {
             self.children(node, depth + 1)
         };
-        let checkbox = self.checkbox(node, kind, heading.is_some(), children.is_empty());
+        // §4.5: a node whose children are cut off by `depth:` is not a leaf, although it
+        // shows none (deleting its line deletes them).
+        let cut_off = self.cfg.max_depth.is_some_and(|m| depth >= m)
+            && self.tree.children(&node.id).iter().any(|c| {
+                self.tree
+                    .get(c)
+                    .is_some_and(|n| !n.completed && !self.extras.hidden.contains(c))
+            });
+        let leaf = children.is_empty() && !cut_off;
+        let checkbox = self.checkbox(node, kind, heading.is_some(), leaf);
         let conflicts = self.conflicts.remove(&node.id).unwrap_or_default();
         ViewItem {
             id: node.id.clone(),
@@ -161,7 +170,9 @@ impl Builder<'_> {
         if heading || kind != ItemKind::Bullet {
             return Checkbox::None;
         }
-        if node.layout == LAYOUT_TODO {
+        // `checkboxes: none` means no boxes at all; a to-do keeps its layout (checkbox
+        // forms never change layouts) and is still ticked by typing `[x]`.
+        if node.layout == LAYOUT_TODO && self.cfg.checkboxes != CheckboxPolicy::None {
             return Checkbox::Open;
         }
         if let Some(&c) = self.extras.sticky.checkbox.get(&node.id) {

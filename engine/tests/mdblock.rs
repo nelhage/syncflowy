@@ -1067,7 +1067,8 @@ fn view_checkbox_policies_and_sticky() {
     );
     assert_eq!(boxes(CheckboxPolicy::TodosOnly, &[]), vec![N, N, O, N, N]);
     assert_eq!(boxes(CheckboxPolicy::All, &[]), vec![O, O, O, O, N]);
-    assert_eq!(boxes(CheckboxPolicy::None, &[]), vec![N, N, O, N, N]);
+    // `none` means no boxes, to-dos included.
+    assert_eq!(boxes(CheckboxPolicy::None, &[]), vec![N, N, N, N, N]);
     // Sticky wins over the policy, except for `todo` (always open) and kinds without boxes.
     assert_eq!(
         boxes(
@@ -1076,6 +1077,30 @@ fn view_checkbox_policies_and_sticky() {
         ),
         vec![O, N, O, O, N]
     );
+    // Under `none` a to-do is like any other item: a box the user typed sticks.
+    assert_eq!(
+        boxes(CheckboxPolicy::None, &[(2, O), (4, O), (5, N)]),
+        vec![O, N, O, N, N]
+    );
+}
+
+#[test]
+fn view_depth_cut_nodes_are_interior() {
+    let t = tree(&[
+        (2, 1, "big", None, "bullets", false),
+        (3, 2, "hidden by depth", None, "bullets", false),
+        (4, 1, "done kids only", None, "bullets", false),
+        (5, 4, "done", None, "bullets", true),
+        (6, 1, "leaf", None, "bullets", false),
+    ]);
+    let cfg = DocConfig {
+        max_depth: Some(1),
+        ..DocConfig::default()
+    };
+    let v = View::build(&t, &id(1), &cfg, &ViewExtras::default()).unwrap();
+    let boxes: Vec<Checkbox> = v.walk().into_iter().map(|(_, i)| i.checkbox).collect();
+    // Only children hidden by depth make a node interior; completed ones do not.
+    assert_eq!(boxes, [Checkbox::None, Checkbox::Open, Checkbox::Open]);
 }
 
 #[test]

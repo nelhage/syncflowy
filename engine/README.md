@@ -161,7 +161,8 @@ A note on "Planning": the lines right under the heading.
   spans and other well-formed WF-HTML as literal HTML, dates as a compact form. Obsidian-only syntax
   (`[[wikilinks]]`, `==highlight==`, `$math$`) is sent to Workflowy as literal text and written back unescaped.
 * **Node kinds**: `- [ ] ` boxes appear on todo nodes and leaves (cosmetic; `- ` and `- [ ] ` both mean "not
-  completed"). A fenced block is a code-block node, `- > text` a quote, `- ---` a divider, `1.` markers are a
+  completed"); a node whose children are hidden by `depth:` is not a leaf. `checkboxes:` changes this (`todos`,
+  `all`, or `none`: no boxes at all, todo nodes included; they keep their layout, and `[x]` still ticks). A fenced block is a code-block node, `- > text` a quote, `- ---` a divider, `1.` markers are a
   numbered list. Other layouts render as plain items and keep their layout in the checkpoint.
 * **Completed nodes are not in the file.** `- [x]` is a command: see ticking below.
 * A node whose text cannot be represented exactly is shown with `🔒` and the `-ro` tag flag, and edits to it are
