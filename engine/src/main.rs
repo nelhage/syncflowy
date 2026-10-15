@@ -20,8 +20,11 @@ use std::time::Duration;
 
 use clap::{Parser, Subcommand};
 
+use syncflowy::apply;
 use syncflowy::daemon::{self, DaemonConfig};
 use syncflowy::mdblock::DocConfig;
+use syncflowy::mdinline::ConflictField;
+use syncflowy::merge::ReportEvent;
 use syncflowy::sync::{self, PauseReason, SyncConfig, SyncOutcome, SyncReport};
 use syncflowy::wfclient::{Client, ClientConfig, DEFAULT_BASE_URL};
 
@@ -177,8 +180,8 @@ fn describe_outcome(outcome: &SyncOutcome) -> String {
         SyncOutcome::Rendered { generation } => format!("rendered (gen {generation})"),
         SyncOutcome::DryRun { plan } => {
             let mut s = format!("dry run: {} op(s)", plan.ops.len());
-            for op in &plan.ops {
-                s.push_str(&format!("\n  would {op:?}"));
+            for line in apply::plan_lines(plan) {
+                s.push_str(&format!("\n  {line}"));
             }
             s
         }
@@ -214,14 +217,28 @@ fn print_report(report: &SyncReport) -> bool {
     for m in &report.messages {
         println!("  {m}");
     }
+    // A conflict recorded this run is already among the messages, by name; the
+    // others are markers from earlier runs, still unresolved.
     for c in &report.conflicts {
-        println!(
-            "  conflict on the {:?} of {}: resolve the marker in the file",
-            c.field, c.node
-        );
+        let new = report.events.iter().any(|e| {
+            matches!(e, ReportEvent::Conflict { node, field } if *node == c.node && *field == c.field)
+        });
+        if !new {
+            let field = match c.field {
+                ConflictField::Name => "name",
+                ConflictField::Note => "note",
+            };
+            let node = c
+                .node
+                .short()
+                .map_or_else(|| c.node.to_string(), |s| s.to_string());
+            println!(
+                "  unresolved conflict on the {field} of {node}: resolve the marker in the file"
+            );
+        }
     }
     for d in &report.discrepancies {
-        println!("  verification: {d:?}");
+        println!("  verification: {d}");
     }
     !matches!(
         report.outcome,

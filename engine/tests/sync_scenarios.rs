@@ -87,6 +87,15 @@ fn remote_delete_of_a_locally_edited_node_resurrects_it() {
     let tree = env.export();
     assert_eq!(child_names(&tree, &root), ["Alpha, edited", "Beta"]);
     assert!(!tree.contains(&a));
+    // Named by the base name and the new node's own tag, never by a temp id.
+    let new = by_name(&tree, "Alpha, edited").id.clone();
+    let line = format!(
+        "\"Alpha\" ({}) was deleted in Workflowy but edited in Markdown: re-created as \
+         \"Alpha, edited\" ({}, new) (the original is in Workflowy's Trash)",
+        short(&a),
+        short(&new)
+    );
+    assert!(r.messages.contains(&line), "{r:#?}");
     let text = read(&file);
     assert!(!text.contains(&short(&a).to_string()), "{text}");
     settle(&env, &file);
@@ -291,8 +300,9 @@ fn ticking_a_node_renamed_remotely_reports_the_dropped_rename() {
         "{r:#?}"
     );
     assert!(
-        r.messages.iter().any(|m| m.contains("which you ticked")
-            && m.contains("\"Alpha, my rename\"")),
+        r.messages
+            .iter()
+            .any(|m| m.contains("which you ticked") && m.contains("\"Alpha, my rename\"")),
         "{r:#?}"
     );
     settle(&env, &file);
@@ -312,6 +322,11 @@ fn deleting_a_parent_takes_its_hidden_children() {
         panic!("{r:#?}")
     };
     assert_eq!((pushed.deletes, pushed.hidden_deleted), (1, 1));
+    let named = format!(
+        "deleting \"Alpha\" ({}) also deletes 1 hidden item: \"done child\"",
+        short(&a)
+    );
+    assert!(r.messages.contains(&named), "{r:#?}");
     let tree = env.export();
     assert!(!tree.contains(&a) && !tree.contains(&done));
     assert_eq!(child_names(&tree, &root), ["Beta"]);
@@ -359,6 +374,31 @@ fn deleting_a_line_counts_descendants_hidden_by_depth() {
     let tree = env.export();
     assert!(!tree.contains(&parent) && !tree.contains(&child) && !tree.contains(&grandchild));
     settle(&env, &file);
+}
+
+#[test]
+fn a_dry_run_names_the_hidden_items_a_delete_takes() {
+    let (env, _root, a, _b, file) = setup();
+    for i in 0..12 {
+        let h = env.ui_create(Some(&a), &format!("h{i}"));
+        env.ui("complete", json!({"id": h.as_str()}));
+    }
+    env.sync(&file);
+    let text = read(&file);
+    let al = line_of(&text, &a).to_owned();
+    edit(&file, &format!("{al}\n"), "");
+    let mut cfg = env.cfg.clone();
+    cfg.force = true; // 13 deletes out of 2 visible items engage the brake
+    cfg.dry_run = true;
+    let r = sync::sync_once(&env.client, &file, &cfg).unwrap();
+    assert!(matches!(r.outcome, SyncOutcome::DryRun { .. }), "{r:#?}");
+    let names: Vec<String> = (0..10).map(|i| format!("\"h{i}\"")).collect();
+    let named = format!(
+        "deleting \"Alpha\" ({}) also deletes 12 hidden items: {}, and 2 more",
+        short(&a),
+        names.join(", ")
+    );
+    assert!(r.messages.contains(&named), "{r:#?}");
 }
 
 #[test]

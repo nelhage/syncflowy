@@ -1305,6 +1305,59 @@ pub enum OutlineDiff {
     },
 }
 
+impl fmt::Display for OutlineDiff {
+    /// One line naming the node and the difference, for reports.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let parent = |p: &Option<NodeId>| match p {
+            Some(p) => format!("under {p}"),
+            None => "at the top level".to_owned(),
+        };
+        let done = |c: bool| if c { "completed" } else { "not completed" };
+        match self {
+            OutlineDiff::Missing(id) => write!(f, "{id} is missing from Workflowy"),
+            OutlineDiff::Extra(id) => write!(f, "{id} is in Workflowy but was not expected"),
+            OutlineDiff::Parent {
+                id,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "{id} is {}, expected {}",
+                parent(actual),
+                parent(expected)
+            ),
+            OutlineDiff::Name {
+                id,
+                expected,
+                actual,
+            } => write!(f, "the name of {id} is {actual:?}, expected {expected:?}"),
+            OutlineDiff::Note {
+                id,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "the note of {id} is {:?}, expected {:?}",
+                actual.as_deref().unwrap_or(""),
+                expected.as_deref().unwrap_or("")
+            ),
+            OutlineDiff::Layout {
+                id,
+                expected,
+                actual,
+            } => write!(f, "the layout of {id} is {actual}, expected {expected}"),
+            OutlineDiff::Completed {
+                id,
+                expected,
+                actual,
+            } => write!(f, "{id} is {}, expected {}", done(*actual), done(*expected)),
+            OutlineDiff::Order { parent, .. } => {
+                write!(f, "the children of {parent} are not in the expected order")
+            }
+        }
+    }
+}
+
 /// Compare the outlines below `root` in two trees: membership, parent, name, note,
 /// layout, completion and sibling order (as id sequences). Used to verify an apply
 /// (§7.1: "re-export and check that the remote now equals M") and in tests. Results are

@@ -331,6 +331,7 @@ fn derive_merge(remote: &Tree, m: &Tree, root: &NodeId) -> MergeResult {
             visible_descendants: visible,
             hidden_descendants: hidden,
             label: remote.get(&id).unwrap().name.clone(),
+            hidden_labels: Vec::new(),
         });
     }
     let mut orders = BTreeMap::new();
@@ -1105,6 +1106,7 @@ fn guards_keep_writes_inside_the_root() {
         visible_descendants: 0,
         hidden_descendants: 0,
         label: String::new(),
+        hidden_labels: Vec::new(),
     });
     let (reason, _) = guard_reason(plan::plan(&sc.merge, &sc.remote, &sc.cfg));
     assert_eq!(reason, GuardReason::OutsideRoot);
@@ -1116,6 +1118,7 @@ fn guards_keep_writes_inside_the_root() {
             visible_descendants: 0,
             hidden_descendants: 0,
             label: String::new(),
+            hidden_labels: Vec::new(),
         });
         let (reason, _) = guard_reason(plan::plan(&sc.merge, &sc.remote, &sc.cfg));
         assert_eq!(reason, GuardReason::OutsideRoot);

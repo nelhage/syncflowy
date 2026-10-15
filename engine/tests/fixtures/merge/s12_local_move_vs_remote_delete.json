@@ -80,7 +80,8 @@
       {
         "Resurrected": {
           "new": "temp-1",
-          "old": "c"
+          "old": "c",
+          "old_name": "Gamma"
         }
       }
     ],

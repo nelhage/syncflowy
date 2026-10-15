@@ -252,7 +252,8 @@ not an option.
 
 Deleting a visible parent deletes its hidden (completed) children too. That is correct Workflowy semantics,
 but the Markdown user cannot see what they are deleting. The delete brake (§8.3) should count hidden
-descendants, and the sync report should name them.
+descendants, and the sync report should name them (the engine names the first ten, in the report and in a dry
+run).
 
 ## 5. Fidelity: how lossy rendering stays lossless
 

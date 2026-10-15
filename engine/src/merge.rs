@@ -445,6 +445,35 @@ pub struct DeleteIntent {
     pub hidden_descendants: usize,
     /// Plain text of the node's name, for reports.
     pub label: String,
+    /// Plain text of the names of the first [`HIDDEN_LABELS_MAX`] hidden descendants, in
+    /// file order, for reports.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hidden_labels: Vec<String>,
+}
+
+/// How many hidden descendants of a delete the report names (§4.5).
+pub const HIDDEN_LABELS_MAX: usize = 10;
+
+impl DeleteIntent {
+    /// `deleting "Old ideas" (<short id>) also deletes 1 hidden item: "Hedge maze"`, or
+    /// `None` if the delete takes no hidden descendant (§4.5: the report names them).
+    pub fn describe_hidden(&self) -> Option<String> {
+        let n = self.hidden_descendants;
+        if n == 0 {
+            return None;
+        }
+        let mut names: Vec<String> = self.hidden_labels.iter().map(|l| quoted(l)).collect();
+        if n > names.len() {
+            names.push(format!("and {} more", n - names.len()));
+        }
+        let short = self.node.short().map(|s| s.to_string()).unwrap_or_default();
+        Some(format!(
+            "deleting {} ({short}) also deletes {n} hidden item{}: {}",
+            quoted(&self.label),
+            if n == 1 { "" } else { "s" },
+            names.join(", ")
+        ))
+    }
 }
 
 /// Counts used by the brakes (§8.3) and the report.
@@ -473,7 +502,13 @@ pub struct MergeStats {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReportEvent {
     /// A remotely deleted node edited locally was re-created (§6.2).
-    Resurrected { old: NodeId, new: NodeId },
+    Resurrected {
+        old: NodeId,
+        new: NodeId,
+        /// Plain text of the deleted node's base name (it is in no tree any more).
+        #[serde(default)]
+        old_name: String,
+    },
     /// Local edits/creates under a node completed remotely were pushed and vanish from
     /// view (§6.2 table).
     VanishedWork {
@@ -527,9 +562,18 @@ pub enum ReportEvent {
     /// An untagged item was matched to a node from an interrupted apply.
     Adopted { node: NodeId, line: usize },
     /// An edit of a read-only item or placeholder was refused (§5.3, §10), or an item
-    /// typed or moved under a placeholder was. `line` 0 stands for the preamble (the
-    /// root's note).
+    /// moved under a placeholder was. `line` 0 stands for the preamble (the root's note).
     ReadOnlyEditRefused { node: NodeId, line: usize },
+    /// An item typed under a placeholder or stub (§10, §15.1) was created under
+    /// `parent`, the nearest ancestor that can hold it, instead.
+    Lifted {
+        line: usize,
+        /// Plain text of the new item's name.
+        name: String,
+        /// The (nearest) placeholder it was typed under.
+        placeholder: NodeId,
+        parent: NodeId,
+    },
     /// A delete of a placeholder was refused without `force` (§10).
     PlaceholderDeleteRefused { node: NodeId },
     /// A delete was refused because `node` is, or holds, the mirror origin `origin`,
@@ -553,20 +597,78 @@ pub enum ReportEvent {
     SafeMode { suppressed: usize },
 }
 
+/// Where [`ReportEvent::describe_with`] finds the names of the nodes it mentions.
+#[derive(Debug, Clone, Copy)]
+pub struct Labels<'a> {
+    /// The remote tree (after the apply, when describing a finished sync).
+    pub tree: &'a Tree,
+    /// Temp id -> real id of the nodes created (`ApplyOutcome::created`).
+    pub created: Option<&'a BTreeMap<NodeId, NodeId>>,
+    /// Looked up for nodes not (yet) in `tree`: the merged tree `M` of a dry run, where
+    /// new nodes still have their temp ids.
+    pub planned: Option<&'a Tree>,
+}
+
+impl<'a> Labels<'a> {
+    /// Names from `tree` alone.
+    pub fn new(tree: &'a Tree) -> Labels<'a> {
+        Labels {
+            tree,
+            created: None,
+            planned: None,
+        }
+    }
+
+    /// `"<plain text of the name>" (<short id>)`, with `, new` for a node this sync
+    /// creates; the short id alone if the node is unknown. A temp id is never shown.
+    pub fn label(&self, id: &NodeId) -> String {
+        let name = |n: &Node| quoted(&codec::plain_text_lossy(&n.name));
+        if id.is_temp() {
+            let real = self.created.and_then(|c| c.get(id));
+            if let Some((real, node)) = real.and_then(|r| Some((r, self.tree.get(r)?))) {
+                let short = real.short().map(|s| s.to_string()).unwrap_or_default();
+                return format!("{} ({short}, new)", name(node));
+            }
+            return match self.planned.and_then(|t| t.get(id)) {
+                Some(node) => format!("{} (new)", name(node)),
+                None => "a new item".to_owned(),
+            };
+        }
+        let short = id
+            .short()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| id.to_string());
+        match self.tree.get(id).or_else(|| self.planned?.get(id)) {
+            Some(node) => format!("{} ({short})", name(node)),
+            None => short,
+        }
+    }
+}
+
 impl ReportEvent {
     /// A one-line human-readable description (used in logs and the status note).
     /// `tree` (the remote tree) is used to name nodes by their plain-text names.
     pub fn describe(&self, tree: &Tree) -> String {
-        let n = |id: &NodeId| node_label(tree, id);
+        self.describe_with(&Labels::new(tree))
+    }
+
+    /// [`ReportEvent::describe`], naming nodes from `labels`.
+    pub fn describe_with(&self, labels: &Labels<'_>) -> String {
+        let n = |id: &NodeId| labels.label(id);
         let f = |field: &ConflictField| match field {
             ConflictField::Name => "name",
             ConflictField::Note => "note",
         };
         match self {
-            ReportEvent::Resurrected { old, new } => format!(
-                "{} was deleted in Workflowy but edited in Markdown: re-created as a new node ({new})",
-                n(old)
-            ),
+            ReportEvent::Resurrected { old, new, old_name } => {
+                let short = old.short().map(|s| s.to_string()).unwrap_or_default();
+                format!(
+                    "{} ({short}) was deleted in Workflowy but edited in Markdown: re-created as {} \
+                     (the original is in Workflowy's Trash)",
+                    quoted(old_name),
+                    n(new)
+                )
+            }
             ReportEvent::VanishedWork {
                 node,
                 completed_ancestor,
@@ -661,6 +763,13 @@ impl ReportEvent {
                 "line {line}: {} is read-only (or a mirror placeholder); the edit was not sent",
                 n(node)
             ),
+            ReportEvent::Lifted {
+                line, name, parent, ..
+            } => format!(
+                "line {line}: {} was typed under a read-only placeholder; created under {} instead",
+                quoted(name),
+                n(parent)
+            ),
             ReportEvent::PlaceholderDeleteRefused { node } => format!(
                 "{} is a mirror placeholder; its delete was not sent (use force)",
                 n(node)
@@ -711,16 +820,11 @@ impl ReportEvent {
     }
 }
 
-/// `"<plain text of the name>" (<short id>)`, or the id alone if unknown.
-fn node_label(tree: &Tree, id: &NodeId) -> String {
-    let short = id
-        .short()
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| id.to_string());
-    match tree.get(id) {
-        Some(node) => format!("\"{}\" ({short})", codec::plain_text_lossy(&node.name)),
-        None => short,
-    }
+/// Plain text in double quotes, on one line: line breaks are shown as ` ⏎ `, as the
+/// renderer does for a multi-line name.
+fn quoted(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    format!("\"{}\"", lines.join(" ⏎ "))
 }
 
 /// The merge's output.
@@ -880,6 +984,7 @@ mod tests {
             ReportEvent::Resurrected {
                 old: a.clone(),
                 new: NodeId::temp(1),
+                old_name: "Two\nlines".to_owned(),
             },
             ReportEvent::VanishedWork {
                 node: a.clone(),
@@ -931,6 +1036,12 @@ mod tests {
                 node: a.clone(),
                 line: 4,
             },
+            ReportEvent::Lifted {
+                line: 5,
+                name: "typed".to_owned(),
+                placeholder: b.clone(),
+                parent: a.clone(),
+            },
             ReportEvent::PlaceholderDeleteRefused { node: a.clone() },
             ReportEvent::MirrorDeleteRefused {
                 node: a.clone(),
@@ -970,6 +1081,68 @@ mod tests {
         );
         // Unknown nodes are named by their short id.
         assert!(events[1].describe(&tree).contains("0000000000bb"));
+        // A remotely deleted node is named by its base name, on one line; a temp id is
+        // never shown.
+        assert_eq!(
+            events[0].describe(&tree),
+            "\"Two ⏎ lines\" (0000000000aa) was deleted in Workflowy but edited in Markdown: \
+             re-created as a new item (the original is in Workflowy's Trash)"
+        );
+    }
+
+    #[test]
+    fn labels_resolve_created_and_planned_nodes() {
+        let a = NodeId::from_api("00000000-0000-4000-8000-0000000000aa");
+        let c = NodeId::from_api("00000000-0000-4000-8000-0000000000cc");
+        let t = NodeId::temp(1);
+        let tree = Tree::from_nodes([
+            Node::new(a.clone(), None, "Two\nline name"),
+            Node::new(c.clone(), None, "a child I added"),
+        ])
+        .expect("tree");
+        let planned =
+            Tree::from_nodes([Node::new(t.clone(), None, "typed &amp; new")]).expect("tree");
+        let created = BTreeMap::from([(t.clone(), c.clone())]);
+        let refused = ReportEvent::ReadOnlyEditRefused {
+            node: a.clone(),
+            line: 5,
+        };
+        assert_eq!(
+            refused.describe(&tree),
+            "line 5: \"Two ⏎ line name\" (0000000000aa) is read-only (or a mirror placeholder); \
+             the edit was not sent"
+        );
+        let vanished = ReportEvent::VanishedWork {
+            node: t.clone(),
+            completed_ancestor: a.clone(),
+        };
+        // After the apply: the created map gives the real node.
+        let after = Labels {
+            tree: &tree,
+            created: Some(&created),
+            planned: None,
+        };
+        assert!(
+            vanished
+                .describe_with(&after)
+                .starts_with("\"a child I added\" (0000000000cc, new) was pushed but is hidden"),
+            "{}",
+            vanished.describe_with(&after)
+        );
+        // A dry run: the merged tree names it.
+        let dry = Labels {
+            tree: &tree,
+            created: None,
+            planned: Some(&planned),
+        };
+        assert!(
+            vanished
+                .describe_with(&dry)
+                .starts_with("\"typed & new\" (new) was pushed"),
+            "{}",
+            vanished.describe_with(&dry)
+        );
+        assert!(!vanished.describe(&tree).contains("temp-"));
     }
 
     #[test]

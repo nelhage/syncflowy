@@ -111,6 +111,39 @@ fn render_sync_status() {
 }
 
 #[test]
+fn reports_have_no_debug_output_and_name_a_conflict_once() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Project");
+    let a = env.ui_create(Some(&root), "Alpha");
+    let file = env.path("project.md");
+    env.render(&root, &file);
+    env.ui(
+        "edit",
+        serde_json::json!({"id": a.as_str(), "text": "Alpha (remote)"}),
+    );
+    edit(&file, "Alpha", "Alpha (local)");
+    let al = line_of(&read(&file), &a).to_owned();
+    edit(&file, &format!("{al}\n"), &format!("{al}\n- Carrots\n"));
+
+    let o = cli(&env, &["sync", "--dry-run", file.to_str().unwrap()]);
+    assert!(o.status.success(), "{}{}", stdout(&o), stderr(&o));
+    let out = stdout(&o);
+    assert!(!out.contains("NodeId("), "{out}");
+    assert!(out.contains("op 0: create "), "{out}");
+
+    let o = cli(&env, &["sync", file.to_str().unwrap()]);
+    assert!(o.status.success(), "{}{}", stdout(&o), stderr(&o));
+    let out = stdout(&o);
+    assert!(!out.contains("NodeId("), "{out}");
+    let conflict_lines = out.lines().filter(|l| l.contains("conflict on")).count();
+    assert_eq!(conflict_lines, 1, "{out}");
+    assert!(
+        out.contains("conflict on the name of \"Alpha (remote)\""),
+        "{out}"
+    );
+}
+
+#[test]
 fn missing_api_key_is_an_error() {
     let env = Env::new();
     let o = Command::new(env!("CARGO_BIN_EXE_syncflowy"))

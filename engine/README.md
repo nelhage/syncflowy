@@ -76,14 +76,17 @@ or `unchanged`, `paused`, `refused: ...` (a brake) or `skipped: ...`.
 * `--force` overrides the mass-change brakes and the orphan-placeholder guards (see Safety). It also bootstraps a
   file that has no checkpoint (see Limitations).
 * `--dry-run` plans and prints the operations, and writes nothing. It does not recover a leftover journal; it
-  warns that one is pending.
+  warns that one is pending. A delete that takes hidden items (completed, or below `depth:`) names them, as the
+  report of a real sync does.
 
 ```console
 $ syncflowy $S sync --dry-run vault/plan.md
-vault/plan.md: dry run: 3 op(s)
-  would Create { temp: NodeId("temp-1"), parent: ..., name: Direct("A new local item"), ... }
-  would Move { ... }
-  would Complete { node: NodeId("859d1384-...") }
+vault/plan.md: dry run: 4 op(s)
+  op 0: create temp-1 under 8d88348a-... (direct)
+  op 1: move 859d1384-... to the bottom of 8d88348a-...
+  op 2: complete 859d1384-...
+  op 3: delete 2cfa93ea-... (+1 hidden)
+  deleting "Old ideas" (3d437204e52d) also deletes 1 hidden item: "Hedge maze"
 ```
 
 ### `daemon --vault <DIR> [options]`
@@ -171,7 +174,8 @@ A note on "Planning": the lines right under the heading.
 * **Ticking is not deleting.** Ticking `[x]` on a line completes the node in Workflowy (only that node, not its
   children) and removes the line and its subtree from the file. It can only be undone in Workflowy, where
   un-completing makes it reappear. **Deleting a line deletes the node** (to the Workflowy trash), together with
-  its hidden, completed descendants, which you cannot see.
+  its hidden descendants (completed, or below `depth:`), which you cannot see; the report and the dry run name
+  them (the first ten).
 * **Mass-change brakes** (§8.3) stop a run before anything is written, report `refused: ...` and exit 1:
   * the file is empty (or has no items) while the base showed items and the merge deletes nodes,
   * the deletes (visible plus hidden) exceed 50, or 20% of the base's visible nodes once there are at least 5,
@@ -188,7 +192,8 @@ A note on "Planning": the lines right under the heading.
   version stays and yours is kept as a child line `- ⚠ your text %%wf-conflict:name%%` (or `:note`) before the
   node's real children. It is never synced. Edit the real line if you want your version, then delete the
   marker. Deleting the marker marks the conflict resolved. When a node was moved out of the file in Workflowy
-  and both sides edited the same field, Workflowy wins and your text is only logged.
+  and both sides edited the same field, Workflowy wins and your text is only logged; likewise when you tick a
+  line whose name or note a collaborator changed (the tick is pushed).
 * **Beta API only** (§10, DM§10.5). The engine talks to `https://beta.workflowy.com`, which serves the same
   account and data as production but reports mirrors properly. Production reports a mirror as an empty node, so
   edits to it would be invisible to Workflowy users; `--api-url` refuses the production host.

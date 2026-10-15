@@ -498,6 +498,17 @@ impl ApplyOutcome {
     }
 }
 
+/// One line per op of `plan` (`op N: <what>`), worded as [`ApplyOutcome::log_lines`]
+/// without the results: what a dry run would send.
+pub fn plan_lines(plan: &Plan) -> Vec<String> {
+    let none = BTreeMap::new();
+    plan.ops
+        .iter()
+        .enumerate()
+        .map(|(i, op)| format!("op {i}: {}", describe_op(op, &none)))
+        .collect()
+}
+
 fn describe_skip(r: &SkipReason) -> String {
     match r {
         SkipReason::ChangedRemotely => "changed remotely".to_owned(),

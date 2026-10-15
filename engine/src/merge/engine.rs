@@ -18,9 +18,9 @@ use super::codec::TextCodec;
 use super::diff3::diff3_lines;
 use super::order::{lcs_members, merge_sibling_order};
 use super::{
-    Change, CrossFile, DeleteIntent, FieldPush, MergeError, MergeInput, MergeResult, MergeStats,
-    MoveIntent, NewNode, REMATCH_MAX_DISTANCE, REMATCH_MIN_RATIO, ReportEvent, is_placeholder_node,
-    visible_nodes,
+    Change, CrossFile, DeleteIntent, FieldPush, HIDDEN_LABELS_MAX, MergeError, MergeInput,
+    MergeResult, MergeStats, MoveIntent, NewNode, REMATCH_MAX_DISTANCE, REMATCH_MIN_RATIO,
+    ReportEvent, is_placeholder_node, visible_nodes,
 };
 use crate::mdblock::{Checkbox, ConflictMarker, ItemKind, LocalDoc, LocalItem};
 use crate::mdinline::{ConflictField, FieldKind, IdTag, InlineConfig, TagFlag, Tier};
@@ -1521,8 +1521,8 @@ impl<'a, 'c> Engine<'a, 'c> {
                 self.refuse(&root, 0);
             } else {
                 // With `force`, a read-only preamble was edited in view of its `🔒`.
-                let seen = self.codec.classify(base_note, FieldKind::Note, self.inline)
-                    == Tier::ReadOnly;
+                let seen =
+                    self.codec.classify(base_note, FieldKind::Note, self.inline) == Tier::ReadOnly;
                 self.merge_note(
                     &root,
                     seen,
@@ -1615,14 +1615,21 @@ impl<'a, 'c> Engine<'a, 'c> {
     }
 
     /// The parent a create goes under: the nearest local ancestor that is in `M`;
-    /// existing placeholders are skipped (refused) unless `force` (§10).
+    /// existing placeholders are skipped unless `force` (§10), and the lift is reported
+    /// ([`ReportEvent::Lifted`]).
     fn create_parent(&mut self, i: usize) -> NodeId {
-        let line = self.items[i].item.line;
         let (parent, placeholders) = self.create_parent_walk(i, &self.m);
-        for x in placeholders {
-            self.refuse(&x, line);
+        let parent = parent.unwrap_or_else(|| self.root.clone());
+        if let Some(placeholder) = placeholders.into_iter().next() {
+            let li = self.items[i].item;
+            self.report.push(ReportEvent::Lifted {
+                line: li.line,
+                name: self.plain_of_md(li),
+                placeholder,
+                parent: parent.clone(),
+            });
         }
-        parent.unwrap_or_else(|| self.root.clone())
+        parent
     }
 
     /// The walk of [`Engine::create_parent`] against `tree`: the parent (`None` for the
@@ -1708,7 +1715,15 @@ impl<'a, 'c> Engine<'a, 'c> {
             resurrects: resurrects.clone(),
         });
         if let Some(old) = resurrects {
-            self.report.push(ReportEvent::Resurrected { old, new: t });
+            let old_name = match self.inp.base.get(&old) {
+                Some(b) => self.codec.plain_text(&b.name),
+                None => String::new(),
+            };
+            self.report.push(ReportEvent::Resurrected {
+                old,
+                new: t,
+                old_name,
+            });
         }
     }
 
@@ -2030,6 +2045,12 @@ impl<'a, 'c> Engine<'a, 'c> {
                 .filter(|d| self.base_items.contains_key(*d))
                 .count();
             let hidden = desc.len() - vis;
+            let hidden_labels = desc
+                .iter()
+                .filter(|d| !self.base_items.contains_key(*d))
+                .take(HIDDEN_LABELS_MAX)
+                .map(|d| self.codec.plain_text(&self.m.get(d).expect("in M").name))
+                .collect();
             let label = self.codec.plain_text(&self.m.get(&n).expect("in M").name);
             if dset.contains(&n) {
                 self.stats.deleted_visible += 1 + vis;
@@ -2043,6 +2064,7 @@ impl<'a, 'c> Engine<'a, 'c> {
                 visible_descendants: vis,
                 hidden_descendants: hidden,
                 label,
+                hidden_labels,
             });
         }
     }

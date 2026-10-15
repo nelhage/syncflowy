@@ -89,7 +89,7 @@ use serde::{Deserialize, Serialize};
 use crate::apply::ApplyError;
 use crate::error::Error;
 use crate::mdblock::{self, ItemKind, LocalDoc, LocalItem, ParseError, RootRef};
-use crate::merge::ReportEvent;
+use crate::merge::{Labels, ReportEvent};
 use crate::state::{self, Checkpoint, Fingerprint, StateStore, fingerprint};
 use crate::sync::{self, Clock, PauseReason, SyncConfig, SyncOutcome, SyncReport};
 use crate::tree::{NodeId, ShortId};
@@ -590,6 +590,7 @@ fn event_kind(e: &ReportEvent) -> Option<EventKind> {
         | ReportEvent::ForeignTag { .. }
         | ReportEvent::DuplicateTag { .. }
         | ReportEvent::ReadOnlyEditRefused { .. }
+        | ReportEvent::Lifted { .. }
         | ReportEvent::PlaceholderDeleteRefused { .. }
         | ReportEvent::MirrorDeleteRefused { .. }
         | ReportEvent::Conflict { .. }
@@ -908,14 +909,19 @@ impl Daemon {
                 continue; // the warning above already says so
             }
             if let Some(kind) = event_kind(e) {
-                self.log_event(Some(file), kind, e.describe(&tree));
+                let labels = Labels {
+                    tree: &tree,
+                    created: Some(&report.created),
+                    planned: None,
+                };
+                self.log_event(Some(file), kind, e.describe_with(&labels));
             }
         }
         for d in &report.discrepancies {
             self.log_event(
                 Some(file),
                 EventKind::Error,
-                format!("verification after the push: {d:?}"),
+                format!("verification after the push: {d}"),
             );
         }
     }
