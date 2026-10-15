@@ -300,6 +300,25 @@ fn file_emptied_into_another_file_is_not_braked() {
     settled(&t);
 }
 
+/// The source file of a cross-file move also pushes an edit, so it is verified: the
+/// node that left it for the other file of the run is not reported missing.
+#[test]
+fn cross_file_move_with_an_edit_in_the_source_verifies_clean() {
+    let t = two_files();
+    cut_and_paste(&t, str::to_owned);
+    edit(&t.a, "Stays in alpha", "Stays in alpha, renamed");
+    let rs = reports(&t.env, &t.env.client, &[t.a.clone(), t.b.clone()]);
+    for r in &rs {
+        assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+        assert!(r.discrepancies.is_empty(), "{r:#?}");
+    }
+    let tree = t.env.export();
+    assert_eq!(tree.parent(&t.x), Some(&t.target));
+    assert_eq!(tree.parent(&t.x_child), Some(&t.x));
+    assert_eq!(tree.get(&t.keep).unwrap().name, "Stays in alpha, renamed");
+    settled(&t);
+}
+
 #[test]
 fn edits_in_both_files_in_one_run() {
     let t = two_files();

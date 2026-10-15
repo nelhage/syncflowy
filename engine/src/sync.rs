@@ -58,7 +58,8 @@
 //!     export. An error returns `Error::Apply` and leaves the journal for the next run's
 //!     recovery.
 //! 11. **Re-export and verify** once for the run (`apply::verify` per file against the
-//!     shared export, §7.1). If the applier skipped local changes because a
+//!     shared export, §7.1; a node that another file's apply moved out of this root,
+//!     §6.4, is not expected in it). If the applier skipped local changes because a
 //!     collaborator changed or deleted their nodes after our export (a name, note or
 //!     layout edit failing the pre-write GET, a create whose parent is gone, …:
 //!     `unpushed_local_changes`), the render below would drop them from the file with no
@@ -953,6 +954,20 @@ fn describe_events(events: &[ReportEvent], tree: &Tree) -> Vec<String> {
     events.iter().map(|e| e.describe(tree)).collect()
 }
 
+/// The existing nodes that `plan`'s moves re-parented, as far as `outcome` sent them.
+fn moved_nodes(plan: &Plan, outcome: &ApplyOutcome) -> BTreeSet<NodeId> {
+    plan.ops
+        .iter()
+        .zip(&outcome.results)
+        .filter_map(|(op, r)| match (op, r) {
+            (Op::Move { node, .. }, apply::OpOutcome::Done) if !node.is_temp() => {
+                Some(node.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 /// Step 10: apply the plan with a journal. `Ok(None)` for an empty plan. `remote` is the
 /// real tree the plan was made against.
 fn apply_planned(
@@ -1741,6 +1756,16 @@ pub fn sync_all(
             remote.clone()
         };
         let after_real = mirrors::real_tree(&after);
+        // §6.4: the nodes each file's apply moved (a cross-file move is planned by the
+        // destination file only).
+        let moved: Vec<BTreeSet<NodeId>> = planned
+            .iter()
+            .zip(&applied)
+            .map(|(p, o)| match (p, o) {
+                (Some(p), Some(o)) => moved_nodes(&p.plan, o),
+                _ => BTreeSet::new(),
+            })
+            .collect();
         for (k, a) in active.iter_mut().enumerate() {
             if results[a.index].is_some() {
                 continue;
@@ -1749,8 +1774,20 @@ pub fn sync_all(
             if cfg.apply.verify
                 && let Some(outcome) = &applied[k]
             {
+                // A node cut from this file and pasted into another stays in this
+                // file's `M` at its remote position (`CrossFile::claimed_elsewhere`); the
+                // other file's apply moved it out of this root, so it is not expected
+                // here any more.
+                let mut expected = p.real.merged.clone();
+                for (j, nodes) in moved.iter().enumerate() {
+                    for n in nodes {
+                        if j != k && expected.contains(n) && n != &a.root {
+                            expected.remove_subtree(n).expect("in the tree");
+                        }
+                    }
+                }
                 a.report.discrepancies =
-                    apply::verify(&p.real.merged, &after_real, &a.root, &outcome.created);
+                    apply::verify(&expected, &after_real, &a.root, &outcome.created);
                 for d in &a.report.discrepancies {
                     log::warn!("{}: verification: {d:?}", a.file.display());
                 }
