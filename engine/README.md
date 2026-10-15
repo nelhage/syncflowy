@@ -102,6 +102,9 @@ identified by root, not by path, so renaming a file needs no handling.
 
 The daemon never exits on a per-file error; it logs it (use `-v`) and shows it in the status note. It exits on a
 fatal error, such as an unusable state directory or an API 401.
+On SIGTERM or SIGINT (Ctrl-C) it finishes the cycle in progress, writes `Stopped at ...` to the status note and
+exits 0; a second signal ends it at once (an interrupted cycle is recovered by the next run). Its event log is
+kept in the state directory, so the status note's event sections survive a restart.
 
 ### `status [FILE.md]...`
 
@@ -227,6 +230,7 @@ A note on "Planning": the lines right under the heading.
 
 ```text
 <state_dir>/
+  daemon-events.json       the daemon's event log (the status note's event sections)
   roots/<root uuid>/
     checkpoint.json        base_md and base_wf of the last write, the generation, the file's config
     pending.json           pending deletes

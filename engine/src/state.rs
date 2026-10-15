@@ -16,6 +16,7 @@
 //!
 //! ```text
 //! <state_dir>/
+//!   daemon-events.json       the daemon's event log (`daemon::EVENTS_FILE`, written by it)
 //!   roots/<root uuid>/
 //!     checkpoint.json        Checkpoint (pretty JSON), replaced atomically
 //!     pending.json           PendingDeletes, replaced atomically (see below)

@@ -48,6 +48,15 @@
 //!    cycle's time). It has no frontmatter, so it is never mistaken for a synced file.
 //! 6. Never exit on a per-file error; log it and show it in the status note. Exit only on
 //!    a fatal error: the state directory is unusable, or the API answers 401.
+//! 7. **Stop** on SIGTERM or SIGINT: [`run`] lets the step in progress finish (a cycle
+//!    is never cut short, so no journal is left behind), then [`Daemon::stop`] writes
+//!    `Stopped at ...` to the status note, and `run` returns `Ok` (exit 0). A second
+//!    signal while stopping ends the process at once (exit 1; the next run recovers an
+//!    interrupted cycle from its journal).
+//!
+//! The event log (the status note's event sections, at most [`MAX_EVENTS`]) is saved in
+//! the state directory ([`EVENTS_FILE`]) after every step that changed it, and loaded
+//! by [`Daemon::new`], so a restart keeps it.
 //!
 //! # Guards (§9.1) and where they live
 //!
@@ -79,12 +88,14 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use signal_hook::consts::{SIGINT, SIGTERM};
 
 use crate::apply::ApplyError;
 use crate::error::Error;
@@ -111,6 +122,12 @@ pub const STATUS_NOTE: &str = "Workflowy Sync Status.md";
 
 /// How many events the status note keeps (newest first).
 pub const MAX_EVENTS: usize = 50;
+
+/// The event log's file in the state directory (JSON, newest first).
+pub const EVENTS_FILE: &str = "daemon-events.json";
+
+/// While waiting between steps, how often [`run`] checks for a stop signal.
+const STOP_POLL: Duration = Duration::from_millis(200);
 
 /// The shortest wait between two steps of [`run`] (no busy loop).
 const MIN_WAIT: Duration = Duration::from_millis(500);
@@ -528,6 +545,10 @@ pub struct Daemon {
     /// Current errors per file (`""` for the run-wide one).
     errors: BTreeMap<PathBuf, StoredError>,
     events: VecDeque<Event>,
+    /// True if `events` changed since it was last saved.
+    events_dirty: bool,
+    /// Set by [`Daemon::stop`].
+    stopped_at: Option<i64>,
     deletes_held: bool,
     status_text: Option<String>,
     /// The content of each dirty file when it was last handed to a cycle.
@@ -653,6 +674,7 @@ impl Daemon {
             });
         }
         let store = StateStore::open(&cfg.sync.state_dir)?;
+        let events = load_events(&store);
         if let (Ok(state), Ok(vault)) = (
             std::fs::canonicalize(&cfg.sync.state_dir),
             std::fs::canonicalize(&cfg.vault),
@@ -681,7 +703,9 @@ impl Daemon {
             last_ok: BTreeMap::new(),
             outcomes: BTreeMap::new(),
             errors: BTreeMap::new(),
-            events: VecDeque::new(),
+            events,
+            events_dirty: false,
+            stopped_at: None,
             deletes_held: false,
             status_text: None,
             attempted: BTreeMap::new(),
@@ -746,6 +770,33 @@ impl Daemon {
             text,
         });
         self.events.truncate(MAX_EVENTS);
+        self.events_dirty = true;
+    }
+
+    /// Save the event log if it changed. A failure is logged, not fatal.
+    fn save_events(&mut self) {
+        if !self.events_dirty {
+            return;
+        }
+        let path = self.store.dir().join(EVENTS_FILE);
+        let result = serde_json::to_vec_pretty(&self.events)
+            .map_err(std::io::Error::other)
+            .and_then(|bytes| state::atomic_write(&path, &bytes));
+        match result {
+            Ok(()) => self.events_dirty = false,
+            Err(e) => log::warn!("{}: cannot save the event log: {e}", path.display()),
+        }
+    }
+
+    /// Stop (module docs, step 7): log it, write `Stopped at ...` to the status note and
+    /// save the event log. Call it between steps.
+    pub fn stop(&mut self) -> Result<(), Error> {
+        let at = self.time.unix();
+        self.stopped_at = Some(at);
+        self.log_event(None, EventKind::Info, "the daemon stopped".to_owned());
+        self.write_status()?;
+        self.save_events();
+        Ok(())
     }
 
     /// Step 1: discover and classify the synced files.
@@ -1164,6 +1215,7 @@ impl Daemon {
                 .collect(),
             discovery: self.discovery.clone(),
             events: self.events.iter().cloned().collect(),
+            stopped_at: self.stopped_at,
         })
     }
 
@@ -1236,17 +1288,56 @@ impl Daemon {
                 Err(e) => {
                     self.log_event(None, EventKind::ApiError, format!("fatal: {e}; stopping"));
                     let _ = self.write_status();
+                    self.save_events();
                     return Err(e);
                 }
             }
         }
         report.status_written = self.write_status()?;
+        self.save_events();
         Ok(report)
     }
 }
 
-/// Run the daemon loop until a fatal error (module docs). Uses the real clock.
+/// The saved event log ([`EVENTS_FILE`]), or an empty one if there is none or it does
+/// not decode (logged).
+fn load_events(store: &StateStore) -> VecDeque<Event> {
+    let path = store.dir().join(EVENTS_FILE);
+    let bytes = match std::fs::read(&path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return VecDeque::new(),
+        Err(e) => {
+            log::warn!("{}: {e}", path.display());
+            return VecDeque::new();
+        }
+    };
+    match serde_json::from_slice::<VecDeque<Event>>(&bytes) {
+        Ok(mut events) => {
+            events.truncate(MAX_EVENTS);
+            events
+        }
+        Err(e) => {
+            log::warn!("{}: cannot read the event log: {e}", path.display());
+            VecDeque::new()
+        }
+    }
+}
+
+/// Run the daemon loop until a fatal error, or until SIGTERM or SIGINT (module docs,
+/// step 7: then `Ok`). Uses the real clock.
 pub fn run(api: &dyn Api, cfg: &DaemonConfig) -> Result<(), Error> {
+    let stop = Arc::new(AtomicBool::new(false));
+    for sig in [SIGTERM, SIGINT] {
+        let registered =
+            signal_hook::flag::register_conditional_shutdown(sig, 1, Arc::clone(&stop))
+                .and_then(|_| signal_hook::flag::register(sig, Arc::clone(&stop)));
+        if let Err(e) = registered {
+            return Err(Error::Io {
+                path: cfg.vault.clone(),
+                source: std::io::Error::other(format!("cannot handle signal {sig}: {e}")),
+            });
+        }
+    }
     let mut daemon = Daemon::new(cfg.clone(), Arc::new(RealTime))?;
     let watch_error = |e: notify::Error| Error::Io {
         path: cfg.vault.clone(),
@@ -1262,16 +1353,20 @@ pub fn run(api: &dyn Api, cfg: &DaemonConfig) -> Result<(), Error> {
     log::info!("watching {}", cfg.vault.display());
 
     let mut changed: Vec<PathBuf> = Vec::new();
-    loop {
+    let stopping = || stop.load(Ordering::SeqCst);
+    'steps: loop {
         daemon.step(api, &changed)?;
         changed.clear();
         let mut deadline = daemon.next_wakeup().max(Instant::now() + MIN_WAIT);
         loop {
+            if stopping() {
+                break 'steps;
+            }
             let now = Instant::now();
             if now >= deadline {
                 break;
             }
-            match rx.recv_timeout(deadline - now) {
+            match rx.recv_timeout((deadline - now).min(STOP_POLL)) {
                 Ok(Ok(event)) => {
                     let before = changed.len();
                     changed.extend(event.paths.into_iter().filter(|p| daemon.is_relevant(p)));
@@ -1285,7 +1380,7 @@ pub fn run(api: &dyn Api, cfg: &DaemonConfig) -> Result<(), Error> {
                     changed.push(cfg.vault.clone());
                     deadline = deadline.min(Instant::now() + COALESCE);
                 }
-                Err(RecvTimeoutError::Timeout) => break,
+                Err(RecvTimeoutError::Timeout) => {}
                 Err(RecvTimeoutError::Disconnected) => {
                     return Err(Error::Io {
                         path: cfg.vault.clone(),
@@ -1295,6 +1390,8 @@ pub fn run(api: &dyn Api, cfg: &DaemonConfig) -> Result<(), Error> {
             }
         }
     }
+    log::info!("stopping on a signal");
+    daemon.stop()
 }
 
 #[cfg(test)]

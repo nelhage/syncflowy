@@ -899,3 +899,116 @@ fn a_file_without_a_checkpoint_says_how_to_adopt_it() {
     let r = roots(&rig.note());
     assert!(r.contains("| ok |"), "{r}");
 }
+
+// ---------------------------------------------------------------------------------------
+// Stopping and restarting
+// ---------------------------------------------------------------------------------------
+
+#[test]
+fn stop_is_noted_and_the_event_log_survives_a_restart() {
+    let (env, ..) = one_file();
+    let ghost = env.path("ghost.md");
+    write(&ghost, "---\nworkflowy: 0123456789ab\n---\n- x\n");
+    let mut rig = Rig::new(env);
+    rig.step(&[]);
+    rig.run_for(60);
+    let note = rig.note();
+    assert!(note.contains("[[ghost]]: sync root"), "{note}");
+    assert!(!note.contains("Stopped at"), "{note}");
+    rig.advance(30);
+    rig.d.stop().unwrap();
+    let note = rig.note();
+    assert!(
+        note.contains("Stopped at 2026-09-21 14:14 UTC: nothing is synced"),
+        "{note}"
+    );
+    assert!(
+        note.contains("- 2026-09-21 14:14 UTC the daemon stopped\n"),
+        "{note}"
+    );
+
+    // A new daemon over the same state directory starts with the old events.
+    let cfg = rig.d.config().clone();
+    rig.d = Daemon::new(cfg, rig.time.clone()).unwrap();
+    rig.advance(30);
+    rig.step(&[]);
+    let note = rig.note();
+    assert!(!note.contains("Stopped at"), "{note}");
+    assert!(note.contains("the daemon stopped"), "{note}");
+    assert!(note.contains("[[ghost]]: sync root"), "{note}");
+}
+
+/// `syncflowy daemon` over `env`'s vault, polling every second, logging to `log`.
+fn spawn_daemon(env: &Env, log: &Path) -> std::process::Child {
+    std::process::Command::new(env!("CARGO_BIN_EXE_syncflowy"))
+        .args(["--api-url", env.mock.base_url(), "--state-dir"])
+        .arg(&env.cfg.state_dir)
+        .args(["daemon", "--vault"])
+        .arg(env.dir.path().join("vault"))
+        .args(["--debounce", "0", "--poll", "1"])
+        .args(["--min-export-interval", "0"])
+        .env("WORKFLOWY_API_KEY", env.mock.api_key())
+        .env_remove("WORKFLOWY_API_URL")
+        .env_remove("SYNCFLOWY_STATE_DIR")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::fs::File::create(log).unwrap())
+        .spawn()
+        .expect("spawn syncflowy daemon")
+}
+
+/// Wait up to 30 s for `cond` (this test runs the real binary, so it has to sleep).
+fn wait_for(what: &str, log: &Path, mut cond: impl FnMut() -> bool) {
+    let t = std::time::Instant::now();
+    while !cond() {
+        assert!(
+            t.elapsed() < Duration::from_secs(30),
+            "timed out waiting for {what}; daemon log:\n{}",
+            std::fs::read_to_string(log).unwrap_or_default()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+/// Send `signal` (`TERM`, `INT`) to `child` and return its exit code.
+fn signal_and_wait(child: &mut std::process::Child, signal: &str, log: &Path) -> Option<i32> {
+    let ok = std::process::Command::new("kill")
+        .args([&format!("-{signal}"), &child.id().to_string()])
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "kill -{signal}");
+    let mut status = None;
+    wait_for("the daemon to exit", log, || {
+        status = child.try_wait().unwrap();
+        status.is_some()
+    });
+    status.unwrap().code()
+}
+
+#[test]
+fn the_daemon_binary_stops_cleanly_on_sigterm_and_sigint() {
+    let (env, ..) = one_file();
+    let note_path = env.dir.path().join("vault").join(STATUS_NOTE);
+    let log = env.dir.path().join("daemon.log");
+    let note = || std::fs::read_to_string(&note_path).unwrap_or_default();
+
+    let mut child = spawn_daemon(&env, &log);
+    wait_for("a first cycle", &log, || note().contains("| ok |"));
+    assert_eq!(signal_and_wait(&mut child, "TERM", &log), Some(0));
+    let text = note();
+    assert!(text.contains("\nStopped at "), "{text}");
+    assert_eq!(text.matches("the daemon stopped").count(), 1, "{text}");
+    assert!(env.cfg.state_dir.join("daemon-events.json").is_file());
+
+    // Restarted: the note is rewritten and keeps the earlier stop in its events.
+    let mut child = spawn_daemon(&env, &log);
+    wait_for("the note to be rewritten", &log, || {
+        let t = note();
+        t.contains("| ok |") && !t.contains("Stopped at")
+    });
+    assert!(note().contains("the daemon stopped"));
+    assert_eq!(signal_and_wait(&mut child, "INT", &log), Some(0));
+    let text = note();
+    assert!(text.contains("\nStopped at "), "{text}");
+    assert_eq!(text.matches("the daemon stopped").count(), 2, "{text}");
+}

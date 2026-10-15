@@ -130,6 +130,9 @@ pub struct StatusReport {
     pub discovery: Discovery,
     /// Recent events, newest first.
     pub events: Vec<Event>,
+    /// Unix seconds at which the daemon stopped (on a signal), if it did.
+    #[serde(default)]
+    pub stopped_at: Option<i64>,
 }
 
 /// `2026-10-14 12:00 UTC` for unix seconds.
@@ -231,6 +234,12 @@ pub fn render_status(report: &StatusReport) -> String {
         "This note is written by syncflowy after every cycle; edits to it are overwritten.\n\n",
     );
     out.push_str(&format!("Last cycle: {}\n", format_time(report.at)));
+    if let Some(t) = report.stopped_at {
+        out.push_str(&format!(
+            "\nStopped at {}: nothing is synced until the daemon runs again.\n",
+            format_time(t)
+        ));
+    }
 
     out.push_str("\n## Roots\n\n");
     if report.roots.is_empty() {
