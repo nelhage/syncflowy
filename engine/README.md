@@ -249,7 +249,10 @@ the server that talks to Workflowy: there must be only one engine per account.
 * Dates render compactly only for the observed forms; ranges, times, and locale or 24-hour variants stay literal HTML.
 * Markdown link titles are not supported (`[a](b "t")` is literal text). Images are literal text.
 * A node that cannot round-trip is shown read-only (`🔒`); edit it in Workflowy.
-* The client sends at most 10 requests per second and exports once per cycle; the documented export limit of one per minute was not observed in production (the daemon's `--min-export-interval` keeps to it).
+* The client sends at most 10 requests per second. A cycle exports once, or twice when it pushes (the second
+  export verifies the push and renders the file). The documented export limit of one per minute was not observed
+  in production; the daemon spaces its cycles by `--min-export-interval`, and if the limit is ever enforced, a
+  429 is retried for up to 90 s in total, waiting as its `Retry-After` header asks (design §12.2).
 * The engine has only been run against the mock server, never against the real API. Anything marked UNVERIFIED
   below depends on behaviour nobody has observed.
 * A cycle that cannot be settled after its retries (collaborator edits racing the push) commits nothing and is
