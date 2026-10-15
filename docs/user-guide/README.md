@@ -50,8 +50,11 @@ Skim this list before your first edit. Each point is explained in [What your edi
 
 - **Ticking is not deleting.** `- [x]` completes the node in Workflowy and removes the line (and everything under
   it) from the file. You can only un-complete it in Workflowy.
-- **Deleting a line deletes the node**, with its whole subtree, *including completed children you never saw in the
-  file*. It goes to Workflowy's Trash, from where you can restore it in Workflowy.
+- **Deleting a line deletes the node**, with its whole subtree, *including children you never saw in the file*:
+  completed ones, and ones that the `depth:` option hides. It goes to Workflowy's Trash, from where you can restore
+  it in Workflowy.
+- **`depth:` hides children, it does not protect them.** A line whose children are cut off by `depth:` looks like a
+  leaf (it gets a `[ ]`), and deleting it deletes them all. The report's `(+N hidden)` count may not include them.
 - **Typing `- [ ]` does not make a Workflowy to-do.** Checkboxes in the file are cosmetic; a new line typed with a box
   is an ordinary bullet.
 - **Reverting a line to an earlier text is ignored.** If you rename something, sync, and then type the old text
@@ -92,7 +95,8 @@ Skim this list before your first edit. Each point is explained in [What your edi
 ## Quick start
 
 This takes about five minutes. Every transcript below is real output. The example root is a node called
-"Garden plan" with the note "Spring 2027 planting".
+"Garden plan" with the note "Spring 2027 planting". The examples come from several separate test runs, so the same 12-character id can name different nodes in
+different examples.
 
 ### 1. Set up your environment
 

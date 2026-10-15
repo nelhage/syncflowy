@@ -4,7 +4,9 @@ This page goes through each kind of edit you can make in a synced file, and what
 shows a real before and after. The last section, [troubleshooting](#troubleshooting), maps report lines and messages
 to their causes.
 
-Note: all of this was verified against a mock of the Workflowy API, not the real service.
+Note: all of this was verified against a mock of the Workflowy API, not the real service. The examples come from several separate test runs, so the same 12-character id can name different nodes in
+different examples.
+Rendered files are often shown without their frontmatter; other cuts are marked with `…` or described in the text.
 
 - [Before you start](#before-you-start)
 - [Adding lines](#adding-lines)
@@ -157,6 +159,10 @@ Workflowy now has:
 **`- [x]` completes the node in Workflowy and removes the line and its subtree from the file.** It does not delete
 anything. Only the ticked node is completed; its children stay as they are, hidden with it.
 
+Between the previous example and this one, Beta's note was removed and the next line was edited to use `__Beta__`
+and Obsidian-only syntax (`2 updated`). Two lines are then ticked (the Alpha lines above them are unchanged and left
+out here):
+
 ```markdown
 - [x] Beta ^wf-2c8218072e8c
 - [ ] Between __Beta__ and Gamma, see [[Other note]] and ==highlight== ^wf-3d437204e52d
@@ -175,10 +181,21 @@ vault/plan.md: synced: 0 created, 0 updated, 0 moved, 0 reordered, 2 completed, 
 ```
 
 ```markdown
+---
+workflowy: 1e2feb89-414c-443c-9027-c4d1c386bbc4
+syncflowy: {gen: 3}
+---
+- Alpha (renamed) ^wf-6f447ed4d57b
+	A brand-new note on Alpha
+	second note line
+	- [ ] Alpha child ^wf-7696a6cecc1b
+	- [ ] Nested new item ^wf-7159c324c985
 - [ ] Between **Beta** and Gamma, see [[Other note]] and ==highlight== ^wf-3d437204e52d
 - [ ] **Gamma** with *italic*, `code`, ~~strike~~ and [a link](https://example.com) ^wf-828dd5f4b3b2
 - [ ] A typed checkbox item ^wf-8ad9f06c144a
 ```
+
+Both ticked lines and the subtree under "New at the end" are gone, and `__Beta__` was re-spelled `**Beta**`.
 
 In Workflowy, "Beta" and "New at the end" are completed; "its child" and "grandchild" are not.
 
@@ -199,8 +216,8 @@ In Workflowy, "Beta" and "New at the end" are completed; "its child" and "grandc
 
 ## Deleting
 
-**Deleting a line deletes the node and its whole subtree in Workflowy, including completed descendants you never saw
-in the file.** Workflowy puts deleted nodes in its Trash, from where you can restore them in Workflowy (not from
+**Deleting a line deletes the node and its whole subtree in Workflowy, including descendants you never saw in the
+file: completed ones, and ones that the `depth:` option hides.** Workflowy puts deleted nodes in its Trash, from where you can restore them in Workflowy (not from
 Markdown).
 
 Here a collaborator had completed "Alpha child", so Alpha had a hidden child. Deleting the Alpha line (with its note
@@ -217,9 +234,16 @@ vault/plan.md: synced: 0 created, 0 updated, 0 moved, 0 reordered, 0 completed, 
   op 1: delete 9b810e76-6ec9-4286-a3ca-828dd5f4b3b2 (+0 hidden): done
 ```
 
-> **Warning.** `(+1 hidden)` counts the completed descendants that went with the delete, but does not name them.
-> Run `--dry-run` first and look for `hidden_descendants` greater than 0 if you are unsure. To finish something
-> rather than remove it, tick it instead.
+> **Warning.** `(+N hidden)` counts descendants that went with the delete but were not shown in the file, without
+> naming them. Run `--dry-run` first and look for `hidden_descendants` greater than 0 if you are unsure. To finish
+> something rather than remove it, tick it instead.
+>
+> **The count can miss children hidden by `depth:`.** In a test with `depth: 1`, deleting a line "A" also deleted
+> its hidden children B and C, but the report said `1 deleted (+0 hidden)` and the dry run `hidden_descendants: 0`.
+> A line whose children are cut off by `depth:` looks like a leaf (it has a `[ ]`). In another test, such a line
+> hid 60 children; deleting it was stopped by the brake as
+> `refusing to delete 1 visible and 60 hidden nodes out of 2 (use --force)`. In a file with `depth:`, check a node
+> in Workflowy before you delete its line.
 
 - Deleting only a parent line, and leaving its indented children in place, re-parents the children to the line
   above (as Markdown indentation reads) and deletes the parent alone.
@@ -329,7 +353,7 @@ Some Workflowy layouts can be set from Markdown; the rest are kept as they are.
 | `- ---` over an item | divider, **and the name is emptied** |
 | `- # text` inside a list | **not** a heading: the name becomes the literal text `# text` (written back `\# text`) |
 | a fence with an info string (```` ```python ````) | a code block whose first code line is `python` |
-| Workflowy-only layouts (h1 to h3, to-do, board, paragraph, ...) | shown as plain items, kept when you edit the text |
+| Workflowy-only layouts (to-do, h1 to h3, board, paragraph, ...) | kept as they are when you edit the text (a to-do shows `[ ]`; the others are plain items) |
 
 A real run that changed several kinds at once:
 
@@ -496,7 +520,7 @@ at the last sync:
 | brake | refused when | message |
 |---|---|---|
 | empty file | the file has no items left and the sync would delete something, or **every** visible node would be deleted (also when you replaced all lines with new ones) | `the file is empty but N nodes were visible (use --force)` |
-| deletes | more than 50 deletes, or at least 5 deletes that are more than 20% of the visible nodes. Hidden completed descendants count. | `refusing to delete V visible and H hidden nodes out of N (use --force)` |
+| deletes | more than 50 deletes, or at least 5 deletes that are more than 20% of the visible nodes. Descendants not shown in the file (completed, or never shown because of `depth:`) count. | `refusing to delete V visible and H hidden nodes out of N (use --force)` |
 | ticks | more than 200 ticks, or at least 10 ticks that are more than 50% of the visible nodes | `refusing to complete C nodes out of N (use --force)` |
 
 Real results on a 12-item file where "Item 1" had a hidden completed child:
@@ -533,6 +557,10 @@ vault/ticks.md: refused: refusing to complete 11 nodes out of 17 (use --force)
 ```console
 $ syncflowy sync --force vault/big.md
 vault/big.md: synced: 0 created, 0 updated, 0 moved, 0 reordered, 0 completed, 4 deleted (+1 hidden); file unchanged (gen 1)
+  op 0: delete f463b337-d20b-4d59-9b61-0487c89da11b (+1 hidden): done
+  op 1: delete c7038069-84c8-4999-a116-7d8fcf23cae8 (+0 hidden): done
+  op 2: delete f320cd57-6d14-475b-b49a-ae908fb5262c (+0 hidden): done
+  op 3: delete 5d5f576c-deb8-4c4c-bb29-7d0b0e5e18ba (+0 hidden): done
 ```
 
 **If it is not what you meant** (an editor or sync tool emptied the file, say), restore the file from a backup or undo
@@ -588,7 +616,7 @@ then shows it as `paused: no file names this root; nothing is deleted`.
 
 ### A broken frontmatter
 
-The file is skipped, nothing is sent, and the run exits 1:
+Nothing is sent and the run exits 1. A broken frontmatter is `skipped`; a root that does not exist is an `error`:
 
 ```console
 == closing --- removed
@@ -610,6 +638,7 @@ A copy of a synced file (for example a sync-conflict copy) names the same root. 
 
 ```console
 $ syncflowy sync vault/renamed-big.md "vault/renamed-big (conflict copy).md"
+[2026-10-15T01:24:39Z WARN  syncflowy::sync] root 62397bc7-0176-4741-bab9-f87ff5059285 is claimed by several files: ["vault/renamed-big.md", "vault/renamed-big (conflict copy).md"]; not synced
 vault/renamed-big.md: paused: several files claim this root: vault/renamed-big.md, vault/renamed-big (conflict copy).md
 vault/renamed-big (conflict copy).md: paused: several files claim this root: vault/renamed-big.md, vault/renamed-big (conflict copy).md
 [exit 1]
@@ -627,7 +656,7 @@ file is adopted with `force` after a lost checkpoint.
 
 In safe mode:
 
-- **applied**: text edits (where the text differs from every version the engine ever wrote for that line) and new
+- **applied**: text edits (where the text differs from every version of that line still in the engine's history) and new
   lines (added at the end of their parent);
 - **not applied**: deletes, moves, reorders, **and ticks**.
 
@@ -872,7 +901,7 @@ vault/hand.md: synced: 90 created, 0 updated, 0 moved, 0 reordered, 0 completed,
 | `unchanged` | nothing changed on either side | nothing |
 | `file unchanged (gen N)` after `synced:` | your edits were sent; nothing you need to see changed | nothing |
 | `refused: the file is empty but N nodes were visible (use --force)` | the file lost all its items, or every visible node would be deleted | restore the file; or, if intended, `--force` / `force: true` ([brakes](#mass-change-brakes)) |
-| `refused: refusing to delete V visible and H hidden nodes out of N (use --force)` | too many deletes at once (hidden completed descendants count) | check with `--dry-run`; then `--force` if intended |
+| `refused: refusing to delete V visible and H hidden nodes out of N (use --force)` | too many deletes at once (descendants not shown in the file count, including ones `depth:` hides) | check with `--dry-run`; then `--force` if intended |
 | `refused: refusing to complete C nodes out of N (use --force)` | too many ticks at once | `--force` if intended, or tick in smaller batches |
 | `skipped: the file does not parse: no frontmatter` | the file has no frontmatter, or is empty | restore it; to start syncing a new root, use `render` |
 | `skipped: the file does not parse: unterminated frontmatter` | the closing `---` is missing | add it |
@@ -882,7 +911,7 @@ vault/hand.md: synced: 90 created, 0 updated, 0 moved, 0 reordered, 0 completed,
 | `skipped: another sync holds the root's lock` | another syncflowy (perhaps the daemon) is syncing this root right now | try again in a moment |
 | `warning: ... unknown syncflowy key "colour" (dropped on the next render)` | a key syncflowy does not know, inside `syncflowy:` | check the spelling; it will be removed |
 | `paused (paused: true in the frontmatter)` (exit 0) | you paused it | remove `paused: true` to resume |
-| `paused: the file is missing; nothing was changed in Workflowy` | the file was moved or deleted | sync it under its new name, or `render` it again; nothing was deleted |
+| `paused: the file is missing; nothing was changed in Workflowy` | the file was moved or deleted | sync it under its new name, or `render --force ROOT FILE` to start a new file from Workflowy; nothing was deleted |
 | `paused: several files claim this root: ...` | two files name one root | merge and delete the copy |
 | ``error: no checkpoint for root ...; run `syncflowy render` first or use --force`` | the root was never rendered, or the state directory was lost or changed | check `--state-dir`; then `sync --force` (or `force: true`) to adopt the file, or `render --force` to start over ([state directory](cli.md#if-you-lose-it)) |
 | `error: sync root "..." not found` | the root does not exist (deleted, or a typo in `workflowy:`) | fix `workflowy:`; restore the node from Workflowy's Trash if needed |
@@ -906,7 +935,7 @@ vault/hand.md: synced: 90 created, 0 updated, 0 moved, 0 reordered, 0 completed,
 | `line N: line is not indented under an item; attached to the preceding item's note` | a stray line at column 0 | indent it, or make it an item |
 | `line N: heading at depth 2 but headings: 1; kept as a heading` | you typed a heading deeper than `headings:` allows | check that the items after it went where you wanted ([headings](markdown.md#headings-mode)) |
 | `... lost formatting Markdown could not show` | Workflowy had formatting the file could not show; your edit replaced it | check the node in Workflowy if formatting mattered |
-| a line came back after you deleted it | safe mode, a placeholder, a collaborator's edit, or the daemon has not deleted it yet | see the report or the status note |
-| a ticked line came back | safe mode | tick it again |
+| a line came back after you deleted it | safe mode, a placeholder, a collaborator's edit of that node, or (beta host) an original that still has mirrors | see the report line. (In the daemon, a removed line stays out of the file while its delete is pending; see `syncflowy status`.) |
+| a ticked line came back | safe mode; a placeholder or mirror stub (the box is removed again); or someone un-completed it in Workflowy (`... reappeared (uncompleted in Workflowy)`) | after safe mode, tick it again; placeholders and stubs cannot be ticked |
 | a line you reverted keeps the newer text | stale-echo protection | see above |
 | the daemon's note shows `not synced yet` for every root | the API cannot be reached; see "API errors" in the note | wait, or check the network |

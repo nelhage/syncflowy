@@ -4,7 +4,8 @@
 continuously, and `status` shows the local state. This page covers them, their options and exit codes, the state
 directory, and the choice between the normal Workflowy service and the beta host.
 
-Note: everything here was verified against a mock of the Workflowy API, not the real service.
+Note: everything here was verified against a mock of the Workflowy API, not the real service. The examples come from several separate test runs, so the same 12-character id can name different nodes in
+different examples.
 
 - [Commands at a glance](#commands-at-a-glance)
 - [Global options](#global-options)
@@ -171,7 +172,7 @@ vault/garden.md: synced: 0 created, 0 updated, 0 moved, 0 reordered, 1 completed
 |---|---|
 | `created`, `updated`, `moved`, `completed`, `deleted` | what was sent to Workflowy. `updated` counts fields, so a new name and a new note on one node count 2. |
 | `reordered` | extra moves needed to put siblings in the right order (the API cannot insert in the middle of a list). |
-| `(+N hidden)` | completed descendants deleted along with a deleted line. They are counted, not named. |
+| `(+N hidden)` | descendants deleted along with a deleted line that were not shown in the file: completed ones, and ones hidden by `depth:`. They are counted, not named, and children hidden by `depth:` may be missing from the count (a test showed `+0 hidden` although two such children were deleted). |
 | `file rewritten (gen N)` | the file was rewritten and is now at generation N. |
 | `file unchanged (gen N)` | your edits were sent, but nothing you need to see changed, so the file was left alone. |
 | `op N: ...: done` | one line per API operation sent. |
@@ -511,8 +512,9 @@ mirrors: a mirror looks like an empty bullet. syncflowy shows such nodes as read
 placeholders and refuses to change them without `--force` (see [mirrors](markdown.md#mirrors)).
 
 **The beta host** (`--api-url https://beta.workflowy.com`) serves the same account and data, and tells syncflowy
-about mirrors. syncflowy notices this by itself (no extra flag) and then shows each mirror with its real content,
-which you can edit. Its behaviour was observed in October 2026 and is reproduced by the mock; syncflowy itself has
+about mirrors. syncflowy notices this by itself (no extra flag) as soon as the account has at least one mirror, and
+then shows each mirror with its real content, which you can edit. In an account without any mirror, the beta host
+looks exactly like production, and empty bullets are placeholders as there. Its behaviour was observed in October 2026 and is reproduced by the mock; syncflowy itself has
 not been run against it.
 
 **Rate limits.** syncflowy sends at most 10 requests per second and retries failures up to four times with growing

@@ -4,7 +4,9 @@ This page explains every part of a synced Markdown file: the frontmatter and its
 out, the id tags, inline formatting, Workflowy's node kinds, read-only items, mirrors and conflict markers. For what
 your edits *do* in Workflowy, see [What your edits do](editing.md).
 
-All examples are real output of syncflowy. Indentation in rendered files is one tab per level.
+All examples are real output of syncflowy. Indentation in rendered files is one tab per level. The examples come from several separate test runs, so the same 12-character id can name different nodes in
+different examples. Small examples are often excerpts: they leave out the frontmatter or the lines around the part
+being shown.
 
 - [A complete example](#a-complete-example)
 - [Frontmatter](#frontmatter)
@@ -131,7 +133,7 @@ reads only two keys, `workflowy:` and `syncflowy:`, and keeps every other line a
 | `syncflowy.ids` | `auto`, `block`, `comment`, `dataview`, `dataview-hidden`, `html` | `auto` | the engine, when not `auto` | yes | the form of the id tags ([id tags](#id-tags)); applied only at the next rewrite |
 | `syncflowy.checkboxes` | `todos-and-leaves`, `todos`, `all`, `none` | `todos-and-leaves` | the engine, when not the default | yes | which items get a `[ ]` ([checkboxes](#checkboxes)); only for items not already in the file |
 | `syncflowy.dates` | `true`, `false` | `true` | the engine, when `false` | yes | `true`: dates as `📅 2026-01-15`; `false`: as Workflowy's `<time ...>` HTML |
-| `syncflowy.depth` | a positive whole number, or `null` / `~` / empty for unlimited | unlimited | the engine, when set | yes | hide nodes deeper than N (the root is depth 0). Hidden, not deleted. |
+| `syncflowy.depth` | a positive whole number, or `null` / `~` / empty for unlimited | unlimited | the engine, when set | yes | hide nodes deeper than N (the root is depth 0). Changing `depth` deletes nothing, but **deleting a line also deletes everything under it that `depth` hides**. A line whose children are hidden this way looks like a leaf (it gets a `[ ]`). |
 | `syncflowy.paused` | `true`, `false` | `false` | you; the engine keeps it | yes | `true`: the file is neither pushed nor pulled until you remove it |
 | `syncflowy.force` | `true`, `false` | `false` | you; **the engine removes it** after one sync | yes, one-shot | override the brakes and placeholder guards once, adopt a file with no checkpoint, apply a pending `ids:` change |
 | `syncflowy.gen` | a number | none | the engine, every time it rewrites the file | **no** | the generation the file came from; removing it, or changing it to a value the engine does not know, puts the next sync into [safe mode](editing.md#safe-mode) |
@@ -231,7 +233,7 @@ syncflowy: {depth: 2, gen: 2}
 	- Level 2 ^wf-7d8fcf23cae8
 ```
 
-`Level 3` and `Level 4` are hidden, not deleted. `depth: null` brings them back:
+`Level 3` and `Level 4` are only hidden: Workflowy still has them. `depth: null` brings them back (excerpt):
 
 ```markdown
 - Level 1 ^wf-dca7e2dcaa37
@@ -240,7 +242,15 @@ syncflowy: {depth: 2, gen: 2}
 			- [ ] Level 4 ^wf-7d0b0e5e18ba
 ```
 
-`dates: false` shows Workflowy's date HTML instead of the compact form (Workflowy's value is not touched):
+> **Warning.** `depth:` hides nodes from the file; it does not protect them. "Level 2" above looks like a leaf, but
+> deleting its line deletes "Level 3" and "Level 4" too. In a test with `depth: 1`, deleting a line "A" deleted its
+> hidden children B and C, while the report said `1 deleted (+0 hidden)`. In another, a parent with 60 children that
+> were never shown rendered as `- [ ] Big`, and deleting it was stopped by the brake as
+> `refusing to delete 1 visible and 60 hidden nodes out of 2 (use --force)`. Before deleting a line in a file with
+> `depth:`, check the node in Workflowy.
+
+`dates: false` shows Workflowy's date HTML instead of the compact form (Workflowy's value is not touched; this line is
+from a run that also set `ids: comment`, hence the `%%wf:` tag):
 
 ```markdown
 - [ ] See https://example.com/a?b=1&c=2 on <time startYear="2026" startMonth="1" startDay="15">Thu, Jan 15, 2026</time> and at <time startYear="2026" startMonth="1" startDay="15" startHour="14" startMinute="30">Thu, Jan 15, 2026 at 2:30 PM</time> %%wf:27bc08d6af57%%
@@ -280,9 +290,16 @@ Workflowy, or renaming the file, changes nothing.
 - A line that fits nowhere (for example text at column 0 after a list) is attached to the note of the nearest item
   above it, with a warning: `line 22: line is not indented under an item; attached to the preceding item's note`.
 
-A file edited with spaces, other markers, notes and a stray line:
+A file edited with spaces, other markers, notes, a second root-note line and a stray line:
 
 ```markdown
+---
+workflowy: f0e642f4-3328-4d08-8ded-3c9691eb79fa
+syncflowy: {gen: 1}
+---
+Root note line 1
+Root note line 2, typed in Obsidian
+
 - Groceries ^wf-95dd81355c53
   A note typed under Groceries
   second note line
@@ -300,9 +317,17 @@ A file edited with spaces, other markers, notes and a stray line:
 stray text at column 0 after the list
 ```
 
-After `sync` (`7 created, 3 updated`), normalised to tabs and `-`/`1.` markers:
+After `sync` (`7 created, 3 updated`; the updates include the new root-note line), normalised to tabs and `-`/`1.`
+markers:
 
 ```markdown
+---
+workflowy: f0e642f4-3328-4d08-8ded-3c9691eb79fa
+syncflowy: {gen: 2}
+---
+Root note line 1
+Root note line 2, typed in Obsidian
+
 - Groceries ^wf-95dd81355c53
 	A note typed under Groceries
 	second note line
@@ -528,7 +553,7 @@ Short version (details and real examples in [id-tag accidents](editing.md#id-tag
 | strike-through | `~~x~~` | `<s>x</s>` |
 | inline code | `` `x` `` | `<code>x</code>` |
 | underline | `<u>x</u>` (Markdown has no underline) | the same |
-| link | `[text](https://example.com)`; `[text](<url>)` when the URL has spaces or brackets | `<a href="url">text</a>` |
+| link | `[text](https://example.com)`; `[text](<url>)` when the URL contains spaces, parentheses or angle brackets | `<a href="url">text</a>` |
 | a link whose text is its URL (what Workflowy makes when you paste a URL) | the bare URL: `https://example.com/x?a=1&b=2` | a bare `https://` URL, or `<https://...>` |
 | text colour | `<span class="colored c-red">x</span>` | the same HTML |
 | highlight colour | passed through as HTML like colours (Workflowy's real class names were not observed) | |
@@ -625,9 +650,10 @@ express; the others render as plain items and keep their layout in Workflowy.
 | quote block | `- > text` | never | remove `> `: bullet. Write `- > text`: quote block. |
 | divider (empty) | `- ---` | never | write `- ---` over an item: divider, **and its text is emptied** |
 | divider with text | plain item | leaves only | |
-| numbered (on the parent) | children are `1.`, `2.`, ... (visible ones only) | | switch **all** children to `1.` markers: parent becomes numbered; all back to `-`: bullets |
+| numbered (on the parent) | children are `1.`, `2.`, ... (visible ones only) | | switch **all** children to `1.` markers: parent becomes numbered; all back to `-`: bullets (only for a parent whose layout is bullets or numbered) |
 
-A file with one node of each kind:
+An excerpt of a file with one node of each kind (the h2, h3, table, dashboard and other plain-item layouts are left
+out; they render like the h1 and board lines):
 
 ````markdown
 - [ ] A bullets node ^wf-b61550332cb8
@@ -668,9 +694,8 @@ option decides which items get a box:
 | `checkboxes:` | boxes on |
 |---|---|
 | `todos-and-leaves` (default) | to-dos and items with no visible children |
-| `todos` | to-dos only |
+| `todos`, `none` | to-dos only (the two values behave the same) |
 | `all` | every list item |
-| `none` | none (to-dos still get one) |
 
 Headings, code blocks, quotes, dividers and placeholders never get a box. Workflowy to-dos always do.
 
@@ -766,8 +791,8 @@ syncflowy: {gen: 1}
 
 ### On the beta host: mirrors as their content
 
-On `https://beta.workflowy.com` the API marks mirrors, and syncflowy shows each mirror with its original's content,
-even when the original is outside the synced subtree. The same tree:
+On `https://beta.workflowy.com` the API marks mirrors. As soon as the account has at least one mirror, syncflowy shows
+each mirror with its original's content, even when the original is outside the synced subtree. The same tree:
 
 ```markdown
 ---
@@ -785,20 +810,24 @@ syncflowy: {gen: 1}
 - ⧉ [[#^wf-4d7a28d2e08e|Shared checklist]] ^wf-26f05f221dfc-ro
 ```
 
-- The first time some content appears in the file, it is shown **in full** under the mirror's own tag. "Shared
-  **checklist**" lives in a "Library" node outside the synced subtree; editing it here edits the original.
+- The first placement of some content in the file is shown **in full**, under that placement's tag. When the
+  placement is a mirror, that is the mirror's own tag: "Shared **checklist**" (`4d7a28d2e08e`, a mirror) lives in a
+  "Library" node outside the synced subtree, and editing it here edits the original. "Local item" is shown in full
+  under its own tag, and its mirror `22bae20cea4a` is the stub.
 - Every other placement of the same content is a read-only **stub**: `⧉ [[#^wf-<full line's id>|name]]`, an Obsidian
   link to the full line. The link only works when the full placement is a list item, not a heading. Which placement
   is the full one is meant to stay the same across syncs (a design choice, not verified).
 - A mirror whose original was deleted becomes a `⧉ (empty or mirror)` placeholder again.
-- On the beta host, genuinely empty bullets are shown as ordinary empty items, not placeholders.
+- On the beta host, as soon as the account has at least one mirror, genuinely empty bullets are shown as ordinary
+  empty items. In an account without mirrors they are placeholders, as on the normal service.
 
 You cannot create a mirror from Markdown. What edits, ticks and deletes do to mirrors and stubs is in
 [mirrors](editing.md#mirrors).
 
 ## Conflict markers
 
-When you and someone in Workflowy changed the same name or note of the same node between two syncs, Workflowy's
+When you and someone in Workflowy changed the same name, or the same line of the same note, between two syncs
+(edits to different lines of one note merge cleanly), Workflowy's
 version is kept and yours is saved in the file as a **conflict marker**: a child line starting with `⚠`, with a
 `%%wf-conflict:name%%` or `%%wf-conflict:note%%` tag. A real file after a sync where both sides edited Leaf B's name,
 Leaf C's note and the root note:
