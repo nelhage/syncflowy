@@ -21,72 +21,73 @@ being shown.
 ## A complete example
 
 This is one tree that shows almost everything, rendered with the default options
-(`syncflowy render 584a2265b1f5 showcase-default.md`). The Workflowy root is called "Projects". The notes after the
+(`syncflowy render b01d2bbab3ba showcase-default.md`). The Workflowy root is called "Projects". The notes after the
 example explain each part.
 
 `````markdown
 ---
-workflowy: 584a2265b1f5
+workflowy: b01d2bbab3ba
 syncflowy: {gen: 1}
 ---
 Free text here is the sync root's note.
 It has **two** lines & an ampersand.
 
-- Planning ^wf-c4d1c386bbc4
+- Planning ^wf-72ad9784e804
 	Note on "Planning": lines right under the heading.
-	- Draft the *spec* ^wf-6f447ed4d57b
+	- Draft the *spec* ^wf-849919fed983
 		A note line.
 
 		After an empty line.
 		\- not a child, a note line
-		- [ ] Write the mock ^wf-7696a6cecc1b
-		- Deep ^wf-7159c324c985
-			- Deeper ^wf-3d437204e52d
-				- Deeper still ^wf-d4c13a902931
-					- Nearly there ^wf-1193e6c3f339
-						- [ ] Bottom `x = 1` ^wf-a7dd06839eb9
-	- Numbered steps ^wf-8ad9f06c144a
-		1. [ ] first ^wf-0c4237730edf
-		2. [ ] third ^wf-3fef701966a0
+		- [ ] Write the mock ^wf-b57e156452ec
+		- Deep ^wf-2823ff185804
+			- Deeper ^wf-e34adc6a7b07
+				- Deeper still ^wf-619ae27f6dac
+					- Nearly there ^wf-90c9785a74b5
+						- [ ] Bottom `x = 1` ^wf-0bdf96b84cd7
+	- Numbered steps ^wf-d00fee1fe835
+		1. [ ] first ^wf-9bcc841e525e
+		2. [ ] third ^wf-aed9db72096c
 			with a note
-	- [ ] Board layout is kept as a plain item ^wf-d2803bab6c39
-	- [ ] Paragraph layout ^wf-789a380208a9
-	- [ ] An h1 inside the outline ^wf-89d94a2f20aa
-- ``` ^wf-a8f0d66b829e
+	- [ ] Board layout is kept as a plain item ^wf-86971bae29e9
+	- [ ] Paragraph layout ^wf-f97041907338
+	- [ ] An h1 inside the outline ^wf-bd335f1b7ce7
+- ``` ^wf-0faec1e4bcd6
 	fn main() {
 	    println!("hi & bye");
 	}
 	```
 	runs on save
-- > To be or not to be ^wf-9e3fa46d6753
-- --- ^wf-67edfe175330
-- ⧉ (empty or mirror) ^wf-dc0a1ef2a4f0-ro
-- ⧉ (empty or mirror) ^wf-17aeefba91fc-ro
-- [ ] 🔒 broken bold ^wf-e35cd47d380d-ro
+- > To be or not to be ^wf-d1821a36f41f
+- --- ^wf-eb6d09f5af6f
+- ^wf-1b0fd2f68e02
+	- [ ] child of an empty bullet ^wf-61c09709524a
+- ⧉ (mirror of a deleted item) ^wf-c4893308254a-ro
+- [ ] 🔒 broken bold ^wf-75bd70bb31f8-ro
 	a malformed name (UI:F1)
-- [ ] 🔒 line one ⏎ line two ^wf-ab134da98f1d-ro
-- ```` ^wf-3116e1ea24c4
+- [ ] 🔒 line one ⏎ line two ^wf-e22e3e0ac1bb-ro
+- ```` ^wf-a8df5f2dca1d
 	x
 	```
 	y
 	````
-- [ ] **bold** and unknown markup ^wf-d2bc815a47c5
-- [ ] See https://example.com/a?b=1&c=2 on 📅 2026-01-15 and at 📅 2026-01-15 14:30 ^wf-27bc08d6af57
-- [ ] <u>underlined</u>, <span class="colored c-red">red</span>, [a link](https://example.com) and #tag @who ^wf-6cbdcc22af58
-- [ ] 1\. not a list ^wf-d3d12c4a3698
-- [ ] \- not a child ^wf-4bd8b3fa7aa7
-- [ ] \# not a heading ^wf-bd795fec898f
-- [ ] \[ ] not a box ^wf-621582283d15
-- [ ] a \^wf-8e1f00aa2b3c in the text and %\% percents ^wf-107e855c3844
-- [ ] A todo with children ^wf-3c25fbb230bb
-	- [ ] leaf one ^wf-06d864c2f2e3
-	- [ ] leaf two ^wf-90c78092b4d4
+- [ ] **bold** and unknown markup ^wf-e3ce6b0bec62
+- [ ] See https://example.com/a?b=1&c=2 on 📅 2026-01-15 and at 📅 2026-01-15 14:30 ^wf-3c213108eeaa
+- [ ] <u>underlined</u>, <span class="colored c-red">red</span>, [a link](https://example.com) and #tag @who ^wf-f00cd531bb01
+- [ ] 1\. not a list ^wf-7e69db56700d
+- [ ] \- not a child ^wf-b5f5131ad9a3
+- [ ] \# not a heading ^wf-de3705f4633d
+- [ ] \[ ] not a box ^wf-ed5f704494c4
+- [ ] a \^wf-8e1f00aa2b3c in the text and %\% percents ^wf-94b71ec8514b
+- [ ] A todo with children ^wf-669bcc63fb32
+	- [ ] leaf one ^wf-6fcd396ad25e
+	- [ ] leaf two ^wf-02bcde313b0c
 		&#32;&#32;indented note line
-- [ ] Trailing empty note lines ^wf-8131c541013d
+- [ ] Trailing empty note lines ^wf-ecf22665551e
 	first
 	
 	
-- [ ] Leading empty note line ^wf-e8f8dc3bf364
+- [ ] Leading empty note line ^wf-17a44ac81198
 
 	second
 `````
@@ -108,11 +109,13 @@ What to notice:
 7. **Other layouts.** A board, a paragraph and an h1 node render as plain items. Their layout is kept in Workflowy.
 8. **Code block, quote, divider.** A Workflowy code block is a fenced block (its note, "runs on save", follows the
    closing fence). A quote block is `- > ...`. A divider is `- ---`.
-9. **Placeholders.** `⧉ (empty or mirror)` marks an empty node that may be a mirror. See [Mirrors](#mirrors).
+9. **Empty items and placeholders.** `- ^wf-1b0fd2f68e02` is a node with an empty name, an ordinary item like any
+   other (it has a child, so no box). `⧉ (mirror of a deleted item)` is a read-only placeholder for a mirror whose
+   original was deleted. See [Mirrors](#mirrors).
 10. **Read-only items.** `🔒` and the `-ro` tag mark nodes whose Workflowy text cannot be shown exactly: broken
     formatting, or a line break inside a name (shown as `⏎`). See [Read-only items](#read-only-items).
 11. **Escaping.** Workflowy text that would look like Markdown structure is escaped: `1\.`, `\-`, `\#`, `\[ ]`, a
-    tag-like string `\^wf-...`, `%\%`. A code block whose code contains ```` ``` ```` gets a longer fence.
+    tag-like string `\^wf-...`, a `%%` that does not pair up (`%\%`). A code block whose code contains ```` ``` ```` gets a longer fence.
 12. **Inline formatting.** Bold, italic, code and links become Markdown; underline and colours stay as HTML; dates
     are `📅 2026-01-15`. See [Inline formatting](#inline-formatting).
 13. **Whitespace.** Leading spaces in a note line are written `&#32;`. Empty lines at the end of a note are lines
@@ -129,16 +132,16 @@ reads only two keys, `workflowy:` and `syncflowy:`, and keeps every other line a
 | key | values | default | written by | may you edit it? | effect |
 |---|---|---|---|---|---|
 | `workflowy` | short id, full UUID, or `https://workflowy.com/#/<short id>` URL (see below) | required | you or `render`; kept verbatim, including a trailing `# comment` | only to point the file at another root (which then needs `render` or `force`) | which node this file syncs |
-| `syncflowy.headings` | `0` to `6` | `0` | the engine, when not 0 | yes | render depth 1 to N as headings ([headings mode](#headings-mode)); applied at the next sync |
-| `syncflowy.ids` | `auto`, `block`, `comment`, `dataview`, `dataview-hidden`, `html` | `auto` | the engine, when not `auto` | yes | the form of the id tags ([id tags](#id-tags)); applied only at the next rewrite |
-| `syncflowy.checkboxes` | `todos-and-leaves`, `todos`, `all`, `none` | `todos-and-leaves` | the engine, when not the default | yes | which items get a `[ ]` ([checkboxes](#checkboxes)); only for items not already in the file |
+| `syncflowy.headings` | `0` to `6` | `0` | the engine, when not 0 | yes | render depth 1 to N as headings ([headings mode](#headings-mode)) |
+| `syncflowy.ids` | `auto`, `block`, `comment`, `dataview`, `dataview-hidden`, `html` | `auto` | the engine, when not `auto` | yes | the form of the id tags ([id tags](#id-tags)) |
+| `syncflowy.checkboxes` | `todos-and-leaves`, `todos`, `all`, `none` | `todos-and-leaves` | the engine, when not the default | yes | which items get a `[ ]` ([checkboxes](#checkboxes)) |
 | `syncflowy.dates` | `true`, `false` | `true` | the engine, when `false` | yes | `true`: dates as `📅 2026-01-15`; `false`: as Workflowy's `<time ...>` HTML |
-| `syncflowy.depth` | a positive whole number, or `null` / `~` / empty for unlimited | unlimited | the engine, when set | yes | hide nodes deeper than N (the root is depth 0). Changing `depth` deletes nothing, but **deleting a line also deletes everything under it that `depth` hides**. A line whose children are hidden this way looks like a leaf (it gets a `[ ]`). |
-| `syncflowy.paused` | `true`, `false` | `false` | you; the engine keeps it | yes | `true`: the file is neither pushed nor pulled until you remove it |
-| `syncflowy.force` | `true`, `false` | `false` | you; **the engine removes it** after one sync | yes, one-shot | override the brakes and placeholder guards once, adopt a file with no checkpoint, apply a pending `ids:` change |
+| `syncflowy.depth` | a positive whole number, or `null` / `~` / empty for unlimited | unlimited | the engine, when set | yes | hide nodes deeper than N (the root is depth 0). Changing `depth` deletes nothing, but **deleting a line also deletes everything under it that `depth` hides**. A line whose children are hidden this way counts as a parent, not a leaf (no `[ ]` by default). |
+| `syncflowy.paused` | `true`, `false` | `false` | you; the engine keeps it (`render --force` drops it) | yes | `true`: the file is neither pushed nor pulled until you remove it |
+| `syncflowy.force` | `true`, `false` | `false` | you; **the engine removes it** after one sync | yes, one-shot | override the brakes and the mirror-placeholder guards once, adopt a file with no checkpoint |
 | `syncflowy.gen` | a number | none | the engine, every time it rewrites the file | **no** | the generation the file came from; removing it, or changing it to a value the engine does not know, puts the next sync into [safe mode](editing.md#safe-mode) |
-| other keys inside `syncflowy:` | anything | | | | a warning (`unknown syncflowy key "colour" (dropped on the next render)`), then dropped |
-| any other line (`title`, `tags`, `aliases`, comments, lists) | anything | | you | yes | never read; kept as written, but moved below the two syncflowy keys |
+| other keys inside `syncflowy:` | anything | | | | a warning (`line 3: unknown syncflowy key "colour" (dropped on the next render)`), then dropped |
+| any other line (`title`, `tags`, `aliases`, comments, lists) | anything | | you | yes | never read; kept as written, but moved below the two syncflowy keys (an option name on its own line is warned about: see below) |
 
 An invalid value makes the whole file `skipped`: nothing is sent and nothing is written. For example:
 
@@ -150,9 +153,16 @@ misc/badcfg.md: skipped: the file does not parse: bad syncflowy config headings:
 
 `dates: yes` and `depth: 0` are invalid too. A missing or unparseable `gen` is not an error; it means safe mode.
 
-> **Warning.** `paused` and `force` work only **inside** the `syncflowy:` map. Write
-> `syncflowy: {gen: 2, paused: true}`. A separate top-level `paused: true` line is treated like any other unknown
-> line: it is kept and ignored, and the file is synced.
+Options belong **inside** the `syncflowy:` map: write `syncflowy: {gen: 2, paused: true}`. An option written on its
+own top-level line is kept, with a warning, and ignored, except that a top-level `paused: true` still pauses the
+file (the safe direction):
+
+```console
+$ syncflowy sync d/doc.md                 # a top-level "force: true" line
+d/doc.md: synced: 0 created, 0 updated, 0 moved, 0 reordered, 0 completed, 0 deleted (+0 hidden); file unchanged (gen 11)
+  warning: line 4: "force" is a syncflowy option; write it as syncflowy: {force: true} (ignored here)
+[exit 0]
+```
 
 ### The `workflowy:` value
 
@@ -207,14 +217,12 @@ tags: [work, sync]
 
 ### When an option change takes effect
 
-At each sync the engine renders the file with the current options, but it only rewrites the file if the result
-differs in meaning. That makes some option changes slow to show:
+A change to `headings`, `ids`, `checkboxes`, `dates` or `depth` rewrites the file at the next sync, even when nothing
+else changed (`file rewritten`). The others:
 
 | you change | what happens |
 |---|---|
-| `headings`, `depth`, `dates` | the file is rewritten at the next sync |
-| `ids` alone | **nothing visible** (`file unchanged`), even with `--force` on the command line. It is applied at the next rewrite for any other reason, or at once if you also set `force: true` in the frontmatter. |
-| `checkboxes` alone | no visible change on items already in the file: boxes are "sticky" ([checkboxes](#checkboxes)) |
+| `checkboxes` | every box is chosen again by the new policy; boxes you added or removed by hand are forgotten ([checkboxes](#checkboxes)) |
 | `paused: true` | `paused (paused: true in the frontmatter)`, exit 0, nothing done |
 | `force: true` | used for one sync, then removed: `syncflowy: {…, gen: 5, force: true}` becomes `syncflowy: {…, gen: 6}` |
 
@@ -222,32 +230,41 @@ differs in meaning. That makes some option changes slow to show:
 
 ```markdown
 ---
-workflowy: d8f33418-f3d4-4711-9804-f92283868a29
+workflowy: 42258477-b1af-49ab-a5a9-e7f709f1414e
 syncflowy: {depth: 2, gen: 2}
 ---
-- Alpha ^wf-2cfa93ea5c4e
-	- [ ] Alpha child ^wf-4d4244ef7feb
-- [ ] Beta ^wf-f87ff5059285
-	- [ ] Beta child ^wf-0487c89da11b
-- Level 1 ^wf-dca7e2dcaa37
-	- Level 2 ^wf-7d8fcf23cae8
+- Alpha ^wf-abce1a2a9ed2
+	- [ ] Alpha child ^wf-77cb8348b570
+- Beta ^wf-4572d2015b35
+	- [ ] Beta child ^wf-97136e83cfc1
+- Level 1 ^wf-f3cd60486bc9
+	- Level 2 ^wf-000593e20343
 ```
 
 `Level 3` and `Level 4` are only hidden: Workflowy still has them. `depth: null` brings them back (excerpt):
 
 ```markdown
-- Level 1 ^wf-dca7e2dcaa37
-	- Level 2 ^wf-7d8fcf23cae8
-		- Level 3 ^wf-ae908fb5262c
-			- [ ] Level 4 ^wf-7d0b0e5e18ba
+- Level 1 ^wf-f3cd60486bc9
+	- Level 2 ^wf-000593e20343
+		- Level 3 ^wf-96acbcc043c4
+			- [ ] Level 4 ^wf-36f880ded786
 ```
 
-> **Warning.** `depth:` hides nodes from the file; it does not protect them. "Level 2" above looks like a leaf, but
-> deleting its line deletes "Level 3" and "Level 4" too. In a test with `depth: 1`, deleting a line "A" deleted its
-> hidden children B and C, while the report said `1 deleted (+0 hidden)`. In another, a parent with 60 children that
-> were never shown rendered as `- [ ] Big`, and deleting it was stopped by the brake as
-> `refusing to delete 1 visible and 60 hidden nodes out of 2 (use --force)`. Before deleting a line in a file with
-> `depth:`, check the node in Workflowy.
+> **Warning.** `depth:` hides nodes from the file; it does not protect them. Deleting the line "Level 2" above
+> deletes "Level 3" and "Level 4" too. The report counts and names what was hidden, and so does `--dry-run`; here,
+> with `depth: 1`, the line "Level 1" was deleted:
+>
+> ```console
+> $ syncflowy sync d/doc.md
+> d/doc.md: synced: 0 created, 0 updated, 0 moved, 0 reordered, 0 completed, 1 deleted (+3 hidden); file unchanged (gen 4)
+>   op 0: delete 33d4fcc5-e84e-41cc-b341-f3cd60486bc9 (+3 hidden): done
+>   deleting "Level 1" (f3cd60486bc9) also deletes 3 hidden items: "Level 2", "Level 3", "Level 4"
+> [exit 0]
+> ```
+>
+> Hidden items count towards the brakes: deleting a line "Big" whose 60 children were never shown was stopped
+> with `refusing to delete 1 visible and 60 hidden nodes out of 3 (use --force)`. Run `sync --dry-run` before
+> deleting a line in a file with `depth:`.
 
 `dates: false` shows Workflowy's date HTML instead of the compact form (Workflowy's value is not touched; this line is
 from a run that also set `ids: comment`, hence the `%%wf:` tag):
@@ -256,8 +273,9 @@ from a run that also set `ids: comment`, hence the `%%wf:` tag):
 - [ ] See https://example.com/a?b=1&c=2 on <time startYear="2026" startMonth="1" startDay="15">Thu, Jan 15, 2026</time> and at <time startYear="2026" startMonth="1" startDay="15" startHour="14" startMinute="30">Thu, Jan 15, 2026 at 2:30 PM</time> %%wf:27bc08d6af57%%
 ```
 
-`render --force` starts the frontmatter over (only `workflowy:`, `headings` and `gen`), so it loses your other
-options and keys.
+`render --force` on a file that names the same root keeps your `syncflowy:` options (except `paused` and `force`)
+and your other frontmatter lines; `--headings`, if given, changes only the heading depth. Delete the file first for
+a clean start.
 
 ### Files syncflowy will not read
 
@@ -267,8 +285,10 @@ options and keys.
 | frontmatter without `workflowy:` | `skipped: the file does not parse: frontmatter has no workflowy: root` |
 | closing `---` missing | `skipped: the file does not parse: unterminated frontmatter` |
 | a second `workflowy:` line naming a different root | `skipped: the file does not parse: bad workflowy: root "..."` |
+| a name that looks like a sync conflict copy: `(conflicted copy ...)`, `(... conflict ...)`, `.sync-conflict-` | `skipped: looks like a sync conflict copy` |
+| a second file naming the same root as another synced file (also across separate `sync` commands) | each of them in the run: `paused: several files claim this root: d/doc.md, d/doc2.md` (exit 1) |
 
-A skipped file is never read as "everything was deleted". The body itself never fails to parse.
+A skipped or paused file is never read as "everything was deleted". The body itself never fails to parse.
 
 ## Body structure
 
@@ -353,99 +373,101 @@ formatting plugin keeps such lines has not been checked.
 
 ### Headings mode
 
-With `headings: N` (or `render --headings N`), nodes at depth 1 to N are written as headings (`#` for depth 1, `##`
-for depth 2, and so on), whatever their Workflowy layout. A heading's note is the lines right under it, at column 0.
+With `headings: N` (or `render --headings N`; N is 0 to 6), nodes at depth 1 to N are written as headings (`#` for
+depth 1, `##` for depth 2, and so on), whatever their Workflowy layout. A heading's note is the lines right under it, at column 0.
 Deeper nodes are lists under their heading. The showcase tree with `--headings 2`:
 
 `````markdown
 ---
-workflowy: 584a2265b1f5
+workflowy: b01d2bbab3ba
 syncflowy: {headings: 2, gen: 1}
 ---
 Free text here is the sync root's note.
 It has **two** lines & an ampersand.
 
-# Planning %%wf:c4d1c386bbc4%%
+# Planning %%wf:72ad9784e804%%
 Note on "Planning": lines right under the heading.
 
-## Draft the *spec* %%wf:6f447ed4d57b%%
+## Draft the *spec* %%wf:849919fed983%%
 A note line.
 
 After an empty line.
 \- not a child, a note line
 
-- [ ] Write the mock ^wf-7696a6cecc1b
-- Deep ^wf-7159c324c985
-	- Deeper ^wf-3d437204e52d
-		- Deeper still ^wf-d4c13a902931
-			- Nearly there ^wf-1193e6c3f339
-				- [ ] Bottom `x = 1` ^wf-a7dd06839eb9
+- [ ] Write the mock ^wf-b57e156452ec
+- Deep ^wf-2823ff185804
+	- Deeper ^wf-e34adc6a7b07
+		- Deeper still ^wf-619ae27f6dac
+			- Nearly there ^wf-90c9785a74b5
+				- [ ] Bottom `x = 1` ^wf-0bdf96b84cd7
 
-## Numbered steps %%wf:8ad9f06c144a%%
+## Numbered steps %%wf:d00fee1fe835%%
 
-1. [ ] first ^wf-0c4237730edf
-2. [ ] third ^wf-3fef701966a0
+1. [ ] first ^wf-9bcc841e525e
+2. [ ] third ^wf-aed9db72096c
 	with a note
 
-## Board layout is kept as a plain item %%wf:d2803bab6c39%%
+## Board layout is kept as a plain item %%wf:86971bae29e9%%
 
-## Paragraph layout %%wf:789a380208a9%%
+## Paragraph layout %%wf:f97041907338%%
 
-## An h1 inside the outline %%wf:89d94a2f20aa%%
+## An h1 inside the outline %%wf:bd335f1b7ce7%%
 
-# ``` %%wf:a8f0d66b829e%%
+# ``` %%wf:0faec1e4bcd6%%
 fn main() {
     println!("hi & bye");
 }
 ```
 runs on save
 
-# > To be or not to be %%wf:9e3fa46d6753%%
+# > To be or not to be %%wf:d1821a36f41f%%
 
-# --- %%wf:67edfe175330%%
+# --- %%wf:eb6d09f5af6f%%
 
-# ⧉ (empty or mirror) %%wf:dc0a1ef2a4f0-ro%%
+# %%wf:1b0fd2f68e02%%
 
-# ⧉ (empty or mirror) %%wf:17aeefba91fc-ro%%
+## child of an empty bullet %%wf:61c09709524a%%
 
-# 🔒 broken bold %%wf:e35cd47d380d-ro%%
+# ⧉ (mirror of a deleted item) %%wf:c4893308254a-ro%%
+
+# 🔒 broken bold %%wf:75bd70bb31f8-ro%%
 a malformed name (UI:F1)
 
-# 🔒 line one ⏎ line two %%wf:ab134da98f1d-ro%%
+# 🔒 line one ⏎ line two %%wf:e22e3e0ac1bb-ro%%
 
-# ```` %%wf:3116e1ea24c4%%
+# ```` %%wf:a8df5f2dca1d%%
 x
 ```
 y
 ````
 
-# **bold** and unknown markup %%wf:d2bc815a47c5%%
+# **bold** and unknown markup %%wf:e3ce6b0bec62%%
 
-# See https://example.com/a?b=1&c=2 on 📅 2026-01-15 and at 📅 2026-01-15 14:30 %%wf:27bc08d6af57%%
+# See https://example.com/a?b=1&c=2 on 📅 2026-01-15 and at 📅 2026-01-15 14:30 %%wf:3c213108eeaa%%
 
-# <u>underlined</u>, <span class="colored c-red">red</span>, [a link](https://example.com) and #tag @who %%wf:6cbdcc22af58%%
+# <u>underlined</u>, <span class="colored c-red">red</span>, [a link](https://example.com) and #tag @who %%wf:f00cd531bb01%%
 
-# 1\. not a list %%wf:d3d12c4a3698%%
+# 1\. not a list %%wf:7e69db56700d%%
 
-# \- not a child %%wf:4bd8b3fa7aa7%%
+# \- not a child %%wf:b5f5131ad9a3%%
 
-# \# not a heading %%wf:bd795fec898f%%
+# \# not a heading %%wf:de3705f4633d%%
 
-# \[ ] not a box %%wf:621582283d15%%
+# \[ ] not a box %%wf:ed5f704494c4%%
 
-# a \^wf-8e1f00aa2b3c in the text and %\% percents %%wf:107e855c3844%%
+# a \^wf-8e1f00aa2b3c in the text and %\% percents %%wf:94b71ec8514b%%
 
-# A todo with children %%wf:3c25fbb230bb%%
+# A todo with children %%wf:669bcc63fb32%%
 
-## leaf one %%wf:06d864c2f2e3%%
+## leaf one %%wf:6fcd396ad25e%%
 
-## leaf two %%wf:90c78092b4d4%%
+## leaf two %%wf:02bcde313b0c%%
 &#32;&#32;indented note line
 
-# Trailing empty note lines %%wf:8131c541013d%%
+# Trailing empty note lines %%wf:ecf22665551e%%
 first
 
-# Leading empty note line %%wf:e8f8dc3bf364%%
+# Leading empty note line %%wf:17a44ac81198%%
 second
 `````
 
@@ -458,22 +480,29 @@ Differences from list mode:
 - A code block at heading depth is a heading line with a fence, then the code at column 0, then the closing fence.
 
 > **Caution: headings you type.** Items below a heading belong to that heading. If you type a heading deeper than
-> `headings:` allows, it is kept as a node, with a warning
-> (`heading at depth 2 but headings: 1; kept as a heading`), and the items after it become **its children**. At
-> the next rewrite it is shown as a list item. In a real run, typing `### Skipped level typed by hand` above "Beta child" in a `headings: 1` file moved "Beta child"
-> under the new node:
+> `headings:` allows, it becomes a node, and the items after it become **its children**; the warning says how many.
+> At the next rewrite it is shown as a list item. In a real run, typing `### Skipped level typed by hand` and
+> `- item under the h3` above "Beta child" in a `headings: 1` file moved "Beta child" under the new node:
 >
-> ```markdown
-> # Beta %%wf:f87ff5059285%%
-> A note typed under the Beta heading
->
-> - Skipped level typed by hand ^wf-ba8e0445d656
-> 	- item under the h3 ^wf-816ac16e2284
-> 	- [ ] Beta child ^wf-0487c89da11b
+> ```console
+> $ syncflowy sync d/doc.md
+> d/doc.md: synced: 2 created, 1 updated, 1 moved, 0 reordered, 0 completed, 0 deleted (+0 hidden); file rewritten (gen 11)
+>   warning: line 12: heading level 3 coerced to 2
+>   warning: line 12: heading at depth 2 but headings: 1; it becomes an item, and the 2 items after it become its children
+> ...
 > ```
 >
-> A heading that skips a level is first coerced to the next level (`heading level 3 coerced to 2`). A `#` heading
-> at column 0 in a file with `headings: 0` also becomes a node, with the items under it as its children.
+> ```markdown
+> # Beta %%wf:4572d2015b35%%
+> A note typed under the Beta heading
+>
+> - Skipped level typed by hand ^wf-0cf49189011c
+> 	- [ ] item under the h3 ^wf-d5155a9268c7
+> 	- [ ] Beta child ^wf-97136e83cfc1
+> ```
+>
+> A heading that skips a level is first coerced to the next level, as the first warning shows. A `#` heading at
+> column 0 in a file with `headings: 0` also becomes a node, with the items under it as its children.
 
 Typing a new heading at a level that `headings:` allows simply creates a node (with the items under it as children)
 and it gets a `%%wf:...%%` tag.
@@ -519,8 +548,6 @@ All five forms are read anywhere on the first line, whatever `ids:` says, and re
 next rewrite. The hex is case-insensitive. A backslash-escaped tag (`\^wf-...`) is text, and `#^wf-...` is a link,
 not a tag. Text in Workflowy that looks like a tag is escaped when written, so your text can never turn into a tag.
 
-Remember that an `ids:` change alone does not rewrite the file; add `force: true` to apply it at once.
-
 ### Flags
 
 A tag can carry a flag after the hex: only `-ro` (read-only) exists, as in `^wf-e35cd47d380d-ro` or
@@ -534,12 +561,14 @@ Short version (details and real examples in [id-tag accidents](editing.md#id-tag
 | you | result |
 |---|---|
 | type a line with no tag | a new node |
-| remove the tag but keep the text (nearly) the same | matched back to its node: `untagged item matched to "Butter (plus marker)" (5cd12d5db79b)` |
-| remove the tag and change the text a lot | the old node is **deleted** and a new one created |
+| remove the tag but keep the text (nearly) the same, nearby | matched back to its node: `line 5: untagged item matched to "Butter (plus marker)" (c4b53949080b)` |
+| remove the tag and change the text a lot, in the same place (it is the only untagged line where the node was) | also matched back: the node is **renamed** (deleting a line and typing a new one in its place does the same) |
+| remove the tag, change the text a lot and move the line | the old node is **deleted** and a new one created |
 | copy a tagged line within the file | the best-matching line keeps the node; the others become new nodes |
 | put two tags on one line | the last one wins (`2 id tags on one line; the last one wins`) |
 | type a tag that exists nowhere | `treated as a new item`, re-tagged |
-| move or copy a tagged line into another synced file | the node **moves** there (when both files sync in one run) |
+| cut a tagged line and paste it into another synced file | the node **moves** there when both files sync in one command. Syncing only the file you cut from holds the delete: `"Butter (plus marker)" (c4b53949080b) is in i2.md; sync both files in one command to move it` |
+| copy a tagged line into another synced file, keeping the original | a new node there: `id tag 557b5d9ee3dd is still in the file it comes from; treated as a copy (a new item)` |
 
 ## Inline formatting
 
@@ -597,7 +626,8 @@ syncflowy escapes only what would otherwise change meaning in Markdown, so plain
 | `<b>not bold</b>` typed as text | `\<b>not bold\</b>` | keeps it apart from real formatting |
 | a name starting `1)`, `* `, `+ `, `# `, `> `, `---`, `[ ]` | `1\)`, `\*`, `\+`, `\#`, `\>`, `\---`, `\[ ]` | would be structure |
 | `#hashtag at start` | unchanged | a tag, not a heading |
-| `%%` | `%\%` | reserved for tags and markers |
+| `50%% off` (a `%%` that does not pair up), or `%%wf:` | `50%\% off`, `%\%wf:` | would pair with an id tag, or be one |
+| `%%seen in WF%%` | unchanged | an Obsidian comment: **hidden** in Obsidian's reading view |
 | `price $10-$20` | `price \$10-\$20` | would be maths in Obsidian |
 | `http://plain-http.example.com/path` as plain text (not a link) | `http\://plain-http.example.com/path` | stops Obsidian turning it into a link |
 | leading or trailing spaces | `&#32;&#32;leading and trailing spaces&#32;&#32;` | Markdown would drop them |
@@ -617,23 +647,24 @@ Workflowy has no equivalent for these. Here is what happened to each in a real r
 | `$E=mc^2$` | the literal text | unchanged | yes |
 | `footnote[^1]` | the literal text | unchanged | yes |
 | `#tag`, `@person` | the literal text | unchanged | yes |
-| `%%hidden comment%%` | the literal text, **visible** to Workflowy users | `%\%hidden comment%\%` | **no**: it is now visible text |
-| `![img](https://example.com/i.png)` | literal text with the URL as a link | `\![img\](https://example.com/i.png)` | **no**: no longer an image |
-| `[a](https://example.com "title")` | literal brackets around a link | `[a\](https://example.com "title")` | **no**: link titles are not supported |
+| `%%hidden comment%%` | the literal text, **visible** to Workflowy users | unchanged | yes (hidden in Obsidian only) |
+| `![img](https://example.com/i.png)` | the literal text | unchanged | yes |
+| `[a](https://example.com "title")` | a link, without the title | `[a](https://example.com)`; the report says `the name of "a" (ea24575da7fb, new) was written without its link title: Workflowy links have none` | yes, without the title |
 | `__bold__`, `_italic_` | bold, italic | re-spelled `**bold**`, `*italic*` at the next rewrite | yes |
 | `<https://example.org/auto>` | a link | the bare URL `https://example.org/auto` | yes |
 | `- [/] ...`, `- [-] ...` (Tasks statuses) | `[/] ...` as part of the name | `- [ ] \[/] ...` | no: not a checkbox |
-| `- [x]typed` (no space) | `[x]typed` as text | | not a tick |
+| `- [x]typed` (no space) | `[x]typed` as text | `- [ ] [x]typed` | not a tick |
 
 > **Warning.** Do not use `%%comments%%` in synced files for private notes: they are sent to Workflowy as plain
-> text, where every collaborator can read them.
+> text, where every collaborator can read them. The reverse also holds: a `%%...%%` typed in Workflowy is hidden
+> in Obsidian's reading view.
 
 ### Lossy values
 
 Some Workflowy text is well-formed but cannot be shown exactly, for example markup from another app
 (`<b>bold</b> and <foo>unknown</foo> markup`). It is shown in its nearest Markdown form
 (`**bold** and unknown markup`) and stays editable. When you edit it, syncflowy keeps what it can and reports
-`the name of "bold and unknown markup, edited" (d2bc815a47c5) lost formatting Markdown could not show`.
+`the name of "bold and unknown markup, edited" (e3ce6b0bec62) lost formatting Markdown could not show`.
 
 ## Node kinds and layouts
 
@@ -643,7 +674,7 @@ express; the others render as plain items and keep their layout in Workflowy.
 | Workflowy layout | in the file | checkbox (default policy) | can you change it from Markdown? |
 |---|---|---|---|
 | bullets | `- text` | leaves only | yes: into a code block, quote, divider, or numbered list, by writing that kind |
-| to-do | `- [ ] text` | always | no. A new `- [ ]` line is a plain bullet. |
+| to-do | `- [ ] text` | always (none with `checkboxes: none`) | no. A new `- [ ]` line is a plain bullet. |
 | h1, h2, h3 | plain item | leaves only | no, kept |
 | paragraph, board, table, dashboard, and others | plain item; a board's columns and a table's rows are ordinary nested items | leaves only | no, kept |
 | code block | ``- ``` `` then the code indented one level, then a closing fence; the note after the fence | never | remove the fence: becomes a bullet. Fence an item: becomes a code block. |
@@ -682,8 +713,10 @@ out; they render like the h1 and board lines):
 ````
 
 What you can and cannot change from Markdown, with real results, is in
-[changing a node's kind](editing.md#changing-a-nodes-kind). Two traps: a fence's info string (```` ```python ````)
-becomes the first line of the code, and `- # text` inside a list is not a heading but literal text (written back as
+[changing a node's kind](editing.md#changing-a-nodes-kind). Two traps: Workflowy code blocks have no language, so
+a fence's info string (```` ```python ````) is dropped with a warning
+(`the code block's language "python" was dropped (Workflowy code blocks have none)`), and `- # text` inside a list
+is not a heading but literal text (written back as
 `- \# text`).
 
 ### Checkboxes
@@ -694,17 +727,18 @@ option decides which items get a box:
 | `checkboxes:` | boxes on |
 |---|---|
 | `todos-and-leaves` (default) | to-dos and items with no visible children |
-| `todos`, `none` | to-dos only (the two values behave the same) |
+| `todos` | to-dos only |
 | `all` | every list item |
+| `none` | no item, not even to-dos (they stay to-dos in Workflowy, and `[x]` still ticks them) |
 
-Headings, code blocks, quotes, dividers and placeholders never get a box. Workflowy to-dos always do.
+An item whose children are all hidden by `depth:` counts as a parent, not a leaf. Headings, code blocks, quotes,
+dividers, placeholders and stubs never get a box. Workflowy to-dos always do, except with `checkboxes: none`.
 
 **Boxes are sticky.** Once a line is in the file, it keeps the form it has there, across rewrites, even when the
-node gains or loses children or you change `checkboxes:`. The policy decides only for items that are new to the
-file. So changing `checkboxes:` on an existing file changes nothing you can see. In a real run, `checkboxes: all`
-added to the showcase file left "Planning", "Deep" and the other parents without a box; only a new file that already
-had `checkboxes: all` when it was first filled from Workflowy boxed every item. (One exception: a to-do whose box
-you removed gets it back at the next rewrite.)
+node gains or loses children. The policy decides only for items that are new to the file, with one exception:
+changing `checkboxes:` rewrites the file with every box chosen by the new policy. In a real run, `checkboxes: all`
+added to the showcase file boxed "Planning", "Deep" and every other item at the next sync. (A to-do whose box you
+removed gets it back at the next rewrite, unless `checkboxes: none`.)
 
 You may add or remove boxes by hand; the choice sticks. Here a box was added to "Interior bullet" and removed
 from "Leaf A" and "Todo item" (a to-do). The sync sent nothing (`file unchanged (gen 1)`):
@@ -764,62 +798,39 @@ The root's note cannot be marked; if it has broken formatting it is shown in its
 
 ## Mirrors
 
-A Workflowy mirror shows the same content in two places. How syncflowy shows one depends on the host you sync with
-(see [the real service and the beta host](cli.md#the-real-service-the-beta-host-and-rate-limits)).
-
-### On the normal service: placeholders
-
-The normal API does not say which nodes are mirrors: a mirror looks like a node with an empty name, no note and the
-bullets layout. syncflowy cannot tell it from a genuinely empty bullet, so it shows both as a read-only placeholder,
-`⧉ (empty or mirror)`, never shows their children, and refuses edits, ticks and deletes of them without `force`.
+A Workflowy mirror shows the same content in two places. syncflowy talks only to Workflowy's beta API
+(`https://beta.workflowy.com`, the same account and data), which says which nodes are mirrors, and shows each
+mirror with its original's content, even when the original is outside the synced subtree:
 
 ```markdown
 ---
-workflowy: 382f21e4-a57b-4700-b8ec-2d3446752b5c
+workflowy: f253cb87-e739-4614-9ee2-bacc26f79523
 syncflowy: {gen: 1}
 ---
-- Local section ^wf-35210c56a92d
-	- [ ] Local item ^wf-9f4782fe3a4a
-- ⧉ (empty or mirror) ^wf-4d7a28d2e08e-ro
-- ⧉ (empty or mirror) ^wf-22bae20cea4a-ro
-- [ ] Another section ^wf-5ec1b14b69dc
-- ⧉ (empty or mirror) ^wf-26f05f221dfc-ro
-```
-
-> **Caution.** A placeholder may be a real mirror that Workflowy users see full of content. Deleting it with
-> `--force` removes that mirror for everyone.
-
-### On the beta host: mirrors as their content
-
-On `https://beta.workflowy.com` the API marks mirrors. As soon as the account has at least one mirror, syncflowy shows
-each mirror with its original's content, even when the original is outside the synced subtree. The same tree:
-
-```markdown
----
-workflowy: 382f21e4-a57b-4700-b8ec-2d3446752b5c
-syncflowy: {gen: 1}
----
-- Local section ^wf-35210c56a92d
-	- [ ] Local item ^wf-9f4782fe3a4a
-- Shared **checklist** ^wf-4d7a28d2e08e
+- Local section ^wf-9f707b66a5ec
+	- [ ] Local item ^wf-4390738a065f
+- Shared **checklist** ^wf-40707d64a59d
 	kept in the Library
-	- [ ] pack charger ^wf-74036988f668
-	- [ ] pack passport ^wf-ac4ae82d2fef
-- ⧉ [[#^wf-9f4782fe3a4a|Local item]] ^wf-22bae20cea4a-ro
-- [ ] Another section ^wf-5ec1b14b69dc
-- ⧉ [[#^wf-4d7a28d2e08e|Shared checklist]] ^wf-26f05f221dfc-ro
+	- [ ] pack charger ^wf-88089a945f59
+	- [ ] pack passport ^wf-e70226fd8cac
+- ⧉ [[#^wf-4390738a065f|Local item]] ^wf-a583f12cc087-ro
+- [ ] Another section ^wf-03d6331bd7f1
+- ⧉ [[#^wf-40707d64a59d|Shared checklist]] ^wf-35636ee56b11-ro
+- [ ] ^wf-d404d48f69f7
+- ⧉ (mirror of a deleted item) ^wf-13e8a79a7565-ro
 ```
 
 - The first placement of some content in the file is shown **in full**, under that placement's tag. When the
-  placement is a mirror, that is the mirror's own tag: "Shared **checklist**" (`4d7a28d2e08e`, a mirror) lives in a
+  placement is a mirror, that is the mirror's own tag: "Shared **checklist**" (`40707d64a59d`, a mirror) lives in a
   "Library" node outside the synced subtree, and editing it here edits the original. "Local item" is shown in full
-  under its own tag, and its mirror `22bae20cea4a` is the stub.
+  under its own tag, and its mirror `a583f12cc087` is the stub.
 - Every other placement of the same content is a read-only **stub**: `⧉ [[#^wf-<full line's id>|name]]`, an Obsidian
   link to the full line. The link only works when the full placement is a list item, not a heading. Which placement
   is the full one is meant to stay the same across syncs (a design choice, not verified).
-- A mirror whose original was deleted becomes a `⧉ (empty or mirror)` placeholder again.
-- On the beta host, as soon as the account has at least one mirror, genuinely empty bullets are shown as ordinary
-  empty items. In an account without mirrors they are placeholders, as on the normal service.
+- A mirror whose original was deleted is a read-only placeholder, `⧉ (mirror of a deleted item)`. Its children are
+  not shown, and edits, ticks and deletes of it are refused without `force`
+  (`"" (13e8a79a7565) is a mirror placeholder; its delete was not sent (use force)`).
+- A node with an empty name (`- [ ] ^wf-d404d48f69f7`) is an ordinary item, not a mirror.
 
 You cannot create a mirror from Markdown. What edits, ticks and deletes do to mirrors and stubs is in
 [mirrors](editing.md#mirrors).
