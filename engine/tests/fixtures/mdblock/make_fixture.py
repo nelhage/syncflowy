@@ -7,8 +7,9 @@ its short id is the 12-hex number itself (`000000000007` for node 7).
 
 The tree covers: a root note (the preamble), completed subtrees (hidden with incomplete
 descendants), notes with empty lines, every layout kind (todo, code-block, quote-block,
-numbered, divider, h1, p, board), mirror shells (`note ""` and `note null`, UI:H2) with
-vestigial children, tier-3 values (malformed WF-HTML, a newline in a name), a code line
+numbered, divider, h1, p, board), empty bullets (`note ""` and `note null`; ordinary
+items, one with a child), an orphan mirror shell (beta `data.mirror.origin_id: null`,
+DM§10.5), tier-3 values (malformed WF-HTML, a newline in a name), a code line
 that would close a ``` fence (exact: it gets a longer fence), a lossy value, text that
 needs line-start escapes, links, dates, passthrough HTML, and nesting six levels deep.
 """
@@ -24,7 +25,7 @@ def uid(n):
     return f"00000000-0000-4000-8000-{n:012x}"
 
 
-def node(parent, name, note=None, layout="bullets", completed=False, children=()):
+def node(parent, name, note=None, layout="bullets", completed=False, children=(), mirror=None):
     counter[0] += 1
     n = counter[0]
     rec = {
@@ -34,7 +35,7 @@ def node(parent, name, note=None, layout="bullets", completed=False, children=()
         "parent_id": uid(parent) if parent is not None else None,
         "priority": 0,
         "completed": completed,
-        "data": {"layoutMode": layout},
+        "data": {"layoutMode": layout, **({"mirror": mirror} if mirror is not None else {})},
         "createdAt": 1791834396 + n,
         "modifiedAt": 1791834396 + n,
         "completedAt": 1791834400 + n if completed else None,
@@ -45,9 +46,9 @@ def node(parent, name, note=None, layout="bullets", completed=False, children=()
     return n
 
 
-def child(name, note=None, layout="bullets", completed=False, children=()):
+def child(name, note=None, layout="bullets", completed=False, children=(), mirror=None):
     def make(parent, i):
-        n = node(parent, name, note, layout, completed, children)
+        n = node(parent, name, note, layout, completed, children, mirror)
         for rec in nodes:
             if rec["id"] == uid(n):
                 rec["priority"] = 100 * (i + 1)
@@ -124,8 +125,8 @@ node(
         ),
         child("To be or not to be", layout="quote-block"),
         child("", note="", layout="divider"),
-        child("", note="", children=[child("vestigial child of an API shell")]),
-        child("", note=None),
+        child("", note="", children=[child("child of an empty bullet")]),
+        child("", note=None, mirror={"origin_id": None}),
         child("broken <b>bold", note="a malformed name (UI:F1)"),
         child("line one\nline two"),
         child("x\n```\ny", layout="code-block"),

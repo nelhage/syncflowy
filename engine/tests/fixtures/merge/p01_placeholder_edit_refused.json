@@ -38,13 +38,14 @@
           }
         ],
         "id": "e",
-        "name": ""
+        "name": "",
+        "orphan": true
       }
     ],
     "id": "root",
     "name": "Root"
   },
-  "description": "§10: typing into a placeholder is refused without force.",
+  "description": "§10: typing into an orphan-shell placeholder is refused without force.",
   "expected": {
     "cancelled_pending": [],
     "conflicts": [],

@@ -38,7 +38,8 @@
           }
         ],
         "id": "e",
-        "name": ""
+        "name": "",
+        "orphan": true
       }
     ],
     "id": "root",
@@ -47,7 +48,7 @@
   "config": {
     "force": true
   },
-  "description": "§10: with force, a placeholder delete is pushed (with its hidden children).",
+  "description": "§10: with force, an orphan-shell placeholder delete is pushed (with its hidden children).",
   "expected": {
     "cancelled_pending": [],
     "conflicts": [],

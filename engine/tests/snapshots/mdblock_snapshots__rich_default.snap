@@ -38,8 +38,9 @@ It has **two** lines & an ampersand.
 	runs on save
 - > To be or not to be ^wf-000000000014
 - --- ^wf-000000000015
-- ⧉ (empty or mirror) ^wf-000000000016-ro
-- ⧉ (empty or mirror) ^wf-000000000018-ro
+- ^wf-000000000016
+	- [ ] child of an empty bullet ^wf-000000000017
+- ⧉ (mirror of a deleted item) ^wf-000000000018-ro
 - [ ] 🔒 broken bold ^wf-000000000019-ro
 	a malformed name (UI:F1)
 - [ ] 🔒 line one ⏎ line two ^wf-00000000001a-ro

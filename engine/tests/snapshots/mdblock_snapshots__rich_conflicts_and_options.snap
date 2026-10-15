@@ -52,9 +52,11 @@ runs on save
 
 # --- [wid:: 000000000015]
 
-# ⧉ (empty or mirror) [wid:: 000000000016-ro]
+# [wid:: 000000000016]
 
-# ⧉ (empty or mirror) [wid:: 000000000018-ro]
+- [ ] child of an empty bullet [wid:: 000000000017]
+
+# ⧉ (mirror of a deleted item) [wid:: 000000000018-ro]
 
 # 🔒 broken bold [wid:: 000000000019-ro]
 a malformed name (UI:F1)

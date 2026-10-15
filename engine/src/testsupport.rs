@@ -97,6 +97,8 @@ impl MockServer {
                 "1",
                 "--log-level",
                 "warning",
+                // The engine targets the beta API (DM§10.5) only.
+                "--beta-mirrors",
             ])
             .current_dir(repo_root())
             .stdin(Stdio::null())

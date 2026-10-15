@@ -169,9 +169,6 @@ struct Engine<'a, 'c> {
     root: NodeId,
     force: bool,
     safe: bool,
-    /// The remote tree carries mirror metadata (DM§10.5): shells are known, the §10
-    /// heuristic is off (`is_placeholder_node`).
-    mirror_aware: bool,
     /// Origin -> live shells in the remote tree (§15.1: a delete of an origin that still
     /// has mirrors is refused).
     shell_index: BTreeMap<NodeId, Vec<NodeId>>,
@@ -377,7 +374,6 @@ impl<'a, 'c> Engine<'a, 'c> {
             root: root.clone(),
             force: inp.cfg.force,
             safe: inp.cfg.safe_mode,
-            mirror_aware: inp.remote.has_mirror_metadata(),
             shell_index: inp.remote.shells_by_origin(),
             base_sub,
             remote_sub,
@@ -474,11 +470,7 @@ impl<'a, 'c> Engine<'a, 'c> {
     }
 
     fn is_existing_placeholder(&self, tree: &Tree, id: &NodeId) -> bool {
-        !self.force
-            && id != &self.root
-            && tree
-                .get(id)
-                .is_some_and(|n| is_placeholder_node(n, self.mirror_aware))
+        !self.force && id != &self.root && tree.get(id).is_some_and(is_placeholder_node)
     }
 
     /// §15.1: the origin that blocks a delete of `n` in `M`, if any: `n` itself or a

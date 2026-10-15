@@ -38,13 +38,14 @@
           }
         ],
         "id": "e",
-        "name": ""
+        "name": "",
+        "orphan": true
       }
     ],
     "id": "root",
     "name": "Root"
   },
-  "description": "§10: an item typed under a placeholder is refused there and created under the placeholder's parent instead.",
+  "description": "§10: an item typed under an orphan-shell placeholder is refused there and created under the placeholder's parent instead.",
   "expected": {
     "cancelled_pending": [],
     "conflicts": [],

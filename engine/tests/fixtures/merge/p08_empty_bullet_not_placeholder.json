@@ -1,0 +1,72 @@
+{
+  "base": {
+    "children": [
+      {
+        "id": "a",
+        "name": "Alpha"
+      },
+      {
+        "children": [
+          {
+            "id": "e1",
+            "name": "child of an empty bullet"
+          }
+        ],
+        "id": "e",
+        "name": ""
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§10: shells are known from mirror metadata (DM§10.5), never guessed, so an empty plain bullet (no note, layout bullets) is an ordinary item, not a placeholder: its child is visible and an edit typed into it is pushed without force.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\"",
+      "  e \"typed into empty bullet\"",
+      "    e1 \"child of an empty bullet\""
+    ],
+    "moves": [],
+    "orders": {
+      "e": [
+        "e1"
+      ],
+      "root": [
+        "a",
+        "e"
+      ]
+    },
+    "pushes": {
+      "e": {
+        "name": [
+          "",
+          "typed into empty bullet"
+        ]
+      }
+    },
+    "report": [],
+    "stats": {
+      "base_visible": 3,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 3,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "typed into empty bullet",
+      "op": "set",
+      "tag": "e"
+    }
+  ]
+}

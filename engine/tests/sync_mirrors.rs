@@ -1,5 +1,5 @@
 //! Mirrors as their origins (design §15.1) end to end against the mock in its
-//! `beta_mirrors` mode (data-model §10.5): a node mirrored into the sync root is shown
+//! `beta_mirrors` mode (data-model §10.5, the only API the engine targets): a node mirrored into the sync root is shown
 //! and edited in full at its shell, a second placement of the same content is a stub,
 //! writes through the shell reach the origin, deleting a shell removes just the mirror,
 //! and an origin that still has mirrors cannot be deleted.
@@ -31,12 +31,6 @@ struct Fixture {
     file: std::path::PathBuf,
 }
 
-fn beta_env() -> Env {
-    let env = Env::new();
-    env.mock.config(json!({"beta_mirrors": true}));
-    env
-}
-
 fn mirror(env: &Env, origin: &NodeId, parent: &NodeId) -> NodeId {
     let r = env.ui(
         "mirror",
@@ -46,7 +40,7 @@ fn mirror(env: &Env, origin: &NodeId, parent: &NodeId) -> NodeId {
 }
 
 fn fixture() -> Fixture {
-    let env = beta_env();
+    let env = Env::new();
     let root = env.ui_create(None, "Project");
     let plan = env.ui_create(Some(&root), "Plan");
     let draft = env.ui_create(Some(&plan), "Draft");

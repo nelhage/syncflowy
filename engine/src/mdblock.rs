@@ -31,7 +31,7 @@
 //! - ``` ^wf-1234567890ab
 //!     x = 1
 //!     ```
-//! - ⧉ (empty or mirror) ^wf-77aa12cd0e9f-ro
+//! - ⧉ (mirror of a deleted item) ^wf-77aa12cd0e9f-ro
 //! - 🔒 best-effort text of a malformed name ^wf-0e9f77aa12cd-ro
 //! ```
 //!
@@ -95,7 +95,8 @@
 //!   list items, `%%wf:…%%` on headings, where block ids are not allowed).
 //! * **Read-only forms** (§5.3, §10, §15.1): an item whose id tag has the `ro` flag is
 //!   rendered from a value of tier `ReadOnly` (text prefixed with `🔒 `), is a mirror
-//!   placeholder (text exactly [`PLACEHOLDER_TEXT`], children never rendered), or is a
+//!   placeholder for an orphan shell (text exactly [`PLACEHOLDER_TEXT`], children never
+//!   rendered), or is a
 //!   **mirror stub** (text `⧉ [[#^wf-<full>|<name>]]`, see [`stub_text`]: a link to the
 //!   placement that renders the same content in full; no children). The parser strips
 //!   the `🔒 ` prefix only when the `ro` flag is present, recognises a placeholder only
@@ -143,9 +144,10 @@
 //!   ```` ``` ```` line reads back exactly and stays editable (tier `Exact`, §5.3).
 //! * **Kinds without a box**: headings, code, quotes, dividers and placeholders never
 //!   render `[ ]` (UNVERIFIED, our choice for quotes: `- [ ] > x` reads badly).
-//! * **Dividers are not shells**: a `divider` node with an empty name renders as `- ---`
-//!   even though it matches the shell heuristic (the UI gives it `note ""`, UI:G2, while
-//!   shells always get layout `bullets`, UI:H2).
+//! * **Empty nodes are ordinary items**: shells are known from the beta API's mirror
+//!   metadata (DM§10.5), never guessed, so a node with an empty name and no note is
+//!   editable and its children are shown; a `divider` node with an empty name renders as
+//!   `- ---`.
 //! * **Text without an `ro` flag is a fixed point**: a `Lossy` value (and a `ReadOnly`
 //!   root note, which cannot carry a flag) is rendered as its own normal form
 //!   `wf_to_md(md_to_wf(text))`, so re-rendering the parsed file gives the same bytes.
@@ -190,8 +192,9 @@ use crate::tree::{IdMap, NodeId, ShortId, Tree};
 
 use emit::RItem;
 
-/// The text of a mirror placeholder item (§10).
-pub const PLACEHOLDER_TEXT: &str = "⧉ (empty or mirror)";
+/// The text of a placeholder item (§10): an **orphan shell** (DM§10.4), a mirror whose
+/// origin was deleted, so there is no content to show.
+pub const PLACEHOLDER_TEXT: &str = "⧉ (mirror of a deleted item)";
 /// The start of a mirror stub's text (§15.1): `⧉ [[#^wf-<short of the full placement>`.
 pub const STUB_PREFIX: &str = "⧉ [[#^wf-";
 
@@ -362,7 +365,7 @@ pub enum ItemKind {
     Quote,
     /// `- ---` (`divider` layout with an empty name).
     Divider,
-    /// A read-only mirror placeholder (§10): `ro` tag and [`PLACEHOLDER_TEXT`].
+    /// A read-only placeholder for an orphan shell (§10): `ro` tag and [`PLACEHOLDER_TEXT`].
     Placeholder,
     /// A read-only mirror stub (§15.1): `ro` tag and a text starting with
     /// [`STUB_PREFIX`] (see [`stub_text`]); never has children.

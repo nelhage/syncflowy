@@ -115,8 +115,8 @@
 //! A field of a ticked node that was also changed remotely keeps the remote value with
 //! no conflict marker (the node leaves the file). A new item typed as `[x]` is created
 //! and then completed. Ticks are never brakes. A tick of a placeholder (§10: the line
-//! is or was a placeholder, or the node looks like a mirror shell remotely) is a write
-//! to a suspected shell: refused without `force` ([`ReportEvent::ReadOnlyEditRefused`]).
+//! is or was a placeholder, or the node is an orphan shell remotely) is a write to an
+//! orphan shell: refused without `force` ([`ReportEvent::ReadOnlyEditRefused`]).
 //! Remote completion of a locally edited node or ancestor: push the edits anyway, report
 //! [`ReportEvent::VanishedWork`]. Local delete vs remote completion: the delete loses.
 //! Local move vs remote completion of the node or of the destination: apply the move.
@@ -807,10 +807,9 @@ pub fn merge_with(
 /// The nodes of `tree` visible from `root` under the file's projection rules (§4.5,
 /// the same rules as `mdblock::View`): the root always; below it, nodes that are not
 /// completed, not in `hidden` (pending deletes), not deeper than `cfg.max_depth`, and
-/// not children of a mirror placeholder (§10) or stub (§15.1). The root is never
-/// treated as a placeholder, and nodes with layout `divider` are not placeholders (an
-/// empty divider renders as `- ---`). UNVERIFIED design choice: both exceptions are
-/// this module's reading of `mdblock`'s rules.
+/// not children of a placeholder (§10: an orphan shell) or stub (§15.1). The root is
+/// never treated as a placeholder. UNVERIFIED design choice: this module's reading of
+/// `mdblock`'s rules.
 pub fn visible_nodes(
     tree: &Tree,
     root: &NodeId,
@@ -822,14 +821,9 @@ pub fn visible_nodes(
         return out;
     }
     out.insert(root.clone());
-    let mirror_aware = tree.has_mirror_metadata();
     let mut stack: Vec<(NodeId, u32)> = vec![(root.clone(), 0)];
     while let Some((id, depth)) = stack.pop() {
-        if &id != root
-            && tree
-                .get(&id)
-                .is_some_and(|n| is_placeholder_node(n, mirror_aware))
-        {
+        if &id != root && tree.get(&id).is_some_and(is_placeholder_node) {
             continue;
         }
         if cfg.max_depth.is_some_and(|max| depth + 1 > max) {
@@ -848,12 +842,9 @@ pub fn visible_nodes(
 }
 
 /// A node the merge treats as a read-only placeholder without children (see
-/// [`visible_nodes`]): a §15.1 stub, an orphan shell, or, when the tree has no mirror
-/// metadata (`mirror_aware` false), the §10 heuristic.
-pub(crate) fn is_placeholder_node(node: &crate::tree::Node, mirror_aware: bool) -> bool {
-    node.stub
-        || node.is_orphan_shell()
-        || (!mirror_aware && node.looks_like_mirror_shell() && node.layout != "divider")
+/// [`visible_nodes`]): a §15.1 stub or an orphan shell (§10).
+pub(crate) fn is_placeholder_node(node: &crate::tree::Node) -> bool {
+    node.stub || node.is_orphan_shell()
 }
 
 #[cfg(test)]

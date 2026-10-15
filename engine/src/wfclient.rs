@@ -29,8 +29,9 @@
 //! * `POST /api/v1/nodes/<uuid>/move` `{"parent_id": "<uuid>", "position"}`;
 //!   `POST …/complete`, `POST …/uncomplete` (no body), `DELETE /api/v1/nodes/<uuid>`,
 //!   `DELETE /api/v1/nodes/<uuid>/mirror` (a mirror root only, DM§10.3).
-//! * On the beta host (DM§10.5) node records carry `data.mirror`; the client decodes it
-//!   into `tree::Mirror` and otherwise treats both hosts alike.
+//! * The engine targets the beta host (DM§10.5, [`DEFAULT_BASE_URL`]), whose node
+//!   records carry `data.mirror`; the client decodes it into `tree::Mirror`. The CLI
+//!   refuses the production host, which reports mirrors as empty nodes.
 //!
 //! # Rules
 //!
@@ -81,8 +82,10 @@ use thiserror::Error;
 
 use crate::tree::{ApiNode, Node, NodeId, Position, ShortId};
 
-/// The production base URL.
-pub const DEFAULT_BASE_URL: &str = "https://workflowy.com";
+/// The default base URL: the **beta** host (DM§10.5), the only API the engine targets.
+/// It serves the same account and data as production (`workflowy.com`), with mirror
+/// metadata; production cannot tell a mirror from an empty node.
+pub const DEFAULT_BASE_URL: &str = "https://beta.workflowy.com";
 
 /// Client configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -27,15 +27,16 @@ CC_x86_64_unknown_linux_musl=musl-gcc cargo build --release --target x86_64-unkn
 
 The end-to-end tests run against the **Python mock server** (`src/syncflowy/mock`). `testsupport::MockServer`
 starts it with `uv run syncflowy-mock`, so `uv` and the Python environment of the repository root must work
-(`uv sync`, or the Nix dev shell). The differential tests also call the Python `wfhtml` and the mock's create
-pipeline. The tests never contact production. Use `cargo test --test <file>` for an inner loop.
+(`uv sync`, or the Nix dev shell), and runs it in its beta mode (`--beta-mirrors`). The differential tests also
+call the Python `wfhtml` and the mock's create pipeline. The tests never contact the real API. Use
+`cargo test --test <file>` for an inner loop.
 
 ## Configuration
 
 | setting | flag | environment | default |
 |---|---|---|---|
 | API key | `--api-key` | `WORKFLOWY_API_KEY` | none (required by `render`, `sync` and `daemon`) |
-| API base URL | `--api-url` | `WORKFLOWY_API_URL` | `https://workflowy.com` |
+| API base URL | `--api-url` | `WORKFLOWY_API_URL` | `https://beta.workflowy.com` (the beta API; the production host is refused, see Safety) |
 | state directory | `--state-dir` | `SYNCFLOWY_STATE_DIR` | `$XDG_STATE_HOME/syncflowy`, else `~/.local/state/syncflowy` |
 | request log | `--request-log FILE` | | none; appends every API request as JSONL |
 | verbosity | `-v` (info), `-vv` (debug) | `RUST_LOG` also works | warnings only |
@@ -72,8 +73,8 @@ Per file it merges, pushes your edits, and rewrites the file from the fresh remo
 pushed (`synced: 1 created, 0 updated, 0 moved, 0 reordered, 1 completed, 0 deleted (+0 hidden); file rewritten (gen 3)`),
 or `unchanged`, `paused`, `refused: ...` (a brake) or `skipped: ...`.
 
-* `--force` overrides the mass-change brakes and the placeholder guards (see Safety). It also bootstraps a file
-  that has no checkpoint (see Limitations).
+* `--force` overrides the mass-change brakes and the orphan-placeholder guards (see Safety). It also bootstraps a
+  file that has no checkpoint (see Limitations).
 * `--dry-run` plans and prints the operations, and writes nothing. It does not recover a leftover journal; it
   warns that one is pending.
 
@@ -138,7 +139,7 @@ A note on "Planning": the lines right under the heading.
 - ``` ^wf-0123456789ab
 	x = 1
 	```
-- ⧉ (empty or mirror) ^wf-b2863eed4436-ro
+- ⧉ (mirror of a deleted item) ^wf-b2863eed4436-ro
 - Weekly review ^wf-3c4d5e6f7a8b
 	- ⧉ [[#^wf-472caa53fd65|Draft the spec]] ^wf-11aa22bb33cc-ro
 ```
@@ -161,7 +162,7 @@ A note on "Planning": the lines right under the heading.
 * **Completed nodes are not in the file.** `- [x]` is a command: see ticking below.
 * A node whose text cannot be represented exactly is shown with `🔒` and the `-ro` tag flag, and edits to it are
   refused.
-* **Mirrors** (beta API only, see Safety): a mirror shows its origin's content in place, with the mirror's own
+* **Mirrors** (see Safety): a mirror shows its origin's content in place, with the mirror's own
   tag. When the same content appears twice in a file, the second placement is a **stub**: `⧉ [[#^wf-<full>|name]]`,
   a read-only link to the line that renders it in full.
 
@@ -188,9 +189,10 @@ A note on "Planning": the lines right under the heading.
   node's real children. It is never synced. Edit the real line if you want your version, then delete the
   marker. Deleting the marker marks the conflict resolved. When a node was moved out of the file in Workflowy
   and both sides edited the same field, Workflowy wins and your text is only logged.
-* **Mirrors as their origins** (§15.1), on the **beta API** (`--api-url https://beta.workflowy.com`, DM§10.5).
-  The engine detects the beta semantics from the export (any node with `data.mirror`) and then treats a mirror
-  as the node it mirrors, as the web UI does: a mirror inside the synced subtree shows its origin's text and
+* **Beta API only** (§10, DM§10.5). The engine talks to `https://beta.workflowy.com`, which serves the same
+  account and data as production but reports mirrors properly. Production reports a mirror as an empty node, so
+  edits to it would be invisible to Workflowy users; `--api-url` refuses the production host.
+* **Mirrors as their origins** (§15.1). The engine treats a mirror as the node it mirrors, as the web UI does: a mirror inside the synced subtree shows its origin's text and
   children under the mirror's own tag, even when the origin lies outside the subtree; edits, ticks, new items
   and moves under it reach the origin; deleting its line removes just that mirror (`DELETE /nodes/:id/mirror`),
   never the content. Each content node is rendered once per file: a second placement (a mirror of a node that
@@ -199,13 +201,10 @@ A note on "Planning": the lines right under the heading.
   under it are lifted to its parent and reported, and the choice of which placement is full sticks across
   renders. A delete whose subtree holds an origin that still has mirrors is refused and reported (`--force`
   does not override it: the API refuses too, and removing a mirror is a visible change for Workflowy users);
-  remove the mirrors in Workflowy first. A mirror whose origin was deleted (an orphan) renders as the
-  placeholder below. Creating a mirror from Markdown and the UI's promotion of a mirror when its origin is
-  deleted are not supported.
-* **Shells and placeholders** (§10), on **production**, whose API has no mirror metadata. Mirrors appear as
-  empty "shell" nodes. They render as `⧉ (empty or mirror)` with the `-ro` flag, their children are not shown,
-  and edits or deletes of them are refused without `--force`. The test is: empty name, no note, layout `bullets`.
-  A genuinely empty bullet looks the same. On an export with mirror metadata the heuristic is off.
+  remove the mirrors in Workflowy first. A mirror whose origin was deleted (an orphan) renders as a read-only
+  placeholder `⧉ (mirror of a deleted item)` with the `-ro` flag: its children are not shown, and edits or
+  deletes of it are refused without `--force` (§10). Creating a mirror from Markdown and the UI's promotion of a
+  mirror when its origin is deleted are not supported. An empty node is an ordinary, editable item.
 * **Safe mode** (§9.1 guard 1). If the file's `gen` is missing or no longer in the render history (for example a
   hand-written or stale file), the engine cannot know what you changed. It then pushes text edits and creates,
   but applies no deletes, moves or reorders, and says so in the report.
@@ -238,7 +237,7 @@ the server that talks to Workflowy: there must be only one engine per account.
 ## Known limitations
 
 * One engine, one writer. Several engines on one root are not supported.
-* Mirrors are followed only on the beta API (§15.1; on production shells are placeholders). Mirrors are never
+* The engine needs the beta API (§10); it does not run against production. Mirrors are never
   created from Markdown, a stub is read-only, and an origin that still has mirrors cannot be deleted from
   Markdown. A mirror's hidden persisted children (DM§10.5) are never shown and go with the mirror when it is
   removed. Observed on the beta host on 2026-10-13 only through the mock.
@@ -246,7 +245,7 @@ the server that talks to Workflowy: there must be only one engine per account.
 * Markdown link titles are not supported (`[a](b "t")` is literal text). Images are literal text.
 * A node that cannot round-trip is shown read-only (`🔒`); edit it in Workflowy.
 * The client sends at most 10 requests per second and exports once per cycle; the documented export limit of one per minute was not observed in production (the daemon's `--min-export-interval` keeps to it).
-* The engine has only been run against the mock server, never against production. Anything marked UNVERIFIED
+* The engine has only been run against the mock server, never against the real API. Anything marked UNVERIFIED
   below depends on behaviour nobody has observed.
 * A cycle that cannot be settled after its retries (collaborator edits racing the push) commits nothing and is
   retried at the next run.
