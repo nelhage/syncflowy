@@ -544,6 +544,8 @@ fn a_braked_file_is_retried_but_does_not_hold_other_deletes() {
     let note = rig.note();
     assert_eq!(note.matches("refused by a brake").count(), 2, "{note}");
     assert!(note.contains("| [[b]] | Root B"), "{note}");
+    // The daemon has no `--force`: its messages name the frontmatter key.
+    assert!(!note.contains("--force"), "{note}");
 }
 
 // ---------------------------------------------------------------------------------------
@@ -832,4 +834,68 @@ fn api_errors_are_reported_and_a_401_stops_the_daemon() {
     let changed: Vec<PathBuf> = Vec::new();
     let err = rig.d.step(&api, &changed).expect_err("401 is fatal");
     assert!(syncflowy::daemon::is_fatal(&err), "{err}");
+}
+
+/// The status note's Roots section.
+fn roots(note: &str) -> String {
+    let start = note.find("## Roots\n").expect("a Roots section");
+    let rest = &note[start..];
+    let end = rest[3..].find("\n## ").map_or(rest.len(), |i| i + 3);
+    rest[..end].to_owned()
+}
+
+#[test]
+fn a_run_wide_failure_shows_in_every_root_row() {
+    let (env, _root, _a, _b, _file) = one_file();
+    let mut rig = Rig::new(env);
+    let api = FlakyApi {
+        inner: &rig.env.client,
+        mode: std::cell::Cell::new(1),
+    };
+    step_with(&mut rig.d, &api, &[]);
+    let r = roots(&rig.note());
+    assert!(r.contains("| error: API: server error 503"), "{r}");
+    assert!(!r.contains("not synced yet"), "{r}");
+    // Once a cycle succeeds the row is fine again.
+    api.mode.set(0);
+    rig.time.advance(Duration::from_secs(60));
+    step_with(&mut rig.d, &api, &[]);
+    let r = roots(&rig.note());
+    assert!(r.contains("| ok |"), "{r}");
+}
+
+#[test]
+fn a_file_without_a_checkpoint_says_how_to_adopt_it() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Root");
+    env.ui_create(Some(&root), "Alpha");
+    let file = env.path("root.md");
+    let mut rig = Rig::new(env);
+    write(&file, &format!("---\nworkflowy: {root}\n---\n- Alpha\n"));
+    rig.step(&[]);
+    rig.run_for(60);
+    let note = rig.note();
+    let r = roots(&note);
+    assert!(
+        r.contains(
+            "| not initialised: run `syncflowy render`, or set `force: true` to adopt the file |"
+        ),
+        "{r}"
+    );
+    assert!(
+        problems(&note).contains("set `force: true` in the frontmatter to adopt the file"),
+        "{note}"
+    );
+    assert!(!note.contains("--force"), "{note}");
+
+    // `force: true` adopts it.
+    write(
+        &file,
+        &format!("---\nworkflowy: {root}\nsyncflowy: {{force: true}}\n---\n- Alpha\n"),
+    );
+    rig.advance(1);
+    rig.step(&[&file]);
+    rig.run_for(120);
+    let r = roots(&rig.note());
+    assert!(r.contains("| ok |"), "{r}");
 }

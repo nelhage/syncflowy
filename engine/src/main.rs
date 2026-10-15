@@ -149,6 +149,14 @@ fn is_production_host(base_url: &str) -> bool {
     host == "workflowy.com" || host == "www.workflowy.com"
 }
 
+/// The CLI's remedy for an error whose message names none (the daemon words its own).
+fn cli_hint(e: &syncflowy::Error) -> &'static str {
+    match e {
+        syncflowy::Error::NoCheckpoint(_) => "; run `syncflowy render` first or use --force",
+        _ => "",
+    }
+}
+
 /// One line for an outcome.
 fn describe_outcome(outcome: &SyncOutcome) -> String {
     match outcome {
@@ -195,7 +203,7 @@ fn describe_outcome(outcome: &SyncOutcome) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        SyncOutcome::Braked(b) => format!("refused: {b}"),
+        SyncOutcome::Braked(b) => format!("refused: {b} (use --force)"),
         SyncOutcome::Skipped { reason } => format!("skipped: {reason}"),
     }
 }
@@ -264,7 +272,7 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
                     Ok(report) => ok &= print_report(&report),
                     Err(e) => {
                         ok = false;
-                        eprintln!("{}: error: {e}", r.file.display());
+                        eprintln!("{}: error: {e}{}", r.file.display(), cli_hint(&e));
                     }
                 }
             }

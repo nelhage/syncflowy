@@ -526,12 +526,42 @@ pub struct Daemon {
     /// The last outcome per file.
     outcomes: BTreeMap<PathBuf, SyncOutcome>,
     /// Current errors per file (`""` for the run-wide one).
-    errors: BTreeMap<PathBuf, String>,
+    errors: BTreeMap<PathBuf, StoredError>,
     events: VecDeque<Event>,
     deletes_held: bool,
     status_text: Option<String>,
     /// The content of each dirty file when it was last handed to a cycle.
     attempted: BTreeMap<PathBuf, Fingerprint>,
+}
+
+/// A current error of a file (or of the whole run), kept until the file syncs again.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StoredError {
+    /// The message, with the daemon's own remedy ([`daemon_message`]).
+    text: String,
+    /// `Error::NoCheckpoint`: shown as [`RootState::NoCheckpoint`].
+    no_checkpoint: bool,
+}
+
+impl StoredError {
+    fn of(e: &Error) -> StoredError {
+        StoredError {
+            text: daemon_message(e),
+            no_checkpoint: matches!(e, Error::NoCheckpoint(_)),
+        }
+    }
+}
+
+/// An error's message as the daemon shows it: the engine's messages name no remedy where
+/// the CLI's (`--force`) and the daemon's (the frontmatter) differ, so the daemon adds
+/// its own.
+fn daemon_message(e: &Error) -> String {
+    match e {
+        Error::NoCheckpoint(_) => format!(
+            "{e}; run `syncflowy render`, or set `force: true` in the frontmatter to adopt the file"
+        ),
+        _ => e.to_string(),
+    }
 }
 
 /// True for errors after which the daemon must stop (module docs, step 6): the API
@@ -970,11 +1000,12 @@ impl Daemon {
                 } else {
                     EventKind::Error
                 };
-                self.log_event(None, kind, format!("the cycle failed: {e}"));
-                self.errors.insert(PathBuf::new(), e.to_string());
+                let err = StoredError::of(&e);
+                self.log_event(None, kind, format!("the cycle failed: {}", err.text));
                 for f in &files {
-                    results.push((f.clone(), Err(e.to_string())));
+                    results.push((f.clone(), Err(err.text.clone())));
                 }
+                self.errors.insert(PathBuf::new(), err);
             }
             Ok(file_results) => {
                 self.errors.remove(Path::new(""));
@@ -991,12 +1022,13 @@ impl Daemon {
                             } else {
                                 EventKind::Error
                             };
-                            if self.errors.get(&fr.file) != Some(&e.to_string()) {
-                                self.log_event(Some(&fr.file), kind, e.to_string());
+                            let err = StoredError::of(&e);
+                            if self.errors.get(&fr.file) != Some(&err) {
+                                self.log_event(Some(&fr.file), kind, err.text.clone());
                             }
-                            self.errors.insert(fr.file.clone(), e.to_string());
                             self.outcomes.remove(&fr.file);
-                            results.push((fr.file, Err(e.to_string())));
+                            results.push((fr.file.clone(), Err(err.text.clone())));
+                            self.errors.insert(fr.file, err);
                         }
                     }
                 }
@@ -1024,14 +1056,17 @@ impl Daemon {
             if let Some(n) = &t.node {
                 seen.insert(n.clone());
             }
-            let state = match (
-                &t.state,
-                self.errors.get(&t.path),
-                self.outcomes.get(&t.path),
-            ) {
+            // A file without an error of its own shows the run-wide one (an export that
+            // failed, a rejected key), if any.
+            let error = self
+                .errors
+                .get(&t.path)
+                .or_else(|| self.errors.get(Path::new("")));
+            let state = match (&t.state, error, self.outcomes.get(&t.path)) {
                 (FileState::Paused, ..) => RootState::Paused(PauseReason::Frontmatter),
                 (FileState::Unreadable(e), ..) => RootState::Skipped(e.clone()),
-                (_, Some(e), _) => RootState::Failed(e.clone()),
+                (_, Some(e), _) if e.no_checkpoint => RootState::NoCheckpoint,
+                (_, Some(e), _) => RootState::Failed(e.text.clone()),
                 (FileState::Dirty, ..) if self.debouncer.contains(&t.path) => RootState::Waiting,
                 (_, None, Some(o)) => match o {
                     SyncOutcome::Unchanged
@@ -1125,7 +1160,7 @@ impl Daemon {
             errors: self
                 .errors
                 .iter()
-                .map(|(p, e)| (p.clone(), e.clone()))
+                .map(|(p, e)| (p.clone(), e.text.clone()))
                 .collect(),
             discovery: self.discovery.clone(),
             events: self.events.iter().cloned().collect(),
