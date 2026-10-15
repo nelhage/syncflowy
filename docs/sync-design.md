@@ -219,11 +219,16 @@ GET by short id recovers it if the checkpoint is lost (DM§3.1).
 Ids in a freely edited text file are fragile. The engine must handle all of these:
 
 - **Duplicated tag** (a line was copied): the occurrence that best matches the base (text similarity,
-  then position) keeps the identity. The others are new nodes, and their tags are rewritten on output.
+  then position) keeps the identity. An other occurrence whose line carries a further valid tag that no
+  line wins (its own tag next to a copied one) keeps that node; the rest are new nodes, and their tags
+  are rewritten on output.
 - **Deleted tag, text kept**: this looks like delete plus create, which would destroy the node's WF history
   and, worse, re-create the node's WF-only features (colour, mirror status, `layoutMode`) as lost. Fallback:
   pair each unmatched new item with an unmatched deleted base item of the same parent, position and similar
-  text, and treat the pair as an edit.
+  text (or text that keeps the old name as its prefix), and treat the pair as an edit. When the two are the
+  only unmatched pair under their parent and at the same index, pair them whatever the text: a real "delete
+  a line, type a new one in its place" then becomes a rename, which keeps the old node's history (the smaller
+  loss). The report names every such pairing.
 - **Tag of a node outside this file**: the user pasted from another synced file or typed a tag. This is a
   cross-file move if the id exists remotely (§6.4), and is ignored with a warning otherwise.
 - **Edits that make a tag ambiguous** (text after the tag, two tags on a line): take the last valid one.
@@ -371,7 +376,12 @@ on either side of C. Nobody in Markdown can tell, and WF users with "show comple
 
 A single export serves every synced file in the vault, so run all of them in one pass with a global id map.
 This turns "deleted in `a.md`, appears with its tag in `b.md`" into a **move** instead of a delete plus an
-unknown id. Sync roots must not nest. Alternatively, a nested root could render in the outer file as a link or
+unknown id. A tag that is still on its line in its own file was copied, not moved: the pasted line is a new
+node, as for a duplicated tag within one file (§4.4). When files are synced one at a time (the CLI), a run
+that would delete a node whose tag (or a descendant's) is in another synced file outside the run (found
+through the files the other checkpoints record) holds the delete back as a pending delete (§9.1 guard 2) and
+asks for both files to be synced together; a stale or missing recorded file only costs the check. Sync roots
+must not nest. Alternatively, a nested root could render in the outer file as a link or
 an `![[embed]]` and be treated there as a hidden subtree.
 
 ## 7. Applying changes to Workflowy
@@ -397,8 +407,9 @@ or a concurrent edit, and the next cycle picks it up as a remote change.
 
 Create's `name` is transformed (markdown, entities, line splitting, completion leak), so:
 
-1. `POST /nodes {parent_id: <uuid>, name: "", note: <wf note or omitted>, layoutMode: <layout>, position: "bottom"}`.
-   An empty name creates exactly one node named `""` (DM§6.2 step 7). `note` and `layoutMode` are verbatim on create.
+1. `POST /nodes {parent_id: <uuid>, name: "⟳syncflowy:<nonce>", note: <wf note or omitted>, layoutMode: <layout>,
+   position: "bottom"}`. The nonce (§7.3) is a fixed point of the create pipeline, so it creates exactly one node with
+   that name. `note` and `layoutMode` are verbatim on create.
 2. `POST /nodes/:id {name: <wf name>}`.
 3. `POST /nodes/:id/complete` if the item was typed already ticked (rare).
 
@@ -407,8 +418,8 @@ That is 2 requests per node. Optimisation: if a name is provably a fixed point o
 newline), send it directly and skip step 2. Check the whitelist against the mock's `text.py`, which implements the
 pipeline: a test sends whitelisted names through the mock's create and asserts they come back unchanged.
 
-During step 1–2, collaborators can briefly see an empty bullet. A crash between the steps leaves a
-blank node, which the journal handles.
+During step 1–2, collaborators can briefly see the nonce as the name. A crash between the steps leaves a
+node named by its nonce, which the journal handles.
 
 ### 7.3 Journal and crash recovery
 
@@ -417,9 +428,12 @@ create a duplicate on retry. Approach:
 
 - Write each planned operation to a journal (in the checkpoint directory) before sending it, and record
   the result after.
-- For creates, put a nonce in the first request (for example `note: "⟳syncflowy:<nonce>"`, replaced in
+- For creates, put a nonce in the first request, as the name (`name: "⟳syncflowy:<nonce>"`, replaced in
   step 2), so that recovery can find a half-created node by scanning the export for the nonce.
-  The cost is that the nonce is visible for a moment.
+  The cost is that the nonce is visible for a moment. Not in the note: the API cannot write a `null` note
+  back (DM§6.4), so a nonce note would turn the note of every note-less new node into `""`, while the name
+  is overwritten in step 2 anyway. A name that is sent directly (the whitelist path of §7.2) has no nonce;
+  recovery finds it as an unknown child of the parent with exactly that name.
 - On startup with a non-empty journal, reconcile it against a fresh export before doing anything else.
 
 ## 8. Ordering and structural safety
@@ -655,7 +669,7 @@ of it are not pushed without `--force`. Items typed under it are created under i
 
 | tell | avoidable? |
 |---|---|
-| A brief empty bullet (or a nonce note) while a node is created | Shorten the gap; the whitelist path avoids it. |
+| A brief `⟳syncflowy:<nonce>` name while a node is created | Shorten the gap; the whitelist path avoids it. |
 | Parents we create appear collapsed | No (UI:C2). |
 | Several siblings shuffle when we insert mid-list | No (§8.1). |
 | Text in a slightly non-UI form | Yes: always write canonical WF-HTML. |
@@ -888,11 +902,19 @@ module docs have the details.
   pushes your edits and ticks to it where it now is. If both sides edited the same field, Workflowy wins and the
   local text is only logged (a marker cannot be shown because the line leaves the file).
 - **Cross-file moves (§6.4)** compare the pasted line against the source file's base, so a collaborator's edit is
-  not reverted. Without such a base nothing is pushed for the move.
+  not reverted. Without such a base nothing is pushed for the move. A node whose delete is pending in the source
+  file is compared against its line rendered from the source's `base_wf`, which equals the line that was cut
+  (a remote change cancels a pending delete).
+- **Files synced one at a time (§6.4).** The CLI holds back a delete whose node is tagged in another synced file
+  outside the run (read through `Checkpoint::file`), as a pending delete, so that a cut and paste synced in two
+  commands is not a delete and a create. The brakes count it when first seen, as they count the daemon's
+  deferred deletes; a file emptied into another file and synced alone is therefore still braked.
 - **Safe mode (§9.1 guard 1)** also applies to a bootstrap with `--force` and no checkpoint, which takes the remote
   as the base.
 - **Deferred deletes (guard 2)** are held while another synced file has edits waiting for its debounce, which the
   design does not ask for. Plain `sync` has no grace period and sends deletes at once.
+- **The create nonce is in the name (§7.3)**, not in the note as first sketched, because the API cannot write a
+  `null` note back.
 - **Creates are never resent after a 5xx.** Any 5xx other than the application's own `internal_error` is treated as
   "maybe applied" and settled by the nonce scan of §7.3. No gateway 5xx or 429 has been observed.
 - **Dry run** does not recover a leftover journal, since recovery writes.

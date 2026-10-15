@@ -1,0 +1,78 @@
+{
+  "base": {
+    "children": [
+      {
+        "id": "s1",
+        "name": "First step"
+      },
+      {
+        "id": "s2",
+        "name": "Second step"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§4.4 duplicated tag on a line with two tags: the line keeps its own tag (s1) as well as the copied one (s2, also on the next line). It loses s2 to the next line and falls back to its other, unclaimed tag: both nodes keep their ids and nothing is created or deleted.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  s1 \"First step\"",
+      "  s2 \"Second step\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "root": [
+        "s1",
+        "s2",
+        "c"
+      ]
+    },
+    "pushes": {},
+    "report": [
+      {
+        "DuplicateTag": {
+          "kept_line": 2,
+          "lines": [
+            1,
+            2
+          ],
+          "other_tag_lines": [
+            1
+          ],
+          "short": "s2"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 3,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 3,
+      "pushed_fields": 0,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "extra": [
+        "s1"
+      ],
+      "new_tag": "s2",
+      "op": "set",
+      "tag": "s1"
+    }
+  ]
+}

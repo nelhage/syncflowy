@@ -80,6 +80,15 @@ or `unchanged`, `paused`, `refused: ...` (a brake) or `skipped: ...`.
 * `--dry-run` plans and prints the operations, and writes nothing. It does not recover a leftover journal; it
   warns that one is pending. A delete that takes hidden items (completed, or below `depth:`) names them, as the
   report of a real sync does.
+* **Moving a line between files**: cut the tagged line from one file, paste it into the other, and sync both
+  files in one command. The node moves with its id, children and Workflowy-only attributes. If you sync only the
+  file you cut from, the engine finds the tag in the other file (it reads the files recorded in the state
+  directory's other checkpoints) and holds the delete back with
+  `warning: "Item E" (67edfe175330) is in other.md; sync both files in one command to move it`. The line stays
+  out of the file and the delete stays pending until a run syncs both files (a move) or no longer finds the tag
+  (the delete is sent). Syncing only the file you pasted into makes the line a new node, since its tag belongs to
+  a file outside the run, and the original is then deleted. A tagged line *copied* into another file while it
+  stays in its own file becomes a new node there, as a copied line does within one file.
 
 ```console
 $ syncflowy $S sync --dry-run vault/plan.md
@@ -165,7 +174,11 @@ A note on "Planning": the lines right under the heading.
   frontmatter and the first item is the root's note. The root's own name is not in the file.
 * **Id tags** at the end of the first line identify nodes: `^wf-<12 hex>` on list items, `%%wf:<12 hex>%%` on
   headings. Other forms are read too (see `ids` in `src/mdblock.rs`). A line without a tag is a new node and
-  gets its tag at the next sync. Do not remove tags from lines you keep.
+  gets its tag at the next sync. Do not remove tags from lines you keep. If you do, an untagged line is matched
+  back to the node whose tag vanished when it sits under the same parent nearby with similar text (or with the
+  old text as its prefix), or when the two are the only unmatched pair under that parent at the same position,
+  whatever the text; the report says `line N: untagged item matched to ...`. So deleting a line and typing a new
+  one in its place renames the node.
 * **Inline text**: `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``, `[text](url)`, bare URLs, `<u>`, colour
   spans and other well-formed WF-HTML as literal HTML, dates as a compact form. Obsidian-only syntax
   (`[[wikilinks]]`, `![[embeds]]`, `![images](url)`, `==highlight==`, `$math$`, `%%comments%%`) is sent to
@@ -202,7 +215,8 @@ A note on "Planning": the lines right under the heading.
   period and one more cycle in which the file is unchanged. Putting the line back cancels it; pasting its tag
   into another synced file turns it into a move. While another synced file has edits waiting for their debounce,
   no pending delete is sent. `status` and the status note list them. Plain `sync` (no grace period) sends
-  deletes at once.
+  deletes at once, except the delete of a line whose tag is in another synced file (see `sync`). The brakes
+  count a held or deferred delete when it is first seen.
 * **Conflict markers** (§6.1). When you and a collaborator both changed a node's name or note, Workflowy's
   version stays and yours is kept as a child line `- ⚠ your text %%wf-conflict:name%%` (or `:note`) before the
   node's real children. It is never synced. Edit the real line if you want your version, then delete the
@@ -295,7 +309,7 @@ location.
 | `mdblock.rs`, `mdblock/*` | whether Obsidian keeps whitespace-only note lines; code at heading depth; no checkbox on quotes; an explicit null `depth` means unlimited |
 | `tree.rs` | a shell whose layout was changed later; ties of equal priorities (server breaks them by creation sequence) |
 | `mirrors.rs` | the sticky choice of the full placement; a content whose placements are all hidden keeps the previous choice; a refused mirror delete keeps the whole subtree |
-| `merge.rs`, `merge/*` | foreign tags of other roots; remote wins silently for a conflict that has no marker form; moved-out edit conflicts only reported; "nearby" for identity repair; divider and `---` exceptions; a layout changed on both sides keeps the remote's; diff3 treats adjacent-line edits as mergeable; cross-file bases |
+| `merge.rs`, `merge/*` | foreign tags of other roots; remote wins silently for a conflict that has no marker form; moved-out edit conflicts only reported; "nearby" for identity repair, and pairing the only unmatched line and item at one index whatever the text; divider and `---` exceptions; a layout changed on both sides keeps the remote's; diff3 treats adjacent-line edits as mergeable; cross-file bases |
 | `plan.rs` | brake thresholds; the nonce in create names; the create-pipeline check against the mock's model; an emptied file that deletes nothing is not braked |
 | `apply.rs` | two minutes of clock skew; the extra pre-write GET checks |
 | `wfclient.rs` | no gateway 5xx or 429 seen from production, so retry and non-retry rules are guesses |

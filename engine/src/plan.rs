@@ -148,9 +148,9 @@ pub enum CreateName {
     Direct(String),
     /// Create with a nonce as the name (`apply` picks it, e.g. `⟳syncflowy:<hex>`; it is
     /// itself a fixed point of the create pipeline), then `update` the name (2 requests).
-    /// The nonce lets crash recovery find a half-created node (§7.3). UNVERIFIED design
-    /// choice: §7.3 suggests the nonce in the note; putting it in the name keeps a `null`
-    /// note exact (the API cannot write `null` back, DM§6.4).
+    /// The nonce lets crash recovery find a half-created node (§7.3). It is in the name,
+    /// not the note, to keep a `null` note exact (the API cannot write `null` back,
+    /// DM§6.4).
     Deferred(String),
 }
 

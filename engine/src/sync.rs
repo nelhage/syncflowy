@@ -47,7 +47,12 @@
 //!    i.e. in the daemon): record `merge.deletes` in the checkpoint's `PendingDeletes`;
 //!    deletes not yet due go into `PlanConfig::deferred_deletes` and into
 //!    `ViewExtras::hidden`; cancelled ones are removed. Without a grace period every
-//!    delete (including ones a daemon left pending) is sent now.
+//!    delete (including ones a daemon left pending) is sent now, except one whose node,
+//!    or a node below it, is tagged in another synced file outside the run (§6.4: the
+//!    files recorded in the other checkpoints, `Checkpoint::file`, that still name
+//!    their root): it is held as a pending delete in the same way, with a warning to
+//!    sync both files in one command. The run that syncs both cancels it (the tag is
+//!    claimed elsewhere) and moves the node; a run that no longer finds the tag sends it.
 //! 8. **Plan** (`plan::plan`) with the same `force`. A brake gives
 //!    [`SyncOutcome::Braked`]: nothing is written anywhere (§8.3).
 //! 9. **Dry run** ([`SyncConfig::dry_run`]): return [`SyncOutcome::DryRun`] with the plan.
@@ -58,7 +63,8 @@
 //!     export. An error returns `Error::Apply` and leaves the journal for the next run's
 //!     recovery.
 //! 11. **Re-export and verify** once for the run (`apply::verify` per file against the
-//!     shared export, §7.1). If the applier skipped local changes because a
+//!     shared export, §7.1; a node that another file's apply moved out of this root,
+//!     §6.4, is not expected in it). If the applier skipped local changes because a
 //!     collaborator changed or deleted their nodes after our export (a name, note or
 //!     layout edit failing the pre-write GET, a create whose parent is gone, …:
 //!     `unpushed_local_changes`), the render below would drop them from the file with no
@@ -130,9 +136,13 @@
 //! one is synced). Then one export; then every merge (with `CrossFile.other_roots` = the
 //! other roots, `claimed_elsewhere` = nodes tagged in the other files that are not in
 //! those files' own view scope (a node mirrored into two files is in both scopes and
-//! claimed by neither), resolved with one global id map, and `bases` = for the nodes of each other root that this file
+//! claimed by neither), resolved with one global id map, `still_in_own_file` = nodes
+//! tagged in the other files inside their own scope (a paste of one is a copy), and
+//! `bases` = for the nodes of each other root that this file
 //! pastes, that file's base as its own merge chooses it (step 4) and its older renders,
-//! so the move merges the pasted line against what was cut, `merge::cross_bases`);
+//! so the move merges the pasted line against what was cut, `merge::cross_bases`; a
+//! node whose delete is pending there, hidden from that base, is taken from a render of
+//! its `base_wf`);
 //! then every plan and apply in file order (cross-file moves are
 //! planned by the destination file); then one re-export; then each file's render, write
 //! and commit. A file whose apply failed is not rendered; the other files continue.
@@ -878,8 +888,7 @@ fn prepare(
     for n in &merged.cancelled_pending {
         pending.remove(n);
     }
-    let mut deferred = BTreeSet::new();
-    match cfg.delete_grace {
+    let deferred: BTreeSet<NodeId> = match cfg.delete_grace {
         Some(grace) => {
             let deletes: Vec<(NodeId, usize, String)> = merged
                 .deletes
@@ -891,10 +900,34 @@ fn prepare(
             pending.observe(&deletes, &fingerprint(&a.text), now);
             let grace = i64::try_from(grace.as_secs()).unwrap_or(i64::MAX);
             let due: BTreeSet<NodeId> = pending.due(now, grace).into_iter().collect();
-            deferred = listed.difference(&due).cloned().collect();
+            listed.difference(&due).cloned().collect()
         }
-        None => pending = PendingDeletes::default(),
-    }
+        None => {
+            // §6.4: a delete whose node another synced file tags is half of a cut and
+            // paste between files synced one at a time. It is held as a pending delete
+            // (hidden from the render, kept in the checkpoint) instead of being sent;
+            // the run that syncs both files cancels it and moves the node, and a later
+            // run that no longer finds the tag sends it. The brakes still count it,
+            // as they count the daemon's deferred deletes when first seen.
+            let held = held_deletes(store, a, &merged.deletes, remote, &ids, roots);
+            let listed: BTreeSet<NodeId> = held.keys().cloned().collect();
+            pending.retain_only(&listed);
+            let deletes: Vec<(NodeId, usize, String)> = merged
+                .deletes
+                .iter()
+                .filter(|d| listed.contains(&d.node))
+                .map(|d| (d.node.clone(), d.hidden_descendants, d.label.clone()))
+                .collect();
+            pending.observe(&deletes, &fingerprint(&a.text), now);
+            for w in held.into_values() {
+                // Once per run, also when a CAS rerun merges again.
+                if !a.report.warnings.contains(&w) {
+                    a.report.warnings.push(w);
+                }
+            }
+            listed
+        }
+    };
 
     // Step 8: plan, with the brakes (§8.3).
     let pcfg = PlanConfig {
@@ -1042,7 +1075,128 @@ fn source_bases(
         log::warn!("{}: history unreadable ({e})", a.file.display());
         Vec::new()
     });
-    merge::cross_bases(&wf, &base_doc, &priors, ids, wanted)
+    let mut out = merge::cross_bases(&wf, &base_doc, &priors, ids, wanted);
+    // A pending delete (§9.1 guard 2, or a delete held for another file) is hidden from
+    // the base render, yet its node may be the one pasted: a cut whose paste is synced
+    // in a later run. While it is pending its node is unchanged remotely since the cut
+    // (a remote change cancels the delete), so the line rendered from `base_wf` is the
+    // line that was cut.
+    let pending: Vec<&NodeId> = cp.pending_deletes.entries.keys().collect();
+    let missing: BTreeSet<NodeId> = wanted
+        .iter()
+        .filter(|n| !out.contains_key(*n))
+        .filter(|n| pending.iter().any(|p| *p == *n || wf.is_descendant(n, p)))
+        .cloned()
+        .collect();
+    if !missing.is_empty() {
+        let fm = &base_doc.frontmatter;
+        match View::build(&wf, &a.root, &fm.config, &ViewExtras::default())
+            .map_err(Error::from)
+            .and_then(|v| Ok(mdblock::parse(&mdblock::render(&v, fm))?))
+        {
+            Ok(doc) => out.extend(merge::cross_bases(&wf, &doc, &priors, ids, &missing)),
+            Err(e) => log::warn!("{}: base does not render ({e})", a.file.display()),
+        }
+    }
+    out
+}
+
+/// §6.4 when files are synced one at a time (the CLI): the nodes tagged in the files
+/// recorded in the state directory's other checkpoints (`Checkpoint::file`), roots of
+/// this run excluded (the run's own files are `CrossFile`), with the file that tags
+/// each. A recorded file that is missing, does not parse or no longer names its
+/// checkpoint's root is skipped: a stale path only costs the check.
+fn tagged_in_other_files(
+    store: &StateStore,
+    roots: &BTreeSet<NodeId>,
+    ids: &IdMap,
+) -> BTreeMap<NodeId, PathBuf> {
+    let mut out = BTreeMap::new();
+    let others = match store.roots() {
+        Ok(r) => r,
+        Err(e) => {
+            log::warn!("cannot list the state directory's roots ({e})");
+            return out;
+        }
+    };
+    for root in others.iter().filter(|r| !roots.contains(*r)) {
+        let Ok(Some(cp)) = store.load_checkpoint(root) else {
+            continue;
+        };
+        let Some(file) = cp.file else { continue };
+        let Ok(Some(text)) = read_text(&file) else {
+            continue;
+        };
+        let Ok(doc) = mdblock::parse(&text) else {
+            continue;
+        };
+        if doc.frontmatter.root.resolve(ids).as_ref() != Some(root) {
+            continue;
+        }
+        for (_, it) in doc.walk() {
+            if it.is_marker() {
+                continue;
+            }
+            for t in it.tag.iter().chain(&it.extra_tags) {
+                if let Some(n) = ids.get(&t.short) {
+                    out.entry(n.clone()).or_insert_with(|| file.clone());
+                }
+            }
+        }
+    }
+    out
+}
+
+/// §6.4 when files are synced one at a time (the CLI): the deletes to hold back because
+/// the node, or a node below it, is tagged in another synced file outside this run (a
+/// cut and paste between files: syncing both in one run moves it), each with the
+/// message for the report. Read lazily: nothing is read without deletes.
+fn held_deletes(
+    store: &StateStore,
+    a: &Active,
+    deletes: &[merge::DeleteIntent],
+    remote: &Tree,
+    ids: &IdMap,
+    roots: &BTreeSet<NodeId>,
+) -> BTreeMap<NodeId, String> {
+    let mut out = BTreeMap::new();
+    if deletes.is_empty() {
+        return out;
+    }
+    let elsewhere = tagged_in_other_files(store, roots, ids);
+    if elsewhere.is_empty() {
+        return out;
+    }
+    let here = recorded_path(&a.file);
+    for d in deletes {
+        // §15.1: a shell placement's view descendants are not deleted with it.
+        let subtree = if remote.get(&d.node).is_some_and(crate::tree::Node::is_shell) {
+            vec![d.node.clone()]
+        } else {
+            remote.preorder(&d.node)
+        };
+        let Some((node, file)) = subtree
+            .iter()
+            .find_map(|n| elsewhere.get(n).map(|f| (n, f)))
+        else {
+            continue;
+        };
+        // Name the other file as briefly as is unambiguous.
+        let name = match (file.parent(), file.file_name()) {
+            (Some(dir), Some(base)) if here.parent() == Some(dir) => {
+                base.to_string_lossy().into_owned()
+            }
+            _ => file.display().to_string(),
+        };
+        out.insert(
+            d.node.clone(),
+            format!(
+                "{} is in {name}; sync both files in one command to move it",
+                merge::Labels::new(remote).label(node)
+            ),
+        );
+    }
+    out
 }
 
 /// §4.5: the report names the hidden descendants of each plain delete of `plan` for
@@ -1060,6 +1214,20 @@ fn hidden_deleted(plan: &Plan, merge: &MergeResult, sent: impl Fn(usize) -> bool
             _ => None,
         })
         .filter_map(merge::DeleteIntent::describe_hidden)
+        .collect()
+}
+
+/// The existing nodes that `plan`'s moves re-parented, as far as `outcome` sent them.
+fn moved_nodes(plan: &Plan, outcome: &ApplyOutcome) -> BTreeSet<NodeId> {
+    plan.ops
+        .iter()
+        .zip(&outcome.results)
+        .filter_map(|(op, r)| match (op, r) {
+            (Op::Move { node, .. }, apply::OpOutcome::Done) if !node.is_temp() => {
+                Some(node.clone())
+            }
+            _ => None,
+        })
         .collect()
 }
 
@@ -1814,25 +1982,25 @@ pub fn sync_all(
         let roots: BTreeSet<NodeId> = active.iter().map(|a| a.root.clone()).collect();
         // A tag in another file claims its node only when that node is not in the other
         // file's own scope: a node mirrored into both files belongs to both.
-        let tagged: Vec<BTreeSet<NodeId>> = active
+        // Each file's tags, split into the nodes of its own scope and the others.
+        let (in_own, tagged): (Vec<BTreeSet<NodeId>>, Vec<BTreeSet<NodeId>>) = active
             .iter()
             .zip(&views)
             .map(|(a, view)| {
                 let scope: BTreeSet<NodeId> = view.descendants(&a.root).into_iter().collect();
                 tagged_nodes(&a.doc, &ids)
                     .into_iter()
-                    .filter(|n| !scope.contains(n))
-                    .collect()
+                    .partition(|n| scope.contains(n))
             })
-            .collect();
-        let claimed_elsewhere = |k: usize| -> BTreeSet<NodeId> {
-            tagged
-                .iter()
+            .unzip();
+        let others = |sets: &[BTreeSet<NodeId>], k: usize| -> BTreeSet<NodeId> {
+            sets.iter()
                 .enumerate()
                 .filter(|(j, _)| *j != k)
                 .flat_map(|(_, s)| s.iter().cloned())
                 .collect()
         };
+        let claimed_elsewhere = |k: usize| others(&tagged, k);
         // §6.4: each file's base for its nodes that another file pastes (a cut and
         // paste between files), so the move merges the pasted line against what the
         // user cut, not against the current remote value.
@@ -1855,6 +2023,8 @@ pub fn sync_all(
                     .cloned()
                     .collect(),
                 claimed_elsewhere: claimed_elsewhere(k),
+                // §4.4: a tag still on its line in its own file is copied, not moved.
+                still_in_own_file: others(&in_own, k),
                 bases: sources
                     .iter()
                     .enumerate()
@@ -1905,6 +2075,16 @@ pub fn sync_all(
             remote.clone()
         };
         let after_real = mirrors::real_tree(&after);
+        // §6.4: the nodes each file's apply moved (a cross-file move is planned by the
+        // destination file only).
+        let moved: Vec<BTreeSet<NodeId>> = planned
+            .iter()
+            .zip(&applied)
+            .map(|(p, o)| match (p, o) {
+                (Some(p), Some(o)) => moved_nodes(&p.plan, o),
+                _ => BTreeSet::new(),
+            })
+            .collect();
         for (k, a) in active.iter_mut().enumerate() {
             if results[a.index].is_some() {
                 continue;
@@ -1913,8 +2093,20 @@ pub fn sync_all(
             if cfg.apply.verify
                 && let Some(outcome) = &applied[k]
             {
+                // A node cut from this file and pasted into another stays in this
+                // file's `M` at its remote position (`CrossFile::claimed_elsewhere`); the
+                // other file's apply moved it out of this root, so it is not expected
+                // here any more.
+                let mut expected = p.real.merged.clone();
+                for (j, nodes) in moved.iter().enumerate() {
+                    for n in nodes {
+                        if j != k && expected.contains(n) && n != &a.root {
+                            expected.remove_subtree(n).expect("in the tree");
+                        }
+                    }
+                }
                 a.report.discrepancies =
-                    apply::verify(&p.real.merged, &after_real, &a.root, &outcome.created);
+                    apply::verify(&expected, &after_real, &a.root, &outcome.created);
                 for d in &a.report.discrepancies {
                     log::warn!("{}: verification: {d}", a.file.display());
                 }

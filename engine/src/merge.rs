@@ -41,12 +41,18 @@
 //!    (§4.4 "take the last valid one"), that resolves through `ids` to a node in `base`
 //!    or in the remote subtree identifies it. If several items carry the same tag, the
 //!    one that best matches its `base_doc` item (text similarity of the plain text of
-//!    the names, then same parent, then position) keeps it; the others are new nodes
-//!    ([`ReportEvent::DuplicateTag`]). Duplicates are resolved parents first, and "same
-//!    parent" compares the parent item's resolved identity, so a pasted copy of a
-//!    subtree is created whole and the original children stay under the original.
+//!    the names, then same parent, then position) keeps it. Each other one takes the
+//!    next valid tag on its line whose node no line wins and no other item took (so a
+//!    line with its own tag and a copied one keeps its node), and only a line left
+//!    without one is a new node ([`ReportEvent::DuplicateTag`]). Duplicates are
+//!    resolved parents first, and "same parent" compares the parent item's resolved
+//!    identity, so a pasted copy of a subtree is created whole and the original
+//!    children stay under the original.
 //! 2. A tag resolving to a node inside another managed root (`cross.other_roots`, the
-//!    roots themselves excluded) is a cross-file move into this file (§6.4). Any other
+//!    roots themselves excluded) is a cross-file move into this file (§6.4), unless the
+//!    tag is still on its line in its own file (`cross.still_in_own_file`): then the
+//!    line is a copy and a new node, as a duplicated tag within one file
+//!    ([`ReportEvent::CopiedTag`]). Any other
 //!    tag (unknown, ambiguous, or a node elsewhere in the account) is ignored with
 //!    [`ReportEvent::ForeignTag`] and the item is new. UNVERIFIED design choice: §4.4
 //!    would move any existing node; we only move nodes out of managed roots, to avoid
@@ -65,10 +71,17 @@
 //! 4. Deleted-tag fallback: an untagged item under the same parent as an unmatched base
 //!    item (tagged in `base_doc`, tag missing from `local_doc`), at a nearby sibling
 //!    position (at most [`REMATCH_MAX_DISTANCE`] apart), with similar text (similarity
-//!    ratio >= [`REMATCH_MIN_RATIO`]), is that base item edited
+//!    ratio >= [`REMATCH_MIN_RATIO`], or the item's text starts with the base item's:
+//!    text appended to the name), is that base item edited
 //!    ([`ReportEvent::Rematched`]). Same for an item that reappears where a
 //!    pending-delete node was (§9.1 guard 2). Pairs are chosen greedily by best ratio,
-//!    then nearest position, parents before children.
+//!    then nearest position, parents before children. When no such pair is left, an
+//!    untagged item that is the only unmatched item under its parent is paired with the
+//!    only unmatched base item there (still in the subtree remotely, not pasted into
+//!    another file), whatever the text, if both are at the same sibling index: a tag
+//!    removed together with a larger edit (§1: a delete and create would lose the
+//!    node's Workflowy-only attributes). UNVERIFIED design choice: a line deleted and
+//!    another typed in its place becomes a rename, the smaller loss.
 //! 5. Everything else is a local create, numbered `NodeId::temp(1)`, `temp(2)`, … in file
 //!    pre-order (resurrections are numbered in the same sequence).
 //!
@@ -151,7 +164,9 @@
 //! Placeholders are never deleted unless `force` ([`ReportEvent::PlaceholderDeleteRefused`]).
 //! A node missing from `local_doc` whose tag is in `cross.claimed_elsewhere` moved to
 //! another file: it is neither deleted nor moved here (the other file's merge moves
-//! it); it stays in `M` at its remote position.
+//! it); it stays in `M` at its remote position. So does a locally deleted (or pending)
+//! node with such a node below it that was hidden in the base: its delete loses
+//! ([`ReportEvent::DeleteLost`]), as when that node's line was visible.
 //!
 //! **Mirrors (§15.1, `crate::mirrors`).** On a view tree (base and remote alike) a
 //! shell placement that renders its origin in full is an ordinary item whose edits,
@@ -272,6 +287,11 @@ pub struct CrossFile {
     /// Nodes whose tags appear in another file's current text (a cut from this file
     /// pasted there): missing here means "moved away", not "deleted".
     pub claimed_elsewhere: BTreeSet<NodeId>,
+    /// Nodes of the other roots whose tags are still in their own file's current text: a
+    /// line carrying one here is a copy, so it is a new node (as a duplicated tag within
+    /// one file, §4.4), not a move.
+    #[serde(default)]
+    pub still_in_own_file: BTreeSet<NodeId>,
     /// For nodes of the other roots whose tags appear in this file (a cut from another
     /// file pasted here): that file's base for them, against which the pasted line is
     /// merged. A node without an entry never has its fields pushed.
@@ -551,11 +571,17 @@ pub enum ReportEvent {
     DeleteLost { node: NodeId },
     /// A tag that does not belong to this file was ignored (§4.4).
     ForeignTag { short: ShortId, line: usize },
-    /// A duplicated tag: `kept_line` kept the identity, the others became new nodes.
+    /// A tag of another file of the run that is still on its line there: the line here
+    /// is a copy and became a new node (§4.4, §6.4).
+    CopiedTag { short: ShortId, line: usize },
+    /// A duplicated tag: `kept_line` kept the identity, the lines in `other_tag_lines`
+    /// kept the node of another tag they carry (§4.4), the others became new nodes.
     DuplicateTag {
         short: ShortId,
         lines: Vec<usize>,
         kept_line: usize,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        other_tag_lines: Vec<usize>,
     },
     /// An untagged item was matched to a base node by the fallback (§4.4).
     Rematched { node: NodeId, line: usize },
@@ -744,15 +770,33 @@ impl ReportEvent {
                     "line {line}: id tag {short} does not belong to this file; treated as a new item"
                 )
             }
+            ReportEvent::CopiedTag { short, line } => format!(
+                "line {line}: id tag {short} is still in the file it comes from; treated as a copy (a new item)"
+            ),
             ReportEvent::DuplicateTag {
                 short,
                 lines,
                 kept_line,
+                other_tag_lines,
             } => {
-                let lines: Vec<String> = lines.iter().map(usize::to_string).collect();
+                let join = |ls: &[usize]| -> String {
+                    let ls: Vec<String> = ls.iter().map(usize::to_string).collect();
+                    ls.join(", ")
+                };
+                let new_items = lines.len().saturating_sub(1 + other_tag_lines.len());
+                let other = match other_tag_lines.as_slice() {
+                    [] => String::new(),
+                    [one] => format!("line {one} keeps its other id tag"),
+                    many => format!("lines {} keep their other id tags", join(many)),
+                };
+                let rest = match (other.is_empty(), new_items) {
+                    (true, _) => "the others are new items".to_owned(),
+                    (false, 0) => other,
+                    (false, _) => format!("{other}, the others are new items"),
+                };
                 format!(
-                    "id tag {short} appears on lines {}; line {kept_line} keeps it, the others are new items",
-                    lines.join(", ")
+                    "id tag {short} appears on lines {}; line {kept_line} keeps it, {rest}",
+                    join(lines)
                 )
             }
             ReportEvent::Rematched { node, line } => {
@@ -1027,10 +1071,15 @@ mod tests {
                 short: short.clone(),
                 line: 3,
             },
+            ReportEvent::CopiedTag {
+                short: short.clone(),
+                line: 3,
+            },
             ReportEvent::DuplicateTag {
                 short,
                 lines: vec![3, 9],
                 kept_line: 9,
+                other_tag_lines: Vec::new(),
             },
             ReportEvent::Rematched {
                 node: a.clone(),
