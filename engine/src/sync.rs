@@ -818,10 +818,7 @@ fn prepare(
     let real_merge = mirrors::to_real(&merged, remote, real);
     let plan = match plan::plan(&real_merge, real, &pcfg) {
         Ok(p) => p,
-        Err(PlanError::Brake(b)) => {
-            a.report.warnings.push(format!("brake: {b}"));
-            return Ok(Prepared::Done(SyncOutcome::Braked(b)));
-        }
+        Err(PlanError::Brake(b)) => return Ok(Prepared::Done(SyncOutcome::Braked(b))),
         Err(e) => return Err(e.into()),
     };
 

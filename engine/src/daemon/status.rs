@@ -289,7 +289,7 @@ pub fn render_status(report: &StatusReport) -> String {
         out.push_str("None.\n");
     } else {
         out.push_str(
-            "Removed from a file but not yet deleted in Workflowy (§9.1 guard 2). Put the line \
+            "Removed from a file but not yet deleted in Workflowy. Put the line \
              back to cancel; paste its tag into another synced file to move it there.\n\n",
         );
         if report.deletes_held {

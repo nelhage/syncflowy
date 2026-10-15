@@ -36,8 +36,8 @@ struct Cli {
     #[arg(long, env = "WORKFLOWY_API_KEY", hide_env_values = true, global = true)]
     api_key: Option<String>,
 
-    /// API base URL: the beta API (default) or the mock server for tests. The production
-    /// host is refused: it cannot tell a mirror from an empty node (DM§10.5).
+    /// API base URL (default: the beta API). The production host is refused: it reports
+    /// mirrors as empty items.
     #[arg(long, env = "WORKFLOWY_API_URL", default_value = DEFAULT_BASE_URL, global = true)]
     api_url: String,
 
@@ -126,6 +126,7 @@ fn client(cli: &Cli) -> anyhow::Result<Client> {
     let key = cli
         .api_key
         .clone()
+        .filter(|k| !k.trim().is_empty())
         .ok_or_else(|| anyhow::anyhow!("no API key: pass --api-key or set WORKFLOWY_API_KEY"))?;
     let base_url = cli.api_url.trim_end_matches('/').to_owned();
     if is_production_host(&base_url) {
@@ -333,7 +334,9 @@ fn main() -> ExitCode {
         Ok(true) => ExitCode::SUCCESS,
         Ok(false) => ExitCode::from(1),
         Err(e) => {
-            eprintln!("error: {e:#}");
+            // Every message already names its cause (`Error`'s variants print their
+            // source), so the chain is not appended again.
+            eprintln!("error: {e}");
             ExitCode::from(2)
         }
     }
