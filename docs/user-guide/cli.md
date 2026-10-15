@@ -2,7 +2,7 @@
 
 `syncflowy` has four commands: `render` starts syncing a root, `sync` runs one sync, `daemon` syncs a whole vault
 continuously, and `status` shows the local state. This page covers them, their options and exit codes, the state
-directory, and the choice between the normal Workflowy service and the beta host.
+directory, and which Workflowy host syncflowy talks to.
 
 Note: everything here was verified against a mock of the Workflowy API, not the real service. The examples come from several separate test runs, so the same 12-character id can name different nodes in
 different examples.
@@ -15,7 +15,7 @@ different examples.
 - [status](#status)
 - [daemon](#daemon)
 - [The state directory](#the-state-directory)
-- [The real service, the beta host and rate limits](#the-real-service-the-beta-host-and-rate-limits)
+- [The beta host and rate limits](#the-beta-host-and-rate-limits)
 
 ## Commands at a glance
 
@@ -42,21 +42,20 @@ These work with every command, before or after the command name (`syncflowy -v s
 | option | environment variable | default | what it does |
 |---|---|---|---|
 | `--api-key KEY` | `WORKFLOWY_API_KEY` | none | Your Workflowy API key. Needed by `render`, `sync` and `daemon`, not by `status`. The flag wins over the variable. |
-| `--api-url URL` | `WORKFLOWY_API_URL` | `https://workflowy.com` | Which Workflowy host to talk to. Use `https://beta.workflowy.com` to sync mirrors properly ([below](#the-real-service-the-beta-host-and-rate-limits)). The help text calls this "the mock server for tests"; for you it selects the host. |
-| `--state-dir DIR` | `SYNCFLOWY_STATE_DIR` | `$XDG_STATE_HOME/syncflowy` if `XDG_STATE_HOME` is set, else `~/.local/state/syncflowy` | Where checkpoints, history and journals live. Keep it outside the vault ([below](#the-state-directory)). Every command, `status` included, creates it if it is missing. |
+| `--api-url URL` | `WORKFLOWY_API_URL` | `https://beta.workflowy.com` | Which Workflowy host to talk to. Leave it at the default: the production host `https://workflowy.com` is refused ([below](#the-beta-host-and-rate-limits)). |
+| `--state-dir DIR` | `SYNCFLOWY_STATE_DIR` | `$XDG_STATE_HOME/syncflowy` if `XDG_STATE_HOME` is set, else `~/.local/state/syncflowy` | Where checkpoints, history and journals live. Keep it outside the vault ([below](#the-state-directory)). `render`, `sync` and `daemon` create it if it is missing; `status` creates nothing. |
 | `--request-log FILE` | none | off | Appends one JSON line per API request (method, path, status, timing, response, attempt). The API key is never written. Large bodies are summarised. Useful when reporting a problem. |
 | `-v`, `-vv` | `RUST_LOG` | warnings only | `-v` logs info (each operation sent), `-vv` debug. Logs go to stderr with UTC timestamps. If `RUST_LOG` is set, it replaces `-v`/`-vv` entirely. |
 
-A key variable that is set but empty counts as a key, so you get `invalid credentials` rather than "no API key".
+A key that is empty or only blanks counts as no key.
 
 ## Exit codes
 
 | code | meaning | when |
 |---|---|---|
-| `0` | success | `render` succeeded; every file of a `sync` was `unchanged`, `synced`, a `dry run`, or `paused (paused: true in the frontmatter)`; `status`. Conflicts, safe mode and refused edits of read-only items also exit 0: read the report. |
-| `1` | a file needs attention | some file of a `sync` was `refused: ...` (a safety brake), `skipped: ...` (unreadable frontmatter, no frontmatter, not UTF-8, lock held, retries exhausted), `paused: the file is missing ...`, `paused: several files claim this root ...`, or had a per-file error such as no checkpoint or root not found. The other files of the run are still synced. |
-| `2` | fatal | no API key; a bad key (401); the API unreachable after retries; an export failing; an unusable state directory; for `render`: the file or checkpoint exists, unknown or malformed root; for `status FILE`: that root has no checkpoint, or the file is missing; for `daemon`: the vault is not a directory; any command-line usage error. |
-| `143` / `130` | daemon stopped | the daemon was killed by SIGTERM (143) or Ctrl-C (130, standard shell behaviour, not tested). It never exits 0 on its own. |
+| `0` | success | `render` succeeded; every file of a `sync` was `unchanged`, `synced`, a `dry run`, or `paused (paused: true in the frontmatter)`; `status` found every file it was given; the daemon stopped on a signal. Conflicts, safe mode and refused edits of read-only items also exit 0: read the report. |
+| `1` | a file needs attention | some file of a `sync` was `refused: ...` (a safety brake), `skipped: ...` (unreadable frontmatter, no frontmatter, not UTF-8, a sync-conflict copy, lock held, retries exhausted), `paused: the file is missing ...`, `paused: several files claim this root ...`, or had a per-file error such as no checkpoint or root not found. The other files of the run are still synced. Also: `status FILE` for a file that is missing, unreadable, or whose root has no checkpoint; a daemon given a second stop signal. |
+| `2` | fatal | no API key; the production host; a bad key (401); the API unreachable after retries; an export failing; an unusable state directory; for `render`: the file or checkpoint exists, unknown or malformed root; for `daemon`: the vault is not a directory; any command-line usage error. |
 
 Fatal errors print an `error: ...` line on stderr:
 
@@ -68,14 +67,14 @@ $ env -u WORKFLOWY_API_KEY syncflowy sync vault/garden.md
 error: no API key: pass --api-key or set WORKFLOWY_API_KEY
 [exit 2]
 $ syncflowy --api-key wrong-key sync vault/garden.md
-error: API: invalid credentials: invalid credentials
+error: API: invalid credentials
 [exit 2]
 $ syncflowy --api-url http://127.0.0.1:9 sync vault/garden.md
-error: API: transport error: io: Connection refused (os error 111): transport error: io: Connection refused (os error 111)
+error: API: transport error: io: Connection refused (os error 111)
 [exit 2]
 ```
 
-(The doubled text is cosmetic. An unreachable API takes several seconds to fail: syncflowy retries four times.)
+(An unreachable API takes several seconds to fail: syncflowy retries four times.)
 
 ## render
 
@@ -88,30 +87,30 @@ file is synced. Missing parent directories of `OUT` are created.
 
 | argument / flag | meaning |
 |---|---|
-| `ROOT` | the sync root: a 12-character short id (`584a2265b1f5`), a full UUID, or a URL `https://workflowy.com/#/584a2265b1f5` (also `http://`, `beta.workflowy.com`, any case, optionally followed by `/...` or `?...`) |
+| `ROOT` | the sync root: a 12-character short id (`9d7b9e90badf`), a full UUID, or a URL `https://workflowy.com/#/9d7b9e90badf` (also `http://`, `beta.workflowy.com`, any case, optionally followed by `/...` or `?...`) |
 | `OUT` | the Markdown file to create |
-| `--headings N` | render depth 1 to N as `#` headings (default 0: everything is a list). Use 0 to 6 only: a higher value is accepted here but makes a file that every later `sync` skips with `bad syncflowy config headings: "7"`. See [headings mode](markdown.md#headings-mode). |
-| `--force` | overwrite an existing file and checkpoint |
+| `--headings N` | render depth 1 to N as `#` headings, 0 to 6 (default 0: everything is a list). A value above 6 is a usage error. See [headings mode](markdown.md#headings-mode). |
+| `--force` | overwrite an existing file and checkpoint ([below](#render---force)) |
 
 The `workflowy:` line keeps the root exactly as you typed it:
 
 ```console
-$ syncflowy render https://workflowy.com/#/1193e6c3f339 vault/reading.md --headings 1
+$ syncflowy render https://workflowy.com/#/7e3a8f187b2c vault/reading.md --headings 1
 vault/reading.md: rendered (gen 1)
 [exit 0]
 $ cat vault/reading.md
 ---
-workflowy: https://workflowy.com/#/1193e6c3f339
+workflowy: https://workflowy.com/#/7e3a8f187b2c
 syncflowy: {headings: 1, gen: 1}
 ---
-# Books %%wf:a7dd06839eb9%%
+# Books %%wf:18ceaf00e2ae%%
 
-- [ ] **Middlemarch** ^wf-8ad9f06c144a
+- [ ] **Middlemarch** ^wf-cf37a8ca9fac
 	George Eliot
 
-# Articles %%wf:0c4237730edf%%
+# Articles %%wf:11d2c330f968%%
 
-- [ ] https\://example.org/essay ^wf-b8bc076f3787
+- [ ] https\://example.org/essay ^wf-ec4590986f68
 ```
 
 (`https\://` is how a URL that is plain text in Workflowy, not a link, is written, so that Obsidian does not turn it
@@ -120,27 +119,48 @@ into one. See [escaping](markdown.md#escaping).)
 `render` refuses to overwrite a file, and refuses a root that already has a checkpoint (even into a different file):
 
 ```console
-$ syncflowy render cd613e30-d8f1-4adf-91b7-584a2265b1f5 vault/garden.md
+$ syncflowy render fc9ebf03-15a8-4879-b437-9d7b9e90badf vault/garden.md
 error: vault/garden.md exists (use --force)
 [exit 2]
-$ syncflowy render 584a2265b1f5 vault/garden2.md
-error: root cd613e30-d8f1-4adf-91b7-584a2265b1f5 already has a checkpoint; sync its file instead, or use --force
+$ syncflowy render 9d7b9e90badf vault/garden2.md
+error: root fc9ebf03-15a8-4879-b437-9d7b9e90badf already has a checkpoint; sync its file instead, or use --force
 [exit 2]
 $ syncflowy render not-an-id vault/nope.md
-error: parse: bad workflowy: root "not-an-id": bad workflowy: root "not-an-id"
+error: parse: bad workflowy: root "not-an-id"
 [exit 2]
 ```
 
-`render --force` overwrites both the file and the checkpoint. The generation continues rather than restarting:
+### render --force
+
+`render --force` overwrites both the file and the checkpoint. The generation continues rather than restarting. If
+the existing file names the same root, its frontmatter is kept: your options (`headings`, `ids`, `checkboxes`,
+`depth`, ...) and your own keys (`title`, `tags`, ...), but not `gen`, `force` or `paused` (so a forced re-render
+unpauses the file). `--headings`, if given, changes only the heading depth. The `workflowy:` line is rewritten as
+you typed `ROOT`:
 
 ```console
-$ syncflowy render 1193e6c3f339 vault/reading.md --headings 1 --force
-vault/reading.md: rendered (gen 2)
+$ head -5 vault/reading.md
+---
+workflowy: https://workflowy.com/#/7e3a8f187b2c
+syncflowy: {headings: 1, checkboxes: none, gen: 4}
+tags: [reading]
+---
+$ syncflowy render 7e3a8f187b2c vault/reading.md --force
+vault/reading.md: rendered (gen 5)
+[exit 0]
+$ head -5 vault/reading.md
+---
+workflowy: 7e3a8f187b2c
+syncflowy: {headings: 1, checkboxes: none, gen: 5}
+tags: [reading]
+---
 ```
 
-> **Warning.** `render --force` throws away anything in the file that is not yet in Workflowy, and starts the
-> frontmatter over: only `workflowy:`, `headings` and `gen` are written. Your other options (`ids`, `checkboxes`,
-> `depth`, ...) and your own keys (`title`, `tags`, `aliases`, ...) are lost.
+If the existing file names another root, or its frontmatter does not parse, a fresh frontmatter is written and the
+report says so (`warning: the existing file's frontmatter does not parse (...); it is not kept`). Options written
+outside the `syncflowy:` map are dropped. For a clean reset, delete the file first.
+
+> **Warning.** `render --force` throws away anything in the file that is not yet in Workflowy.
 
 ## sync
 
@@ -163,22 +183,23 @@ One line per file, then details:
 
 ```console
 $ syncflowy sync vault/garden.md
-vault/garden.md: synced: 0 created, 0 updated, 0 moved, 0 reordered, 1 completed, 1 deleted (+0 hidden); file rewritten (gen 3)
-  op 0: complete 9b810e76-6ec9-4286-a3ca-828dd5f4b3b2: done
-  op 1: delete b2221a58-008a-45a6-8464-7159c324c985 (+0 hidden): done
+vault/garden.md: synced: 1 created, 0 updated, 0 moved, 0 reordered, 0 completed, 1 deleted (+1 hidden); file rewritten (gen 3)
+  op 0: create temp-1=a1fcdc04-5151-406a-b73e-1e7cccd3d600 under fc9ebf03-15a8-4879-b437-9d7b9e90badf (direct): done
+  op 1: delete 410aa4f5-ab80-47b2-ae9a-0a2b9a77943c (+1 hidden): done
+  deleting "Beans" (0a2b9a77943c) also deletes 1 hidden item: "Pole beans"
 ```
 
 | part | meaning |
 |---|---|
 | `created`, `updated`, `moved`, `completed`, `deleted` | what was sent to Workflowy. `updated` counts fields, so a new name and a new note on one node count 2. |
 | `reordered` | extra moves needed to put siblings in the right order (the API cannot insert in the middle of a list). |
-| `(+N hidden)` | descendants deleted along with a deleted line that were not shown in the file: completed ones, and ones hidden by `depth:`. They are counted, not named, and children hidden by `depth:` may be missing from the count (a test showed `+0 hidden` although two such children were deleted). |
+| `(+N hidden)` | descendants deleted along with a deleted line that were not shown in the file: completed ones, and ones hidden by `depth:`. A `deleting ... also deletes ...` line names them (the first ten). |
 | `file rewritten (gen N)` | the file was rewritten and is now at generation N. |
-| `file unchanged (gen N)` | your edits were sent, but nothing you need to see changed, so the file was left alone. |
+| `file unchanged (gen N)` | nothing you need to see changed, so the file was left alone. |
 | `op N: ...: done` | one line per API operation sent. |
 | other indented lines | warnings (`warning: ...`), conflicts, refused edits and other events. See [troubleshooting](editing.md#troubleshooting). |
 
-Other one-line outcomes: `unchanged` (nothing to do), `dry run: N op(s)`, `paused ...`, `refused: ...`,
+Other one-line outcomes: `unchanged` (nothing to do), `dry run: N op(s)`, `paused ...`, `refused: ... (use --force)`,
 `skipped: ...`, and per-file errors printed as `FILE: error: ...` on stderr. A per-file error does not stop the
 other files, and the run exits 1:
 
@@ -191,23 +212,42 @@ misc/nofm.md: skipped: the file does not parse: no frontmatter
 [exit 1]
 ```
 
-The `would ...` lines of `--dry-run` are debugging output. Read them for the gist (`Create`, `UpdateName`,
-`Complete`, `Delete { ..., hidden_descendants: 1, ... }`); the format may change.
+`--dry-run` prints the same `op N: ...` lines without `: done`, and names hidden items as a real run does:
+
+```console
+$ syncflowy sync --dry-run vault/garden.md
+vault/garden.md: dry run: 2 op(s)
+  op 0: create temp-1 under fc9ebf03-15a8-4879-b437-9d7b9e90badf (direct)
+  op 1: delete 410aa4f5-ab80-47b2-ae9a-0a2b9a77943c (+1 hidden)
+  deleting "Beans" (0a2b9a77943c) also deletes 1 hidden item: "Pole beans"
+```
+
+A file whose name looks like a sync-conflict copy (see [which files the daemon syncs](#which-files-it-syncs)) is
+never synced: `skipped: looks like a sync conflict copy` (exit 1).
 
 ### Two files for one root
 
-If two of the files you name claim the same root, neither is synced:
+If two files claim the same root, neither is synced, whether you name both in one command:
 
 ```console
 $ syncflowy sync vault/reading.md misc/reading-copy.md     # two files, same root
-[2026-10-15T01:25:07Z WARN  syncflowy::sync] root 05b6e6e3-07d4-4edc-9143-1193e6c3f339 is claimed by several files: ["vault/reading.md", "misc/reading-copy.md"]; not synced
+[2026-10-15T22:24:23Z WARN  syncflowy::sync] root d232f2f7-a78a-4bc8-a94d-7e3a8f187b2c is claimed by several files: ["vault/reading.md", "misc/reading-copy.md"]; not synced
 vault/reading.md: paused: several files claim this root: vault/reading.md, misc/reading-copy.md
 misc/reading-copy.md: paused: several files claim this root: vault/reading.md, misc/reading-copy.md
 [exit 1]
 ```
 
-> **Caution.** `sync` only compares the files on its command line. Each copy synced on its own is accepted. Only
-> the daemon, which scans the whole vault, always catches duplicates. Delete stray copies yourself.
+or only the copy. The checkpoint records the file last synced, and while that file still exists and names the
+root, any other file for that root is paused (the warning line is left out here):
+
+```console
+$ syncflowy sync misc/reading-copy.md
+misc/reading-copy.md: paused: several files claim this root: /…/vault/reading.md, misc/reading-copy.md
+[exit 1]
+```
+
+Syncing the recorded file alone still works. Renaming or moving a file is fine: once the old path is gone (or
+names another root), the new one is accepted. Delete stray copies yourself.
 
 ## status
 
@@ -215,16 +255,17 @@ misc/reading-copy.md: paused: several files claim this root: vault/reading.md, m
 syncflowy status [FILES]...
 ```
 
-Shows the local state of every synced root, or only of the given files' roots. It makes no API calls and needs
-no key. It is safe to run while the daemon is running.
+Shows the local state of every synced root, or only of the given files' roots. It makes no API calls, needs no
+key, and creates nothing. It is safe to run while the daemon is running.
 
 ```console
 $ syncflowy status
-cd613e30-d8f1-4adf-91b7-584a2265b1f5: gen 1, last synced at 1792027196 (unix), file /…/vault/garden.md
+fc9ebf03-15a8-4879-b437-9d7b9e90badf: gen 3, last synced at 1792103057 (unix), file /…/vault/garden.md
   the file is as last written
 ```
 
-Per root: the generation, the last sync time (Unix seconds), the file's absolute path, then one or more of:
+Per root: the generation, the last sync time (Unix seconds), the file's path (absolute, or as you typed it when
+you named the file), then one or more of:
 
 | line | meaning |
 |---|---|
@@ -234,8 +275,18 @@ Per root: the generation, the last sync time (Unix seconds), the file's absolute
 | `an unfinished cycle was interrupted: the next sync recovers it` | a sync was killed part-way; see [after a crash](editing.md#after-a-crash) |
 | `pending delete: "Beans" (f3c64af7-75a8-4294-82cd-789a380208a9), first seen at 1792027370` | the daemon is waiting to delete this node |
 
-With no synced roots it prints `no synced roots in <state dir>`. `status FILE` for a file whose root has no
-checkpoint, or for a missing file, is a fatal error (exit 2).
+With no synced roots (or no state directory) it prints `no synced roots in <state dir>`. A file you name that is
+missing, cannot be read, or whose root has no checkpoint gets one line of its own; the other files are still
+shown, and the exit code is 1:
+
+```console
+$ syncflowy status vault/garden.md misc/nope.md misc/unknown.md
+fc9ebf03-15a8-4879-b437-9d7b9e90badf: gen 3, last synced at 1792103057 (unix), file vault/garden.md
+  the file is as last written
+misc/nope.md: missing
+misc/unknown.md: no checkpoint for root 000000000000 in this state directory
+[exit 1]
+```
 
 ## daemon
 
@@ -286,21 +337,23 @@ node, so the date does not end up in the Workflowy text (covered by tests, not r
 
 After every cycle the daemon rewrites `Workflowy Sync Status.md` (only when its content changes). Do not edit it:
 your changes are overwritten. It has no frontmatter, so it is never synced itself. All times are UTC. This is a
-real note from a run with one pending delete and one stray conflict copy:
+real note from a run with one pending delete, one stray conflict copy and one file just
+[adopted](#adopting-a-file-without-the-command-line):
 
 ```markdown
 # Workflowy sync status
 
 This note is written by syncflowy after every cycle; edits to it are overwritten.
 
-Last cycle: 2026-10-15 01:22 UTC
+Last cycle: 2026-10-15 22:25 UTC
 
 ## Roots
 
 | File | Root | Last sync | Gen | State |
 |---|---|---|---|---|
-| [[garden]] | Garden plan `584a2265b1f5` | 2026-10-15 01:22 UTC | 2 | ok |
-| [[reading]] | Reading list `1193e6c3f339` | 2026-10-15 01:22 UTC | 3 | ok |
+| [[garden]] | Garden plan `9d7b9e90badf` | 2026-10-15 22:25 UTC | 4 | ok |
+| [[home]] | Home `7f656569aada` | 2026-10-15 22:25 UTC | 1 | ok |
+| [[reading]] | Reading list `7e3a8f187b2c` | 2026-10-15 22:25 UTC | 5 | ok |
 
 ## Conflicts awaiting resolution
 
@@ -308,9 +361,9 @@ None.
 
 ## Pending deletes
 
-Removed from a file but not yet deleted in Workflowy (§9.1 guard 2). Put the line back to cancel; paste its tag into another synced file to move it there.
+Removed from a file but not yet deleted in Workflowy. Put the line back to cancel; paste its tag into another synced file to move it there.
 
-- [[garden]]: "Beans", removed 2026-10-15 01:22 UTC, deleted at the first cycle after 2026-10-15 01:23 UTC with the file unchanged
+- [[garden]]: "Tomatoes", removed 2026-10-15 22:25 UTC, deleted at the first cycle after 2026-10-15 22:25 UTC with the file unchanged
 
 ## Problems
 
@@ -318,7 +371,8 @@ Removed from a file but not yet deleted in Workflowy (§9.1 guard 2). Put the li
 
 ## Safe-mode episodes
 
-None.
+- 2026-10-15 22:24 UTC [[home]]: safe mode: 1 structural change(s) not applied (the file's base is unknown)
+- 2026-10-15 22:24 UTC [[home]]: no checkpoint: bootstrapped from Workflowy in safe mode (--force)
 
 ## Dropped resurrections and stale echoes
 
@@ -333,22 +387,21 @@ None.
 None.
 ```
 
-(The "§9.1 guard 2" in the note refers to the [design document](../sync-design.md); you can ignore it.)
-
 The sections are always in this order:
 
 | section | lists |
 |---|---|
 | Roots | each root: its file (as a wikilink), its name and short id, last sync, generation, state |
 | Conflicts awaiting resolution | each conflict marker still in a file, with its line number |
-| Pending deletes | removed lines waiting for their grace period. "Held: another synced file has edits waiting to be synced." means they wait for another file to settle. |
+| Pending deletes | removed lines waiting for their grace period, with `(with N hidden item(s))` when the delete takes hidden descendants. "Held: another synced file has edits waiting to be synced." means they wait for another file to settle. |
 | Problems | duplicate roots, conflict copies, files that do not parse, current per-file errors, and `All files: ...` for errors that affect every file |
 | Safe-mode episodes | syncs that ran in [safe mode](editing.md#safe-mode) |
 | Dropped resurrections and stale echoes | old text, or lines of completed nodes, brought back (for example by a sync tool's merge) and ignored |
-| API errors | failed cycles |
-| Other events | brakes, errors, conflicts, deletes sent, cancelled deletes |
+| API errors | failed cycles, and a fatal error that stopped the daemon |
+| Other events | brakes, errors, conflicts, refused edits, deletes sent, cancelled deletes, `the daemon stopped`, and the other notices a `sync` report shows |
 
-The event lists keep the 50 newest events, in memory only: they start empty when the daemon restarts.
+The event lists keep the 50 newest events. They are saved in the state directory (`daemon-events.json`), so they
+survive a restart.
 
 The **State** column of the Roots table shows one of:
 
@@ -361,9 +414,9 @@ The **State** column of the Roots table shows one of:
 | `paused: several files name this root` | duplicate files |
 | ``refused by a brake: ...; set `force: true` to override once`` | a [mass-change brake](editing.md#mass-change-brakes) stopped it |
 | `skipped: ...` | the file could not be read or parsed |
-| `error: ...` | a per-file error, such as `error: no checkpoint for root ...` |
-| ``not initialised: run `syncflowy render`, or set `force: true` to adopt the file`` | seen before the first cycle for a file with no checkpoint; after a cycle the row shows `error: no checkpoint ...` instead |
-| `not synced yet` | no successful cycle yet in this run (also shown while the API is unreachable) |
+| `error: ...` | a per-file error, or, on every row, an error of the whole cycle such as `error: API: transport error: ...` |
+| ``not initialised: run `syncflowy render`, or set `force: true` to adopt the file`` | the file's root has no checkpoint |
+| `not synced yet` | no successful cycle yet in this run, and no error to show |
 
 ### Errors
 
@@ -371,10 +424,11 @@ The **State** column of the Roots table shows one of:
   operation is logged, shown in the status note and retried. A file that failed is retried at every cycle, and the
   failure is logged once, until its content changes.
 - **Network and API outages do not stop it either.** The cycle is logged as `the cycle failed: ...`, shown under
-  API errors and as `All files: ...` under Problems, and retried at the next cycle:
+  API errors, as `All files: ...` under Problems and as `error: ...` in every row of the Roots table, and retried at
+  the next cycle:
 
   ```text
-  [2026-10-15T01:24:05Z WARN  syncflowy::daemon] the cycle failed: API: transport error: io: Connection refused (os error 111)
+  [2026-10-15T22:26:27Z WARN  syncflowy::daemon] the cycle failed: API: transport error: io: Connection refused (os error 111)
   ```
 
 - **These stop it, with exit code 2:** a rejected API key (401), an unusable state directory, a vault that is not a
@@ -383,8 +437,8 @@ The **State** column of the Roots table shows one of:
 
   ```console
   $ syncflowy --api-key wrong-key daemon --vault vault
-  [2026-10-15T01:23:45Z WARN  syncflowy::daemon] fatal: API: invalid credentials; stopping
-  error: API: invalid credentials: invalid credentials
+  [2026-10-15T22:26:15Z WARN  syncflowy::daemon] fatal: API: invalid credentials; stopping
+  error: API: invalid credentials
   [exit 2]
   ```
 
@@ -400,7 +454,7 @@ just a frontmatter naming the root and `force: true`, inside the `syncflowy:` ma
 
 ```markdown
 ---
-workflowy: 3fef701966a0
+workflowy: 7f656569aada
 syncflowy: {force: true}
 ---
 ```
@@ -410,21 +464,30 @@ deletes nothing that the file does not mention. In the real run, the file became
 
 ```markdown
 ---
-workflowy: 3fef701966a0
+workflowy: 7f656569aada
 syncflowy: {gen: 1}
 ---
-- [ ] Call the plumber ^wf-d2803bab6c39
+- [ ] Call the plumber ^wf-7993335e521e
 ```
 
-and the status note logged `no checkpoint: bootstrapped from Workflowy in safe mode (--force)` under Safe-mode
-episodes.
+and the status note logged it under Safe-mode episodes (the `home` lines in the note above).
 
 ### Stopping and restarting
 
-Stop the daemon with Ctrl-C or SIGTERM (`kill <pid>`). There is no graceful shutdown and no pid file, and the
-status note is not updated on stop. This is safe: every file and state write is atomic, and a sync interrupted
-part-way is recovered by the next run, CLI or daemon (see [after a crash](editing.md#after-a-crash)). Pending
-deletes are kept in the state directory; the status note's event log is not.
+Stop the daemon with Ctrl-C or SIGTERM (`kill <pid>`). It finishes the cycle in progress (which can take a few
+seconds while it retries a failing API), writes `Stopped at ...` into the status note and a `the daemon stopped`
+event, and exits 0:
+
+```markdown
+Last cycle: 2026-10-15 22:26 UTC
+
+Stopped at 2026-10-15 22:26 UTC: nothing is synced until the daemon runs again.
+```
+
+A second signal while it is stopping ends it at once (exit 1). That is safe too: every file and state write is
+atomic, and a sync interrupted part-way is recovered by the next run, CLI or daemon (see
+[after a crash](editing.md#after-a-crash)). There is no pid file. Pending deletes and the status note's event log
+are kept in the state directory, so a restart picks up where the daemon left off.
 
 You can run `syncflowy status` while the daemon runs. You can also run `syncflowy sync` by hand next to it on the same
 state directory (they take turns through a per-root lock), but remember that `sync` sends deletes at once.
@@ -442,8 +505,9 @@ What this guide cannot tell you (not covered by the project yet):
 - a ready-made service definition: the project ships no systemd unit, launchd file or container image.
 
 If you run it under a supervisor such as systemd, give it a restart delay: a bad API key makes the daemon exit
-immediately, and an instant restart would loop. On the server, do not run Obsidian plugins that rewrite lines in
-synced files (Tasks, Linter, templaters).
+immediately, and an instant restart would loop. A clean stop exits 0, so a supervisor that restarts only on
+failure leaves a stopped daemon stopped. On the server, do not run Obsidian plugins that rewrite lines in synced
+files (Tasks, Linter, templaters).
 
 ## The state directory
 
@@ -451,6 +515,7 @@ syncflowy keeps what it needs to tell your edits from Workflowy's in the state d
 
 ```text
 <state_dir>/
+  daemon-events.json       the daemon's event log (the status note's event sections)
   roots/<root uuid>/
     checkpoint.json        what the file and the subtree looked like at the last sync
     pending.json           the daemon's pending deletes
@@ -466,10 +531,12 @@ private as the notes themselves.
 engines, which is not supported, and its files would show up as notes. The CLI does not check this; the daemon only
 warns.
 
-**One engine per account.** The lock only stops two syncs from the same state directory running at the same moment.
-A second `sync` then reports `skipped: another sync holds the root's lock` (exit 1), a second `render` fails with
-`root ... is locked by another process` (exit 2). Nothing stops two machines with separate state directories from
-syncing the same root, so do not do it.
+**One engine per account.** Run every `render`, `sync` and `daemon` for a vault with the same state directory. The
+lock only stops two syncs from that state directory running at the same moment. A second `sync` then reports
+`skipped: another sync holds the root's lock` (exit 1), a second `render` fails with
+`root ... is locked by another process` (exit 2). Nothing stops or detects two machines with separate state
+directories syncing the same root, so do not do it: each reads the other's `gen` as unknown (safe mode) or, worse,
+as one of its own generations, and merges against the wrong base.
 
 ### If you lose it
 
@@ -480,7 +547,7 @@ $ syncflowy status
 no synced roots in /…/state
 [exit 0]
 $ syncflowy sync vault/garden.md
-vault/garden.md: error: no checkpoint for root cd613e30-d8f1-4adf-91b7-584a2265b1f5; run `syncflowy render` first or use --force
+vault/garden.md: error: no checkpoint for root fc9ebf03-15a8-4879-b437-9d7b9e90badf; run `syncflowy render` first or use --force
 [exit 1]
 ```
 
@@ -495,30 +562,34 @@ You have two ways back:
    $ syncflowy sync --force vault/garden.md
    vault/garden.md: synced: 1 created, 0 updated, 0 moved, 0 reordered, 0 completed, 0 deleted (+0 hidden); file rewritten (gen 1)
      warning: no checkpoint: bootstrapped from Workflowy in safe mode (--force)
-     op 0: create temp-1=1a2b8f1f-f1fd-42a2-9755-d4c13a902931 under cd613e30-d8f1-4adf-91b7-584a2265b1f5 (direct): done
+     op 0: create temp-1=024eea3c-9109-4939-af57-37f9a6817a6c under fc9ebf03-15a8-4879-b437-9d7b9e90badf (direct): done
      safe mode: 0 structural change(s) not applied (the file's base is unknown)
    ```
 
    Caution: text you edited since the last sync may overwrite a collaborator's newer edit of the same line (by
    design; not verified in practice). `--force` also disables the brakes for that run.
 
-2. **Start the file over from Workflowy**: `syncflowy render --force ROOT FILE`. Unsynced edits in the file and your
-   custom frontmatter are lost.
+2. **Start the file over from Workflowy**: `syncflowy render --force ROOT FILE`. Unsynced edits in the file are lost;
+   the frontmatter is kept ([render --force](#render---force)).
 
-## The real service, the beta host and rate limits
+## The beta host and rate limits
 
-**Production** (`https://workflowy.com`, the default) is what you normally use. Its API does not say which nodes are
-mirrors: a mirror looks like an empty bullet. syncflowy shows such nodes as read-only `⧉ (empty or mirror)`
-placeholders and refuses to change them without `--force` (see [mirrors](markdown.md#mirrors)).
+syncflowy talks only to Workflowy's **beta host**, `https://beta.workflowy.com`, the default of `--api-url`. It
+serves the same account and data as `https://workflowy.com`, but its API says which nodes are mirrors, so syncflowy
+can show each mirror with its real content (see [mirrors](markdown.md#mirrors)). The production API reports a mirror
+as an empty bullet, so syncflowy refuses it:
 
-**The beta host** (`--api-url https://beta.workflowy.com`) serves the same account and data, and tells syncflowy
-about mirrors. syncflowy notices this by itself (no extra flag) as soon as the account has at least one mirror, and
-then shows each mirror with its real content, which you can edit. In an account without any mirror, the beta host
-looks exactly like production, and empty bullets are placeholders as there. Its behaviour was observed in October 2026 and is reproduced by the mock; syncflowy itself has
-not been run against it.
+```console
+$ syncflowy --api-url https://workflowy.com sync vault/garden.md
+error: https://workflowy.com is the production API, which reports mirrors as empty nodes; syncflowy needs the beta API (https://beta.workflowy.com), which serves the same data
+[exit 2]
+```
+
+Root URLs in files and on the command line may still use `workflowy.com`: they only name a node. The beta host's
+behaviour was observed in October 2026 and is reproduced by the mock; syncflowy itself has not been run against it.
 
 **Rate limits.** syncflowy sends at most 10 requests per second and retries failures up to four times with growing
-waits. Workflowy documents a limit of one full export per minute (it was not enforced when the
-project tested production, but may be). Each `sync` run does one or two exports, and the
-CLI does not throttle itself, so do not run `sync` in a tight loop; the daemon keeps to the limit with
-`--min-export-interval 60`.
+waits. Workflowy documents a limit of one full export per minute (it was not enforced when the project tested
+production, but may be). If Workflowy answers "too many requests" (429), syncflowy waits as long as it asks, for up
+to 90 seconds in total, before giving up. Each `sync` run does one or two exports, and the CLI does not throttle
+itself, so do not run `sync` in a tight loop; the daemon keeps to the limit with `--min-export-interval 60`.
