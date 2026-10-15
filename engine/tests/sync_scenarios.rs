@@ -154,6 +154,46 @@ fn root_note_and_code_block_edits() {
 }
 
 #[test]
+fn unfencing_or_forcing_a_multi_line_value_loses_nothing() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Root");
+    let code = env.ui_create_with(
+        Some(&root),
+        json!({"text": "line one\nline two", "layoutMode": "code-block"}),
+    );
+    let two = env.ui_create(Some(&root), "Two-line\nname");
+    let file = env.path("root.md");
+    env.render(&root, &file);
+    let lossy = |r: &sync::SyncReport| {
+        r.events
+            .iter()
+            .any(|e| matches!(e, ReportEvent::LossyWrite { .. }))
+    };
+
+    // The user saw both lines of the code block when they unfenced it.
+    let cs = short(&code);
+    edit(
+        &file,
+        &format!("- ``` ^wf-{cs}\n\tline one\n\tline two\n\t```\n"),
+        &format!("- A1 unfenced ^wf-{cs}\n"),
+    );
+    let r = env.sync(&file);
+    assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    assert!(!lossy(&r), "{r:#?}");
+    assert_eq!(env.export().get(&code).unwrap().name, "A1 unfenced");
+
+    // A forced edit of a read-only name: the user saw its 🔒.
+    let mut cfg = env.cfg.clone();
+    cfg.force = true;
+    edit(&file, "🔒 Two-line ⏎ name", "Two-line name forced");
+    let r = sync::sync_once(&env.client, &file, &cfg).unwrap();
+    assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    assert!(!lossy(&r), "{r:#?}");
+    assert_eq!(env.export().get(&two).unwrap().name, "Two-line name forced");
+    settle(&env, &file);
+}
+
+#[test]
 fn remote_move_out_of_the_root_leaves_the_file() {
     let (env, _root, a, _b, file) = setup();
     let elsewhere = env.ui_create(None, "Elsewhere");

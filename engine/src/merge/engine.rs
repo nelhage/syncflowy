@@ -126,8 +126,15 @@ struct Detected {
     /// The local name Markdown, if the name changed.
     name: Option<String>,
     name_kind: FieldKind,
+    /// The user saw all of the base name, so a write that cannot merge onto it loses
+    /// nothing worth a [`ReportEvent::LossyWrite`]: the item changed kind (a code block
+    /// unfenced, say) and the base round-trips in its old kind, or a read-only name was
+    /// edited with `force` (the `🔒` was in view).
+    name_seen: bool,
     /// The local note Markdown (lines joined by `\n`), if the note changed.
     note: Option<String>,
+    /// As `name_seen`, for a read-only note edited with `force`.
+    note_seen: bool,
     /// The target layout, if the Markdown changed kind (§4.3).
     layout: Option<String>,
 }
@@ -1001,13 +1008,16 @@ impl<'a, 'c> Engine<'a, 'c> {
         let kb = field_kind(bi);
         let kl = field_kind(li);
         // §10 placeholders, §15.1 stubs and §5.3 read-only items.
-        let ro_item = !self.force
-            && (has_ro_flag(bi) || matches!(bi.kind, ItemKind::Placeholder | ItemKind::MirrorStub));
+        let ro_flagged =
+            has_ro_flag(bi) || matches!(bi.kind, ItemKind::Placeholder | ItemKind::MirrorStub);
+        let ro_item = !self.force && ro_flagged;
         let mut refused = false;
         let mut d = Detected {
             name: None,
             name_kind: kl,
+            name_seen: false,
             note: None,
+            note_seen: false,
             layout: None,
         };
 
@@ -1021,13 +1031,16 @@ impl<'a, 'c> Engine<'a, 'c> {
                     node: n.clone(),
                     field: ConflictField::Name,
                 });
-            } else if ro_item
-                || (!self.force
-                    && self.codec.classify(&base_node.name, kb, self.inline) == Tier::ReadOnly)
-            {
-                refused = true;
             } else {
-                d.name = Some(li.name_md.clone());
+                let tier = self.codec.classify(&base_node.name, kb, self.inline);
+                if ro_item || (!self.force && tier == Tier::ReadOnly) {
+                    refused = true;
+                } else {
+                    d.name = Some(li.name_md.clone());
+                    d.name_seen = ro_flagged
+                        || tier == Tier::ReadOnly
+                        || (kb != kl && tier <= Tier::Passthrough);
+                }
             }
         }
 
@@ -1038,20 +1051,20 @@ impl<'a, 'c> Engine<'a, 'c> {
                 self.codec
                     .md_to_wf(&Self::note_md(p), FieldKind::Note, self.inline)
             });
-            let base_note = base_node.note.as_deref().unwrap_or("");
             if stale {
                 self.report.push(ReportEvent::StaleEcho {
                     node: n.clone(),
                     field: ConflictField::Note,
                 });
-            } else if ro_item
-                || (!self.force
-                    && self.codec.classify(base_note, FieldKind::Note, self.inline)
-                        == Tier::ReadOnly)
-            {
-                refused = true;
             } else {
-                d.note = Some(local_note);
+                let base_note = base_node.note.as_deref().unwrap_or("");
+                let tier = self.codec.classify(base_note, FieldKind::Note, self.inline);
+                if ro_item || (!self.force && tier == Tier::ReadOnly) {
+                    refused = true;
+                } else {
+                    d.note = Some(local_note);
+                    d.note_seen = ro_flagged || tier == Tier::ReadOnly;
+                }
             }
         }
 
@@ -1320,12 +1333,14 @@ impl<'a, 'c> Engine<'a, 'c> {
         }
     }
 
-    /// §6.1 for a name (character-level text, no line merge).
+    /// §6.1 for a name (character-level text, no line merge). `seen`: see
+    /// [`Detected::name_seen`].
     #[allow(clippy::too_many_arguments)]
     fn merge_name(
         &mut self,
         n: &NodeId,
         kind: FieldKind,
+        seen: bool,
         base_val: &str,
         remote_val: &str,
         md: &str,
@@ -1335,7 +1350,7 @@ impl<'a, 'c> Engine<'a, 'c> {
         let w = self.codec.write_value(base_val, md, kind, self.inline);
         if base_val == remote_val {
             if w.wf != remote_val {
-                self.set_name(n, remote_val, w.wf, w.lost, push);
+                self.set_name(n, remote_val, w.wf, w.lost && !seen, push);
             }
         } else if w.wf != remote_val && !ticked {
             // Both changed differently: remote wins, local kept as a marker.
@@ -1399,10 +1414,13 @@ impl<'a, 'c> Engine<'a, 'c> {
         });
     }
 
-    /// §6.1 for a note: a line-level diff3 first, then a conflict.
+    /// §6.1 for a note: a line-level diff3 first, then a conflict. `seen`: see
+    /// [`Detected::note_seen`].
+    #[allow(clippy::too_many_arguments)]
     fn merge_note(
         &mut self,
         n: &NodeId,
+        seen: bool,
         base_val: &str,
         remote: Option<&str>,
         md: &str,
@@ -1413,9 +1431,10 @@ impl<'a, 'c> Engine<'a, 'c> {
         let w = self
             .codec
             .write_value(base_val, md, FieldKind::Note, self.inline);
+        let lost = w.lost && !seen;
         if base_val == rv {
             if w.wf != rv {
-                self.set_note(n, remote, w.wf, w.lost, push);
+                self.set_note(n, remote, w.wf, lost, push);
             }
             return;
         }
@@ -1427,7 +1446,7 @@ impl<'a, 'c> Engine<'a, 'c> {
         match diff3_lines(base_val, &w.wf, rv) {
             Some(merged) if self.codec.is_canonical(&merged) => {
                 if merged != rv {
-                    self.set_note(n, remote, merged, w.lost, push);
+                    self.set_note(n, remote, merged, lost, push);
                 }
             }
             _ => self.add_conflict(n, ConflictField::Note, md.to_owned()),
@@ -1483,8 +1502,12 @@ impl<'a, 'c> Engine<'a, 'c> {
                 // The preamble has no line number of its own: 0 stands for it.
                 self.refuse(&root, 0);
             } else {
+                // With `force`, a read-only preamble was edited in view of its `🔒`.
+                let seen = self.codec.classify(base_note, FieldKind::Note, self.inline)
+                    == Tier::ReadOnly;
                 self.merge_note(
                     &root,
+                    seen,
                     base_note,
                     remote_root.note.as_deref(),
                     &local_md,
@@ -1527,11 +1550,21 @@ impl<'a, 'c> Engine<'a, 'c> {
         if let Some(md) = &d.name
             && !divider_lost
         {
-            self.merge_name(nd, d.name_kind, &b.name, &r.name, md, ticked, &mut push);
+            self.merge_name(
+                nd,
+                d.name_kind,
+                d.name_seen,
+                &b.name,
+                &r.name,
+                md,
+                ticked,
+                &mut push,
+            );
         }
         if let Some(md) = &d.note {
             self.merge_note(
                 nd,
+                d.note_seen,
                 b.note.as_deref().unwrap_or(""),
                 r.note.as_deref(),
                 md,
@@ -1690,7 +1723,7 @@ impl<'a, 'c> Engine<'a, 'c> {
                 let w = self
                     .codec
                     .write_value(&b.name, md, d.name_kind, self.inline);
-                if w.lost {
+                if w.lost && !d.name_seen {
                     lost.push(ConflictField::Name);
                 }
                 w.wf
@@ -1704,7 +1737,7 @@ impl<'a, 'c> Engine<'a, 'c> {
                 let w = self
                     .codec
                     .write_value(&base_note, md, FieldKind::Note, self.inline);
-                if w.lost {
+                if w.lost && !d.note_seen {
                     lost.push(ConflictField::Note);
                 }
                 w.wf

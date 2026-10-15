@@ -276,7 +276,9 @@ express (leading or trailing whitespace, an unrecognised attribute and so on) **
 just the edited part**. Refinement: let `b` be the base WF value and `b' = md_to_wf(render(b))` its lossy
 round-trip. If `b' == b`, write `md_to_wf(new_md)`. Otherwise compute the edit from `b'` to
 `md_to_wf(new_md)` and apply it to `b` with a three-way text merge (character-level for names, line-level for notes).
-If that merge does not apply cleanly, fall back to the naive write and log what was lost.
+If that merge does not apply cleanly, fall back to the naive write and log what was lost. Nothing is logged
+when the user saw all of `b`: the item changed kind (a code block unfenced, say) and `b` round-trips in its
+old kind, or a read-only value (§5.3) was edited with `force`.
 
 ### 5.3 Representability tiers
 
