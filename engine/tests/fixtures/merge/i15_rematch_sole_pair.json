@@ -1,0 +1,80 @@
+{
+  "base": {
+    "children": [
+      {
+        "id": "a",
+        "name": "Alpha"
+      },
+      {
+        "id": "t",
+        "layout": "todo",
+        "name": "Todo me"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§4.4 deleted tag with a larger edit: the untagged line and the vanished base item are the only unmatched pair under their parent, at the same index, so the line is that item renamed (its todo layout kept) although the texts are not similar.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  a \"Alpha\"",
+      "  t \"Something completely different\" layout=todo",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "root": [
+        "a",
+        "t",
+        "c"
+      ]
+    },
+    "pushes": {
+      "t": {
+        "name": [
+          "Todo me",
+          "Something completely different"
+        ]
+      }
+    },
+    "report": [
+      {
+        "Rematched": {
+          "line": 2,
+          "node": "t"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 3,
+      "conflicts": 0,
+      "created": 0,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 3,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Something completely different",
+      "op": "set",
+      "tag": "t"
+    },
+    {
+      "op": "untag",
+      "tag": "t"
+    }
+  ]
+}

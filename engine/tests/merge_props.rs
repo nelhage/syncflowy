@@ -439,8 +439,13 @@ proptest! {
             }
         }
         for n in &r.ticks {
-            let (li, _) = local_by_tag.get(&lbl(n)).expect("ticked item is tagged");
-            prop_assert_eq!(li.check.as_deref(), Some("x"));
+            // A line typed `[x]` in place of a deleted one may be matched to its node
+            // (§4.4 deleted-tag fallback): a tick of that node.
+            let rematched = r.report.iter().any(|e| matches!(e, ReportEvent::Rematched { node, .. } if node == n));
+            match local_by_tag.get(&lbl(n)) {
+                Some((li, _)) => prop_assert_eq!(li.check.as_deref(), Some("x")),
+                None => prop_assert!(rematched, "ticked item is tagged or rematched: {}", lbl(n)),
+            }
         }
         for mv in &r.moves {
             let t = lbl(&mv.node);

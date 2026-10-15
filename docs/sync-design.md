@@ -225,7 +225,10 @@ Ids in a freely edited text file are fragile. The engine must handle all of thes
 - **Deleted tag, text kept**: this looks like delete plus create, which would destroy the node's WF history
   and, worse, re-create the node's WF-only features (colour, mirror status, `layoutMode`) as lost. Fallback:
   pair each unmatched new item with an unmatched deleted base item of the same parent, position and similar
-  text, and treat the pair as an edit.
+  text (or text that keeps the old name as its prefix), and treat the pair as an edit. When the two are the
+  only unmatched pair under their parent and at the same index, pair them whatever the text: a real "delete
+  a line, type a new one in its place" then becomes a rename, which keeps the old node's history (the smaller
+  loss). The report names every such pairing.
 - **Tag of a node outside this file**: the user pasted from another synced file or typed a tag. This is a
   cross-file move if the id exists remotely (§6.4), and is ignored with a warning otherwise.
 - **Edits that make a tag ambiguous** (text after the tag, two tags on a line): take the last valid one.

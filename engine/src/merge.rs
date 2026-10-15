@@ -71,10 +71,17 @@
 //! 4. Deleted-tag fallback: an untagged item under the same parent as an unmatched base
 //!    item (tagged in `base_doc`, tag missing from `local_doc`), at a nearby sibling
 //!    position (at most [`REMATCH_MAX_DISTANCE`] apart), with similar text (similarity
-//!    ratio >= [`REMATCH_MIN_RATIO`]), is that base item edited
+//!    ratio >= [`REMATCH_MIN_RATIO`], or the item's text starts with the base item's:
+//!    text appended to the name), is that base item edited
 //!    ([`ReportEvent::Rematched`]). Same for an item that reappears where a
 //!    pending-delete node was (§9.1 guard 2). Pairs are chosen greedily by best ratio,
-//!    then nearest position, parents before children.
+//!    then nearest position, parents before children. When no such pair is left, an
+//!    untagged item that is the only unmatched item under its parent is paired with the
+//!    only unmatched base item there (still in the subtree remotely, not pasted into
+//!    another file), whatever the text, if both are at the same sibling index: a tag
+//!    removed together with a larger edit (§1: a delete and create would lose the
+//!    node's Workflowy-only attributes). UNVERIFIED design choice: a line deleted and
+//!    another typed in its place becomes a rename, the smaller loss.
 //! 5. Everything else is a local create, numbered `NodeId::temp(1)`, `temp(2)`, … in file
 //!    pre-order (resurrections are numbered in the same sequence).
 //!

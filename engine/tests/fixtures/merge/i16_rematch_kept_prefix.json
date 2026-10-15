@@ -1,0 +1,100 @@
+{
+  "base": {
+    "children": [
+      {
+        "id": "q",
+        "name": "Quote me"
+      },
+      {
+        "id": "b",
+        "name": "Beta"
+      },
+      {
+        "id": "c",
+        "name": "Gamma"
+      }
+    ],
+    "id": "root",
+    "name": "Root"
+  },
+  "description": "§4.4 deleted tag, text appended: an untagged line that keeps the vanished item's text as its prefix counts as similar (similarity about 0.48 here) and is matched one position away, although a new line typed in between makes the pair not the only one.",
+  "expected": {
+    "cancelled_pending": [],
+    "conflicts": [],
+    "creates": [
+      {
+        "layout": "bullets",
+        "line": 1,
+        "name": "A brand new line",
+        "note": null,
+        "parent": "root",
+        "resurrects": null,
+        "temp": "temp-1",
+        "ticked": false
+      }
+    ],
+    "deletes": [],
+    "merged": [
+      "root \"Root\"",
+      "  temp-1 \"A brand new line\"",
+      "  q \"Quote me, slightly edited\"",
+      "  b \"Beta\"",
+      "  c \"Gamma\""
+    ],
+    "moves": [],
+    "orders": {
+      "root": [
+        "temp-1",
+        "q",
+        "b",
+        "c"
+      ]
+    },
+    "pushes": {
+      "q": {
+        "name": [
+          "Quote me",
+          "Quote me, slightly edited"
+        ]
+      }
+    },
+    "report": [
+      {
+        "Rematched": {
+          "line": 2,
+          "node": "q"
+        }
+      }
+    ],
+    "stats": {
+      "base_visible": 3,
+      "conflicts": 0,
+      "created": 1,
+      "deleted_hidden": 0,
+      "deleted_visible": 0,
+      "local_items": 4,
+      "pushed_fields": 1,
+      "ticked": 0
+    },
+    "ticks": []
+  },
+  "local_edits": [
+    {
+      "name": "Quote me, slightly edited",
+      "op": "set",
+      "tag": "q"
+    },
+    {
+      "op": "untag",
+      "tag": "q"
+    },
+    {
+      "index": 0,
+      "item": {
+        "name": "A brand new line"
+      },
+      "op": "insert",
+      "parent": null
+    }
+  ]
+}

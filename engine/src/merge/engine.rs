@@ -265,6 +265,18 @@ fn similarity(a: &str, b: &str) -> f32 {
     TextDiff::from_chars(a, b).ratio()
 }
 
+/// §4.4 deleted-tag fallback: the similarity of an untagged line's text to a vanished
+/// node's. A line that keeps the old text as its prefix (text appended to the name)
+/// counts as similar whatever it appended.
+fn rematch_ratio(text: &str, old: &str) -> f32 {
+    let r = similarity(text, old);
+    if !old.is_empty() && text.starts_with(old) {
+        r.max(REMATCH_MIN_RATIO)
+    } else {
+        r
+    }
+}
+
 fn ratio_key(r: f32) -> i64 {
     (f64::from(r) * 1_000_000.0).round() as i64
 }
@@ -886,7 +898,7 @@ impl<'a, 'c> Engine<'a, 'c> {
                     if dist > REMATCH_MAX_DISTANCE {
                         continue;
                     }
-                    let r = similarity(&text, &self.plain_of_md(bi.item));
+                    let r = rematch_ratio(&text, &self.plain_of_md(bi.item));
                     if r >= REMATCH_MIN_RATIO {
                         pairs.push((-ratio_key(r), dist, i, node.clone(), false));
                     }
@@ -917,13 +929,16 @@ impl<'a, 'c> Engine<'a, 'c> {
                         continue;
                     }
                     let name = &remote.get(p).expect("in remote").name;
-                    let r = similarity(&text, &self.codec.plain_text(name));
+                    let r = rematch_ratio(&text, &self.codec.plain_text(name));
                     if r >= REMATCH_MIN_RATIO {
                         pairs.push((-ratio_key(r), dist, i, p.clone(), true));
                     }
                 }
             }
             if pairs.is_empty() {
+                if self.rematch_sole_pairs(&claimed) {
+                    continue;
+                }
                 return;
             }
             pairs.sort();
@@ -946,6 +961,59 @@ impl<'a, 'c> Engine<'a, 'c> {
                 };
             }
         }
+    }
+
+    /// §4.4 deleted-tag fallback when the text changed too much: under a parent where
+    /// exactly one new line (untagged) and exactly one base item (its tag gone from the
+    /// file, not pasted into another file) are left unmatched, at the same sibling
+    /// index, the line is that item edited, whatever its text (a removed tag together
+    /// with a larger edit). The trade-off: a line deleted and another typed in its
+    /// place becomes a rename, which keeps the node's history and Workflowy-only
+    /// attributes instead of trashing them. True if anything was paired.
+    fn rematch_sole_pairs(&mut self, claimed: &BTreeSet<NodeId>) -> bool {
+        let mut unmatched: BTreeMap<NodeId, Vec<usize>> = BTreeMap::new();
+        for i in 0..self.items.len() {
+            if matches!(self.items[i].ident, Ident::New | Ident::Duplicate)
+                && let Some(pn) = self.parent_node(i)
+            {
+                unmatched.entry(pn).or_default().push(i);
+            }
+        }
+        let mut paired = false;
+        for (pn, list) in unmatched {
+            let [i] = list.as_slice() else { continue };
+            if !is_untagged(self.items[*i].item) {
+                continue;
+            }
+            let vanished: Vec<&NodeId> = self
+                .base_children
+                .get(&pn)
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+                .iter()
+                // Only a node still in the subtree: a rename must not follow a node
+                // moved out (its line would leave the file) or resurrect a deleted one.
+                .filter(|n| {
+                    !claimed.contains(*n)
+                        && !self.inp.cross.claimed_elsewhere.contains(*n)
+                        && self.remote_sub.contains(*n)
+                })
+                .collect();
+            let [node] = vanished.as_slice() else {
+                continue;
+            };
+            if self.base_items[*node].index != self.items[*i].index {
+                continue;
+            }
+            let node = (*node).clone();
+            self.report.push(ReportEvent::Rematched {
+                node: node.clone(),
+                line: self.items[*i].item.line,
+            });
+            self.items[*i].ident = Ident::Rematched(node);
+            paired = true;
+        }
+        paired
     }
 
     // ----- phase 2: cancellations and visibility --------------------------------------

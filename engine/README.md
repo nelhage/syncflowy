@@ -161,7 +161,11 @@ A note on "Planning": the lines right under the heading.
   frontmatter and the first item is the root's note. The root's own name is not in the file.
 * **Id tags** at the end of the first line identify nodes: `^wf-<12 hex>` on list items, `%%wf:<12 hex>%%` on
   headings. Other forms are read too (see `ids` in `src/mdblock.rs`). A line without a tag is a new node and
-  gets its tag at the next sync. Do not remove tags from lines you keep.
+  gets its tag at the next sync. Do not remove tags from lines you keep. If you do, an untagged line is matched
+  back to the node whose tag vanished when it sits under the same parent nearby with similar text (or with the
+  old text as its prefix), or when the two are the only unmatched pair under that parent at the same position,
+  whatever the text; the report says `line N: untagged item matched to ...`. So deleting a line and typing a new
+  one in its place renames the node.
 * **Inline text**: `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``, `[text](url)`, bare URLs, `<u>`, colour
   spans and other well-formed WF-HTML as literal HTML, dates as a compact form. Obsidian-only syntax
   (`[[wikilinks]]`, `==highlight==`, `$math$`) is sent to Workflowy as literal text and written back unescaped.
@@ -273,7 +277,7 @@ location.
 | `mdblock.rs`, `mdblock/*` | whether Obsidian keeps whitespace-only note lines; code at heading depth; no checkbox on quotes; an explicit null `depth` means unlimited |
 | `tree.rs` | a shell whose layout was changed later; ties of equal priorities (server breaks them by creation sequence) |
 | `mirrors.rs` | the sticky choice of the full placement; a content whose placements are all hidden keeps the previous choice; a refused mirror delete keeps the whole subtree |
-| `merge.rs`, `merge/*` | foreign tags of other roots; remote wins silently for a conflict that has no marker form; moved-out edit conflicts only reported; "nearby" for identity repair; divider and `---` exceptions; a layout changed on both sides keeps the remote's; diff3 treats adjacent-line edits as mergeable; cross-file bases |
+| `merge.rs`, `merge/*` | foreign tags of other roots; remote wins silently for a conflict that has no marker form; moved-out edit conflicts only reported; "nearby" for identity repair, and pairing the only unmatched line and item at one index whatever the text; divider and `---` exceptions; a layout changed on both sides keeps the remote's; diff3 treats adjacent-line edits as mergeable; cross-file bases |
 | `plan.rs` | brake thresholds; the nonce in create names; the create-pipeline check against the mock's model; an emptied file that deletes nothing is not braked |
 | `apply.rs` | two minutes of clock skew; the extra pre-write GET checks |
 | `wfclient.rs` | no gateway 5xx or 429 seen from production, so retry and non-retry rules are guesses |
