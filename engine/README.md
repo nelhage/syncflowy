@@ -1,5 +1,7 @@
 # syncflowy engine
 
+User documentation is in [../docs/user-guide/](../docs/user-guide/README.md).
+
 A two-way sync between [Workflowy](https://workflowy.com) subtrees and Markdown files, written in Rust. One
 Workflowy node (the **sync root**) and its subtree is mirrored into one Markdown file; the file can live in an
 Obsidian vault. The specification is [`../docs/sync-design.md`](../docs/sync-design.md) (cited as §x.y in the
@@ -39,12 +41,15 @@ call the Python `wfhtml` and the mock's create pipeline. The tests never contact
 | API base URL | `--api-url` | `WORKFLOWY_API_URL` | `https://beta.workflowy.com` (the beta API; the production host is refused, see Safety) |
 | state directory | `--state-dir` | `SYNCFLOWY_STATE_DIR` | `$XDG_STATE_HOME/syncflowy`, else `~/.local/state/syncflowy` |
 | request log | `--request-log FILE` | | none; appends every API request as JSONL |
-| verbosity | `-v` (info), `-vv` (debug) | `RUST_LOG` also works | warnings only |
+| verbosity | `-v` (info), `-vv` (debug) | `RUST_LOG` (when set, it replaces `-v`/`-vv`) | warnings only |
 
 The state directory holds the checkpoints and must be **outside the vault** (see [State directory](#state-directory)).
 
-Exit codes: `0` success, `1` the run needs attention (a brake, a skipped or paused file, an error in one file of a
-`sync`), `2` a fatal error (no API key, unusable state, unknown root, ...).
+Exit codes: `0` success (this includes a file paused by `paused: true`, conflicts and safe mode: read the report),
+`1` the run needs attention (a brake, a skipped file, a missing file, two files claiming one root, or an error in
+one file of a `sync` such as an unknown root or a missing checkpoint; the other files are still synced), `2` a
+fatal error (no API key, a 401, the API unreachable, unusable state, an unknown root given to `render` or
+`status FILE`, ...).
 
 ## Commands
 
@@ -194,8 +199,9 @@ A note on "Planning": the lines right under the heading.
   dropped with a warning), `- > text` a quote, `- ---` a divider, `1.` markers are a numbered list. Other layouts
   render as plain items and keep their layout in the checkpoint.
 * **Completed nodes are not in the file.** `- [x]` is a command: see ticking below.
-* A node whose text cannot be represented exactly is shown with `🔒` and the `-ro` tag flag, and edits to it are
-  refused.
+* A node whose text cannot be represented exactly is shown with `🔒` and the `-ro` tag flag. Edits to its text are
+  refused and rewritten (`--force` pushes them); ticking it, deleting it and editing its children work as usual.
+  Removing the `-ro` flag does not unlock it.
 * **Mirrors** (see Safety): a mirror shows its origin's content in place, with the mirror's own
   tag. When the same content appears twice in a file, the second placement is a **stub**: `⧉ [[#^wf-<full>|name]]`,
   a read-only link to the line that renders it in full.
@@ -208,12 +214,13 @@ A note on "Planning": the lines right under the heading.
   its hidden descendants (completed, or below `depth:`), which you cannot see; the report and the dry run name
   them (the first ten).
 * **Mass-change brakes** (§8.3) stop a run before anything is written, report `refused: ...` and exit 1:
-  * the file is empty (or has no items) while the base showed items and the merge deletes nodes,
-  * the deletes (visible plus hidden) exceed 50, or 20% of the base's visible nodes once there are at least 5,
-  * the completions exceed 200, or 50% of the visible nodes once there are at least 10.
+  * every visible node of the base would be deleted (the file is empty, has no items, or keeps only new lines),
+  * the deletes (visible plus hidden) exceed 50, or there are at least 5 of them and they exceed 20% of the base's
+    visible nodes,
+  * the completions exceed 200, or there are at least 10 of them and they exceed 50% of the visible nodes.
 
-  `--force` on the command line, or `force: true` in the frontmatter, overrides them (the engine clears the
-  frontmatter key). A missing file only pauses its root; nothing is deleted.
+  `--force` on the command line, or `syncflowy: {force: true}` in the frontmatter, overrides them (the engine
+  clears the frontmatter key). A missing file only pauses its root; nothing is deleted.
 * **Pending deletes** (daemon, §9.1 guard 2). A removed line is not deleted right away. It waits for the grace
   period and one more cycle in which the file is unchanged. Putting the line back cancels it; pasting its tag
   into another synced file turns it into a move. While another synced file has edits waiting for their debounce,
@@ -272,7 +279,7 @@ A note on "Planning": the lines right under the heading.
 ```
 
 It must be outside the vault so that Obsidian Sync never carries it. Losing the checkpoint of a root means
-`sync` refuses (`NoCheckpoint`) until `--force` bootstraps it again; `render --force` starts over. Keep it with
+`sync` refuses (`NoCheckpoint`, exit 1) until `--force` bootstraps it again; `render --force` starts over. Keep it with
 the server that talks to Workflowy: there must be only one engine per account.
 
 ## Known limitations
