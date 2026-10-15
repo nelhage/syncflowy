@@ -43,16 +43,13 @@ struct Builder<'a> {
     extras: &'a ViewExtras,
     conflicts: BTreeMap<NodeId, Vec<ConflictMarker>>,
     seen: BTreeSet<NodeId>,
-    /// The tree carries the beta API's mirror metadata (DM§10.5), so the §10 heuristic
-    /// does not apply: shells are known, not guessed.
-    mirror_aware: bool,
     /// §15.1: content node -> the placement rendered in full (the link target of stubs).
     full: BTreeMap<NodeId, NodeId>,
 }
 
-/// The kind of a node: a divider, a §10 placeholder (a shell by the heuristic when
-/// the tree has no mirror metadata, or an orphan shell), a §15.1 stub, or by layout.
-pub(crate) fn kind_of(node: &Node, mirror_aware: bool) -> ItemKind {
+/// The kind of a node: a divider, a §10 placeholder (an orphan shell), a §15.1 stub, or
+/// by layout.
+pub(crate) fn kind_of(node: &Node) -> ItemKind {
     // A divider has an empty name by design (UI:G2 sets its note to "").
     if node.layout == LAYOUT_DIVIDER && node.name.is_empty() {
         return ItemKind::Divider;
@@ -60,15 +57,9 @@ pub(crate) fn kind_of(node: &Node, mirror_aware: bool) -> ItemKind {
     if node.stub {
         return ItemKind::MirrorStub;
     }
-    // An orphan shell has no content to show (DM§10.4): a placeholder, as in §10.
+    // An orphan shell has no content to show (DM§10.4): a read-only placeholder (§10),
+    // children never rendered.
     if node.is_orphan_shell() {
-        return ItemKind::Placeholder;
-    }
-    // The heuristic only matches layout `bullets` (UI:H2: a mirror does not copy its
-    // origin's layout), so an empty todo, numbered, code or quote node is an ordinary
-    // item with its children shown.
-    if !mirror_aware && node.looks_like_mirror_shell() {
-        // §10: rendered as a read-only placeholder, children never rendered.
         return ItemKind::Placeholder;
     }
     match node.layout.as_str() {
@@ -115,27 +106,13 @@ impl Builder<'_> {
 
     fn item(&mut self, node: &Node, depth: u32, parent_numbered: bool) -> ViewItem {
         let inline = &self.cfg.inline;
-        let kind = kind_of(node, self.mirror_aware);
+        let kind = kind_of(node);
         let name_kind = if kind == ItemKind::Code {
             FieldKind::Code
         } else {
             FieldKind::Name
         };
-        let (name, note) = if kind == ItemKind::Placeholder {
-            // §10: the label says what the node is known to be.
-            let text = if node.is_orphan_shell() {
-                super::ORPHAN_PLACEHOLDER_TEXT
-            } else {
-                super::PLACEHOLDER_TEXT
-            };
-            (
-                MdText {
-                    text: text.to_owned(),
-                    tier: Tier::Exact,
-                },
-                None,
-            )
-        } else if kind == ItemKind::MirrorStub {
+        let (name, note) = if kind == ItemKind::MirrorStub {
             (
                 MdText {
                     text: self.stub_text(node),
@@ -228,22 +205,17 @@ pub(super) fn build(
     }
     let mut root_conflicts = conflicts.remove(root).unwrap_or_default();
     sort_markers(&mut root_conflicts);
-    let mirror_aware = tree.has_mirror_metadata();
-    let full = if mirror_aware {
-        tree.iter()
-            .filter(|n| !n.stub && !n.is_orphan_shell())
-            .map(|n| (n.content_id().clone(), n.id.clone()))
-            .collect()
-    } else {
-        BTreeMap::new()
-    };
+    let full = tree
+        .iter()
+        .filter(|n| !n.stub && !n.is_orphan_shell())
+        .map(|n| (n.content_id().clone(), n.id.clone()))
+        .collect();
     let mut b = Builder {
         tree,
         cfg,
         extras,
         conflicts,
         seen: BTreeSet::from([root.clone()]),
-        mirror_aware,
         full,
     };
     let items = b.children(root_node, 1);

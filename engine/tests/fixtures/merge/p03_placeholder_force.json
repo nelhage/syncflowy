@@ -38,7 +38,8 @@
           }
         ],
         "id": "e",
-        "name": ""
+        "name": "",
+        "orphan": true
       }
     ],
     "id": "root",
@@ -47,7 +48,7 @@
   "config": {
     "force": true
   },
-  "description": "§10: with force, an edit of a placeholder is pushed.",
+  "description": "§10: with force, an edit of an orphan-shell placeholder is pushed.",
   "expected": {
     "cancelled_pending": [],
     "conflicts": [],
@@ -72,9 +73,6 @@
       ],
       "b": [
         "b1"
-      ],
-      "e": [
-        "e1"
       ],
       "root": [
         "a",

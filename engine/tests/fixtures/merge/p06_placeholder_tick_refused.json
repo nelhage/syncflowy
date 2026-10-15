@@ -28,13 +28,14 @@
       },
       {
         "id": "c",
-        "name": ""
+        "name": "",
+        "orphan": true
       }
     ],
     "id": "root",
     "name": "Root"
   },
-  "description": "§10: `[x]` on a mirror placeholder is a write to a suspected shell: refused without force (ReadOnlyEditRefused), nothing is completed.",
+  "description": "§10: `[x]` on an orphan-shell placeholder is a write to an orphan shell: refused without force (ReadOnlyEditRefused), nothing is completed.",
   "expected": {
     "cancelled_pending": [],
     "conflicts": [],

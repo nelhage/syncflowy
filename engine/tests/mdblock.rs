@@ -5,11 +5,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use syncflowy::mdblock::{
     Checkbox, CheckboxPolicy, ConflictMarker, DocConfig, Frontmatter, ItemKind, ItemPath, LocalDoc,
-    ORPHAN_PLACEHOLDER_TEXT, PLACEHOLDER_TEXT, ParseError, RootRef, Sticky, TagStyle, View,
-    ViewError, ViewExtras, WarningKind, equivalent, normalize, parse, parse_frontmatter, render,
+    PLACEHOLDER_TEXT, ParseError, RootRef, Sticky, TagStyle, View, ViewError, ViewExtras,
+    WarningKind, equivalent, normalize, parse, parse_frontmatter, render,
 };
 use syncflowy::mdinline::{ConflictField, InlineConfig, TagFlag, TagForm, Tier};
-use syncflowy::tree::{IdMap, Node, NodeId, ShortId, Tree};
+use syncflowy::tree::{IdMap, Mirror, Node, NodeId, ShortId, Tree};
 
 const FM: &str = "---\nworkflowy: 000000000001\n---\n";
 
@@ -34,6 +34,11 @@ type Spec<'a> = (u64, u64, &'a str, Option<&'a str>, &'a str, bool);
 
 /// A tree below the root node 1.
 fn tree(spec: &[Spec]) -> Tree {
+    tree_with_orphans(spec, &[])
+}
+
+/// [`tree`] where the nodes numbered in `orphans` are orphan shells (DM§10.4).
+fn tree_with_orphans(spec: &[Spec], orphans: &[u64]) -> Tree {
     let mut nodes = vec![Node::new(id(1), None, "Root")];
     for (i, &(n, p, name, note, layout, completed)) in spec.iter().enumerate() {
         let mut node = Node::new(id(n), Some(id(p)), name);
@@ -41,6 +46,9 @@ fn tree(spec: &[Spec]) -> Tree {
         node.layout = layout.to_owned();
         node.completed = completed;
         node.priority = i as i64;
+        if orphans.contains(&n) {
+            node.mirror = Some(Mirror::Shell { origin: None });
+        }
         nodes.push(node);
     }
     Tree::from_nodes(nodes).unwrap()
@@ -699,21 +707,11 @@ fn placeholder_needs_flag_and_exact_text() {
         "- {PLACEHOLDER_TEXT} ^wf-000000000002-ro\n\t- child\n- {PLACEHOLDER_TEXT} ^wf-000000000003\n- {PLACEHOLDER_TEXT}!  ^wf-000000000004-ro\n"
     ));
     assert_eq!(d.items[0].kind, ItemKind::Placeholder);
-    assert_eq!(d.items[0].name_md, PLACEHOLDER_TEXT);
+    assert_eq!(d.items[0].name_md, "");
     assert_eq!(d.items[0].children.len(), 1);
     assert_eq!(d.items[1].kind, ItemKind::Bullet);
     assert_eq!(d.items[1].name_md, PLACEHOLDER_TEXT);
     assert_eq!(d.items[2].kind, ItemKind::Bullet);
-}
-
-#[test]
-fn orphan_placeholder_text_is_a_placeholder() {
-    let src = format!("- {ORPHAN_PLACEHOLDER_TEXT} ^wf-000000000002-ro\n");
-    let d = doc(&src);
-    assert_eq!(d.items[0].kind, ItemKind::Placeholder);
-    assert_eq!(d.items[0].name_md, ORPHAN_PLACEHOLDER_TEXT);
-    // The label round-trips: the writer keeps the text it read.
-    assert_eq!(body(&normalize(&d)), src);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -819,7 +817,7 @@ fn name_markers_that_would_misread_are_fenced() {
 
 #[test]
 fn view_hiding_rules() {
-    let t = tree(&[
+    let spec = [
         (2, 1, "visible", None, "bullets", false),
         (3, 2, "done", None, "bullets", true),
         (4, 3, "under done", None, "bullets", false),
@@ -829,7 +827,8 @@ fn view_hiding_rules() {
         (8, 7, "depth 3", None, "bullets", false),
         (9, 1, "", Some(""), "bullets", false),
         (10, 9, "shell child", None, "bullets", false),
-    ]);
+    ];
+    let t = tree_with_orphans(&spec, &[9]);
     let extras = ViewExtras {
         hidden: BTreeSet::from([id(5)]),
         ..ViewExtras::default()
@@ -925,10 +924,11 @@ fn view_kinds_and_layouts() {
 }
 
 #[test]
-fn view_empty_items_other_than_bullets_are_not_placeholders() {
-    // §10 heuristic: shells always have layout `bullets` (UI:H2, DM§10.1). An empty todo,
-    // numbered, code or quote node is an ordinary item: editable, its children shown.
-    let t = tree(&[
+fn view_empty_items_are_not_placeholders() {
+    // Shells are known from the beta API's mirror metadata (DM§10.5), not guessed: an
+    // empty node of any layout, a plain bullet included, is an ordinary item (editable,
+    // its children shown). Only an orphan shell is a placeholder (§10).
+    let spec = [
         (2, 1, "", None, "todo", false),
         (3, 2, "todo child", None, "bullets", false),
         (4, 1, "", None, "numbered", false),
@@ -939,8 +939,10 @@ fn view_empty_items_other_than_bullets_are_not_placeholders() {
         (9, 1, "", None, "quote-block", false),
         (10, 9, "quote child", None, "bullets", false),
         (11, 1, "", None, "bullets", false),
-        (12, 11, "shell child", None, "bullets", false),
-    ]);
+        (12, 11, "empty child", None, "bullets", false),
+        (13, 1, "", None, "bullets", false),
+    ];
+    let t = tree_with_orphans(&spec, &[13]);
     let cfg = DocConfig::default();
     let v = View::build(&t, &id(1), &cfg, &ViewExtras::default()).unwrap();
     let got: Vec<(ItemKind, bool, usize)> = v
@@ -955,6 +957,7 @@ fn view_empty_items_other_than_bullets_are_not_placeholders() {
             (ItemKind::Bullet, false, 2),
             (ItemKind::Code, false, 1),
             (ItemKind::Quote, false, 1),
+            (ItemKind::Bullet, false, 1),
             (ItemKind::Placeholder, true, 0),
         ]
     );
@@ -963,7 +966,7 @@ fn view_empty_items_other_than_bullets_are_not_placeholders() {
     let md = render_tree(&t, &cfg, &ViewExtras::default());
     assert_eq!(
         body(&md),
-        "- [ ] ^wf-000000000002\n\t- [ ] todo child ^wf-000000000003\n- ^wf-000000000004\n\t1. [ ] first ^wf-000000000005\n\t2. [ ] second ^wf-000000000006\n- ``` ^wf-000000000007\n\n\t```\n\t- [ ] code child ^wf-000000000008\n- > ^wf-000000000009\n\t- [ ] quote child ^wf-00000000000a\n- ⧉ (empty or mirror) ^wf-00000000000b-ro\n"
+        "- [ ] ^wf-000000000002\n\t- [ ] todo child ^wf-000000000003\n- ^wf-000000000004\n\t1. [ ] first ^wf-000000000005\n\t2. [ ] second ^wf-000000000006\n- ``` ^wf-000000000007\n\n\t```\n\t- [ ] code child ^wf-000000000008\n- > ^wf-000000000009\n\t- [ ] quote child ^wf-00000000000a\n- ^wf-00000000000b\n\t- [ ] empty child ^wf-00000000000c\n- ⧉ (mirror of a deleted item) ^wf-00000000000d-ro\n"
     );
     let d = parse(&md).unwrap();
     let parsed: Vec<(ItemKind, &str, usize)> = d
@@ -978,7 +981,8 @@ fn view_empty_items_other_than_bullets_are_not_placeholders() {
             (ItemKind::Bullet, "", 2),
             (ItemKind::Code, "", 1),
             (ItemKind::Quote, "", 1),
-            (ItemKind::Placeholder, "⧉ (empty or mirror)", 0),
+            (ItemKind::Bullet, "", 1),
+            (ItemKind::Placeholder, "", 0),
         ]
     );
 }

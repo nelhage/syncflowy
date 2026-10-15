@@ -44,8 +44,8 @@
 //! and `mdblock` renders them as read-only placeholders. Outside the root's scope `V`
 //! equals [`real_tree`], except that every shell is a stub.
 //!
-//! Without mirror metadata (a production export, or an account without a mirror) the
-//! view tree is the export itself and §10's placeholder heuristic applies instead.
+//! Without mirror metadata (an account without mirrors) the view tree is the export
+//! itself.
 //!
 //! # Translation (§15.1 "Mapping Markdown edits")
 //!
@@ -625,7 +625,7 @@ mod tests {
     }
 
     #[test]
-    fn production_export_is_its_own_view() {
+    fn export_without_mirrors_is_its_own_view() {
         let t = Tree::from_nodes([node(1, None, 100, "Root"), node(2, Some(1), 100, "x")]).unwrap();
         assert_eq!(view_tree(&t, &uid(1), &BTreeMap::new()), t);
         assert_eq!(real_tree(&t), t);

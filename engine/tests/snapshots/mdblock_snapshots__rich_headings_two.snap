@@ -49,9 +49,11 @@ runs on save
 
 # --- %%wf:000000000015%%
 
-# ⧉ (empty or mirror) %%wf:000000000016-ro%%
+# %%wf:000000000016%%
 
-# ⧉ (empty or mirror) %%wf:000000000018-ro%%
+## child of an empty bullet %%wf:000000000017%%
+
+# ⧉ (mirror of a deleted item) %%wf:000000000018-ro%%
 
 # 🔒 broken bold %%wf:000000000019-ro%%
 a malformed name (UI:F1)

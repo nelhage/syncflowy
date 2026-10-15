@@ -9,7 +9,7 @@
 //! ```
 //!
 //! Global options: `--api-key` (env `WORKFLOWY_API_KEY`), `--api-url` (env
-//! `WORKFLOWY_API_URL`, default `https://workflowy.com`), `--state-dir` (env
+//! `WORKFLOWY_API_URL`, default `https://beta.workflowy.com`, the beta API: DM§10.5), `--state-dir` (env
 //! `SYNCFLOWY_STATE_DIR`, default `$XDG_STATE_HOME/syncflowy` or
 //! `~/.local/state/syncflowy`), `--request-log FILE`, `-v`/`-vv` (log level; `RUST_LOG`
 //! also works).
@@ -36,7 +36,8 @@ struct Cli {
     #[arg(long, env = "WORKFLOWY_API_KEY", hide_env_values = true, global = true)]
     api_key: Option<String>,
 
-    /// API base URL (the mock server for tests).
+    /// API base URL: the beta API (default) or the mock server for tests. The production
+    /// host is refused: it cannot tell a mirror from an empty node (DM§10.5).
     #[arg(long, env = "WORKFLOWY_API_URL", default_value = DEFAULT_BASE_URL, global = true)]
     api_url: String,
 
@@ -126,10 +127,26 @@ fn client(cli: &Cli) -> anyhow::Result<Client> {
         .api_key
         .clone()
         .ok_or_else(|| anyhow::anyhow!("no API key: pass --api-key or set WORKFLOWY_API_KEY"))?;
+    let base_url = cli.api_url.trim_end_matches('/').to_owned();
+    if is_production_host(&base_url) {
+        anyhow::bail!(
+            "{base_url} is the production API, which reports mirrors as empty nodes; \
+             syncflowy needs the beta API ({DEFAULT_BASE_URL}), which serves the same data"
+        );
+    }
     let mut cfg = ClientConfig::new(key);
-    cfg.base_url = cli.api_url.trim_end_matches('/').to_owned();
+    cfg.base_url = base_url;
     cfg.request_log = cli.request_log.clone();
     Ok(Client::new(cfg))
+}
+
+/// True for the production Workflowy host (`workflowy.com` or `www.workflowy.com`, any
+/// scheme, port or path).
+fn is_production_host(base_url: &str) -> bool {
+    let rest = base_url.split_once("://").map_or(base_url, |(_, r)| r);
+    let host = rest.split(['/', ':']).next().unwrap_or("");
+    let host = host.to_ascii_lowercase();
+    host == "workflowy.com" || host == "www.workflowy.com"
 }
 
 /// One line for an outcome.
@@ -318,6 +335,30 @@ fn main() -> ExitCode {
         Err(e) => {
             eprintln!("error: {e:#}");
             ExitCode::from(2)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn production_host_is_recognised() {
+        for url in [
+            "https://workflowy.com",
+            "https://WorkFlowy.com/",
+            "http://www.workflowy.com:443/api",
+            "workflowy.com",
+        ] {
+            assert!(is_production_host(url), "{url}");
+        }
+        for url in [
+            DEFAULT_BASE_URL,
+            "http://127.0.0.1:8080",
+            "https://notworkflowy.com",
+        ] {
+            assert!(!is_production_host(url), "{url}");
         }
     }
 }

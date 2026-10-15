@@ -92,6 +92,10 @@ pub struct NodeSpec {
     pub priority: Option<i64>,
     #[serde(default)]
     pub children: Vec<NodeSpec>,
+    /// An orphan mirror shell (beta `data.mirror.origin_id: null`, DM§10.5): the
+    /// merge's §10 placeholder.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub orphan: bool,
 }
 
 fn collect_nodes(specs: &[NodeSpec], parent: Option<&NodeId>, out: &mut Vec<Node>) {
@@ -105,6 +109,9 @@ fn collect_nodes(specs: &[NodeSpec], parent: Option<&NodeId>, out: &mut Vec<Node
         n.completed = s.completed;
         n.completed_at = s.completed.then_some(1);
         n.priority = s.priority.unwrap_or(100 * (i as i64 + 1));
+        if s.orphan {
+            n.mirror = Some(syncflowy::tree::Mirror::Shell { origin: None });
+        }
         out.push(n);
         collect_nodes(&s.children, Some(&nid), out);
     }
@@ -260,7 +267,7 @@ pub fn render_spec(
             .filter(|c| vis.contains(*c))
             .map(|c| {
                 let n = tree.get(c).expect("node");
-                let placeholder = n.looks_like_mirror_shell() && n.layout != "divider";
+                let placeholder = n.is_orphan_shell();
                 let (kind, fk) = match n.layout.as_str() {
                     _ if placeholder => (Some("placeholder".to_owned()), FieldKind::Name),
                     "code-block" => (Some("code".to_owned()), FieldKind::Code),

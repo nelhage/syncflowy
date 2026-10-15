@@ -15,7 +15,7 @@ use syncflowy::merge::ReportEvent;
 use syncflowy::plan::Brake;
 use syncflowy::state::StateStore;
 use syncflowy::sync::{self, PauseReason, SyncOutcome};
-use syncflowy::tree::NodeId;
+use syncflowy::tree::{NodeId, Position};
 use syncflowy::wfclient::Api;
 
 use sync_support::*;
@@ -578,10 +578,10 @@ fn emptied_file_is_braked() {
 #[test]
 fn emptied_file_is_braked_despite_a_concurrent_remote_edit() {
     // A small file (under the fraction brake's minimum) truncated to its frontmatter
-    // while a collaborator edits one item, or while it holds a mirror placeholder. The
-    // merge keeps that item (delete vs edit, §6.2; placeholder deletes need --force,
-    // §10), so it deletes fewer nodes than the base showed, but the file is still empty
-    // (§8.3).
+    // while a collaborator edits one item, or while it holds a placeholder (an orphan
+    // mirror shell). The merge keeps that item (delete vs edit, §6.2; placeholder deletes
+    // need --force, §10), so it deletes fewer nodes than the base showed, but the file is
+    // still empty (§8.3).
     for concurrent in ["edit", "placeholder"] {
         let env = Env::new();
         let root = env.ui_create(None, "Small");
@@ -589,10 +589,30 @@ fn emptied_file_is_braked_despite_a_concurrent_remote_edit() {
         env.ui_create(Some(&root), "Beta");
         env.ui_create(Some(&root), "Gamma");
         if concurrent == "placeholder" {
-            env.ui_create(Some(&root), "");
+            // DM§10.5: removing a shell whose persisted child is an origin deletes that
+            // child and orphans its mirror (here, the one in the root).
+            let origin = env.ui_create(None, "Orphaned");
+            let other = env.ui_create(None, "Other");
+            let holder = env.ui_create(None, "Holder");
+            let r = env.ui(
+                "mirror",
+                json!({"id": other.as_str(), "parent_id": holder.as_str()}),
+            );
+            let shell = NodeId::parse(r["id"].as_str().unwrap()).unwrap();
+            env.ui(
+                "mirror",
+                json!({"id": origin.as_str(), "parent_id": root.as_str()}),
+            );
+            env.client
+                .move_node(&origin, &shell, Position::Bottom)
+                .unwrap();
+            env.client.delete_mirror(&shell).unwrap();
         }
         let file = env.path("small.md");
         env.render(&root, &file);
+        if concurrent == "placeholder" {
+            assert!(read(&file).contains(mdblock::PLACEHOLDER_TEXT));
+        }
         if concurrent == "edit" {
             env.ui(
                 "edit",

@@ -334,9 +334,8 @@ pub struct Node {
     pub modified_at: Option<i64>,
     /// Sparse sort key among siblings (DM§7). Only meaningful within one snapshot.
     pub priority: i64,
-    /// The beta API's mirror metadata (`data.mirror`, DM§10.5): `None` on plain nodes
-    /// and on every node of a production export. Absent from checkpoints written before
-    /// mirrors were modelled.
+    /// The beta API's mirror metadata (`data.mirror`, DM§10.5): `None` on plain nodes.
+    /// Absent from checkpoints written before mirrors were modelled.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror: Option<Mirror>,
     /// Only in a **view tree** (`crate::mirrors::view_tree`, §15.1): this placement of
@@ -416,22 +415,6 @@ impl Node {
     pub fn has_registered_mirrors(&self) -> bool {
         matches!(&self.mirror, Some(Mirror::Origin { mirror_ids }) if !mirror_ids.is_empty())
     }
-
-    /// The mirror-shell heuristic of §10 (UI:H2): `name == ""` and `note` is `None` or
-    /// `""`, on a node with layout `bullets`. Shells always get that layout and do not copy
-    /// their origin's (UI:H2, DM§10.1), so an empty todo, numbered list, code block, quote,
-    /// divider or heading is an ordinary empty node, never a shell. Genuinely empty
-    /// bullets still match; callers treat both as read-only placeholders and never render
-    /// their children.
-    // UNVERIFIED: a shell's layout can be changed through the API (DM§10.1: nothing
-    // propagates), and whether a layout change made in the UI through a mirror is stored
-    // on the shell or on its origin was not observed (UI:H3 covers name and note only);
-    // such a shell would render as an ordinary empty item with its own children.
-    pub fn looks_like_mirror_shell(&self) -> bool {
-        self.layout == DEFAULT_LAYOUT
-            && self.name.is_empty()
-            && self.note.as_deref().is_none_or(str::is_empty)
-    }
 }
 
 /// The API's node record with its exact JSON field names and key order (DM§1.2):
@@ -478,7 +461,7 @@ pub struct ApiNodeData {
     #[serde(rename = "layoutMode", default = "default_layout")]
     pub layout_mode: String,
     /// `{"origin_id": …}` on a shell (null for an orphan), `{"mirror_ids": […]}` on an
-    /// origin with a non-empty registry; absent otherwise and on production.
+    /// origin with a non-empty registry; absent otherwise.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mirror: Option<ApiMirror>,
 }
@@ -738,10 +721,9 @@ impl Tree {
         self.nodes.keys()
     }
 
-    /// True if any node carries mirror metadata: the export came from the beta API
-    /// (DM§10.5), so a node without metadata is certainly not a shell and the §10
-    /// heuristic does not apply. An account without mirrors is indistinguishable from a
-    /// production export, which only costs it the heuristic's caution.
+    /// True if any node carries mirror metadata (DM§10.5). False for an account without
+    /// mirrors, whose view tree is then the export itself (`mirrors::view_tree`). The
+    /// engine targets the beta API only, so a node without metadata is never a shell.
     pub fn has_mirror_metadata(&self) -> bool {
         self.nodes.values().any(|n| n.mirror.is_some())
     }
@@ -1614,30 +1596,6 @@ mod tests {
         u.set_completed(&uid(2), true, None).unwrap();
         assert_eq!(u.count_hidden_descendants(&uid(1)), 3);
         assert_eq!(u.count_hidden_descendants(&uid(2)), 1);
-    }
-
-    #[test]
-    fn mirror_shell_heuristic() {
-        let mut n = Node::new(uid(1), None, "");
-        assert!(n.looks_like_mirror_shell());
-        n.note = Some(String::new());
-        assert!(n.looks_like_mirror_shell());
-        n.note = Some("x".into());
-        assert!(!n.looks_like_mirror_shell());
-        assert!(!Node::new(uid(1), None, "x").looks_like_mirror_shell());
-        // Shells always have layout `bullets` (UI:H2, DM§10.1).
-        n.note = None;
-        for layout in [
-            "todo",
-            "numbered",
-            "code-block",
-            "quote-block",
-            "divider",
-            "h1",
-        ] {
-            n.layout = layout.to_owned();
-            assert!(!n.looks_like_mirror_shell(), "{layout}");
-        }
     }
 
     #[test]

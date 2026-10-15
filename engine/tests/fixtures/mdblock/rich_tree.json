@@ -310,7 +310,7 @@
   },
   {
    "id": "00000000-0000-4000-8000-000000000017",
-   "name": "vestigial child of an API shell",
+   "name": "child of an empty bullet",
    "note": null,
    "parent_id": "00000000-0000-4000-8000-000000000016",
    "priority": 100,
@@ -330,7 +330,10 @@
    "priority": 600,
    "completed": false,
    "data": {
-    "layoutMode": "bullets"
+    "layoutMode": "bullets",
+    "mirror": {
+     "origin_id": null
+    }
    },
    "createdAt": 1791834420,
    "modifiedAt": 1791834420,

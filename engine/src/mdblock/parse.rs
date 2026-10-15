@@ -10,8 +10,8 @@ use std::collections::BTreeSet;
 
 use super::frontmatter;
 use super::{
-    CONFLICT_PREFIX, Checkbox, ItemKind, LocalDoc, LocalItem, ParseError, ParseWarning,
-    READ_ONLY_PREFIX, STUB_PREFIX, WarningKind, is_placeholder_text,
+    CONFLICT_PREFIX, Checkbox, ItemKind, LocalDoc, LocalItem, PLACEHOLDER_TEXT, ParseError,
+    ParseWarning, READ_ONLY_PREFIX, STUB_PREFIX, WarningKind,
 };
 use crate::mdinline::{ConflictField, IdTag, LineTag, TagFlag, find_tags, trim_line};
 
@@ -735,13 +735,13 @@ impl<'a> Parser<'a> {
         let ro = tag
             .as_ref()
             .is_some_and(|t| t.flags.contains(&TagFlag::ReadOnly));
-        if ro && is_placeholder_text(t) {
+        if ro && t == PLACEHOLDER_TEXT {
             return Head {
                 tag,
                 extra_tags,
                 kind: ItemKind::Placeholder,
                 checkbox,
-                name_md: t.to_owned(),
+                name_md: String::new(),
                 fence: None,
             };
         }

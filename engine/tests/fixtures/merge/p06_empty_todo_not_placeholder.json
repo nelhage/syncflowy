@@ -20,7 +20,7 @@
     "id": "root",
     "name": "Root"
   },
-  "description": "§10 (UI:H2, DM§10.1): shells always have layout bullets, so an empty todo is an ordinary item, not a placeholder: its child is visible and an edit typed into it is pushed without force.",
+  "description": "§10: shells are known from mirror metadata (DM§10.5), never guessed, so an empty todo is an ordinary item, not a placeholder: its child is visible and an edit typed into it is pushed without force.",
   "expected": {
     "cancelled_pending": [],
     "conflicts": [],

@@ -105,7 +105,7 @@
 //!
 //! # Mirrors (§15.1, `crate::mirrors`)
 //!
-//! On an export with the beta API's mirror metadata (DM§10.5) every file works on its
+//! On an export with the beta API's mirror metadata (DM§10.5), every file works on its
 //! own **view tree** (`mirrors::view_tree` over the run's export, with the full
 //! placements of its base as the sticky choice): the merge's remote, the base of the
 //! fast path and of the next checkpoint, and the render's tree are all views. The

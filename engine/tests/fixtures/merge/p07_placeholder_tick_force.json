@@ -28,7 +28,8 @@
       },
       {
         "id": "c",
-        "name": ""
+        "name": "",
+        "orphan": true
       }
     ],
     "id": "root",
@@ -37,7 +38,7 @@
   "config": {
     "force": true
   },
-  "description": "§10: with force, `[x]` on a mirror placeholder completes it.",
+  "description": "§10: with force, `[x]` on an orphan-shell placeholder completes it.",
   "expected": {
     "cancelled_pending": [],
     "conflicts": [],
