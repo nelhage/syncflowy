@@ -872,14 +872,16 @@ impl Builder<'_> {
                 return Err(Self::guard(&op, GuardReason::UnknownNode));
             }
             // §15.1: a shell is removed with the mirror endpoint; what it takes with it
-            // (its persisted children, DM§10.5) is all hidden.
+            // (its persisted children, DM§10.5) is all hidden. Otherwise the merge's count
+            // (§4.5: completed nodes, and those below `depth:`, pending deletes or
+            // placeholders) is what the file did not show.
             let mirror = self.s.get(&d.node).is_some_and(Node::is_shell);
             let op = Op::Delete {
                 node: d.node.clone(),
                 hidden_descendants: if mirror {
                     self.s.descendants(&d.node).len()
                 } else {
-                    self.s.count_hidden_descendants(&d.node)
+                    d.hidden_descendants
                 },
                 mirror,
             };

@@ -7,7 +7,9 @@ mod sync_support;
 use std::time::Duration;
 
 use serde_json::json;
+use syncflowy::mdblock::DocConfig;
 use syncflowy::merge::ReportEvent;
+use syncflowy::plan::Op;
 use syncflowy::state::StateStore;
 use syncflowy::sync::{self, SyncOutcome};
 use syncflowy::tree::NodeId;
@@ -243,6 +245,49 @@ fn deleting_a_parent_takes_its_hidden_children() {
     let tree = env.export();
     assert!(!tree.contains(&a) && !tree.contains(&done));
     assert_eq!(child_names(&tree, &root), ["Beta"]);
+    settle(&env, &file);
+}
+
+#[test]
+fn deleting_a_line_counts_descendants_hidden_by_depth() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Root");
+    let parent = env.ui_create(Some(&root), "Parent");
+    let child = env.ui_create(Some(&parent), "Child");
+    let grandchild = env.ui_create(Some(&child), "Grandchild");
+    env.ui_create(Some(&root), "Other");
+    let file = env.path("root.md");
+    let doc = DocConfig {
+        max_depth: Some(1),
+        ..DocConfig::default()
+    };
+    env.render_with(&root, &file, &doc);
+    let text = read(&file);
+    assert!(!text.contains("Child"), "{text}");
+    let pl = line_of(&text, &parent).to_owned();
+    edit(&file, &format!("{pl}\n"), "");
+
+    let mut cfg = env.cfg.clone();
+    cfg.dry_run = true;
+    let r = sync::sync_once(&env.client, &file, &cfg).unwrap();
+    let SyncOutcome::DryRun { plan } = &r.outcome else {
+        panic!("{r:#?}")
+    };
+    assert!(
+        plan.ops.iter().any(|op| matches!(
+            op,
+            Op::Delete { node, hidden_descendants: 2, mirror: false } if *node == parent
+        )),
+        "{plan:#?}"
+    );
+
+    let r = env.sync(&file);
+    let SyncOutcome::Synced { pushed, .. } = r.outcome else {
+        panic!("{r:#?}")
+    };
+    assert_eq!((pushed.deletes, pushed.hidden_deleted), (1, 2));
+    let tree = env.export();
+    assert!(!tree.contains(&parent) && !tree.contains(&child) && !tree.contains(&grandchild));
     settle(&env, &file);
 }
 
