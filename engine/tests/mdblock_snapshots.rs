@@ -113,3 +113,26 @@ fn rich_conflicts_and_options() {
     assert!(!md.contains("never shown"));
     insta::assert_snapshot!(md);
 }
+
+#[test]
+fn rich_depth_two() {
+    // A node whose children are cut off by `depth:` is interior: no leaf box.
+    let cfg = DocConfig {
+        max_depth: Some(2),
+        ..DocConfig::default()
+    };
+    let md = render_checked(cfg, &ViewExtras::default());
+    insta::assert_snapshot!(md);
+}
+
+#[test]
+fn rich_no_checkboxes() {
+    // `checkboxes: none`: no boxes at all, to-dos included.
+    let cfg = DocConfig {
+        checkboxes: CheckboxPolicy::None,
+        ..DocConfig::default()
+    };
+    let md = render_checked(cfg, &ViewExtras::default());
+    assert!(!md.contains("- [ ] ") && !md.contains(". [ ] "), "{md}");
+    insta::assert_snapshot!(md);
+}

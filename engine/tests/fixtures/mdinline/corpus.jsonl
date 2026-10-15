@@ -72,7 +72,11 @@
 {"expect":"ui","kind":"name","md":"\\---","src":"typed","tier":"Exact","wf":"---"}
 {"expect":"ui","kind":"name","md":"[[Wiki Link]] and ==hl== and $x^2$","src":"typed","tier":"Exact","wf":"[[Wiki Link]] and ==hl== and $x^2$"}
 {"expect":"ui","kind":"name","md":"block id \\^abc","src":"typed","tier":"Exact","wf":"block id ^abc"}
-{"expect":"ui","kind":"name","md":"%\\%not a comment%\\%","src":"typed","tier":"Exact","wf":"%%not a comment%%"}
+{"expect":"ui","kind":"name","md":"%%not a comment%%","src":"typed","tier":"Exact","wf":"%%not a comment%%"}
+{"expect":"ui","kind":"name","md":"draft %%hidden comment%% typed in Obsidian","src":"typed","tier":"Exact","wf":"draft %%hidden comment%% typed in Obsidian"}
+{"expect":"ui","kind":"name","md":"%\\%wf:8e1f00aa2b3c%% and %\\% wf-conflict:name %% look like tags","src":"typed","tier":"Exact","wf":"%%wf:8e1f00aa2b3c%% and %% wf-conflict:name %% look like tags"}
+{"expect":"ui","kind":"name","md":"![img](https://example.com/i.png)","src":"typed","tier":"Exact","wf":"![img](https://example.com/i.png)"}
+{"expect":"ui","kind":"name","md":"see ![alt *x*](https://example.com/i.png \"title\") and ![[embed.png]]","src":"typed","tier":"Exact","wf":"see ![alt *x*](https://example.com/i.png &quot;title&quot;) and ![[embed.png]]"}
 {"expect":"ui","kind":"name","md":"&#32;&#32;leading and trailing&#32;&#32;","src":"typed","tier":"Exact","wf":"  leading and trailing  "}
 {"expect":"ui","kind":"name","md":"日本語のメモ","src":"typed","tier":"Exact","wf":"日本語のメモ"}
 {"expect":"ui","kind":"name","md":"emoji &#128197; 2026-01-15 typed by hand","src":"typed","tier":"Exact","wf":"emoji 📅 2026-01-15 typed by hand"}

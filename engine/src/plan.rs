@@ -148,9 +148,9 @@ pub enum CreateName {
     Direct(String),
     /// Create with a nonce as the name (`apply` picks it, e.g. `⟳syncflowy:<hex>`; it is
     /// itself a fixed point of the create pipeline), then `update` the name (2 requests).
-    /// The nonce lets crash recovery find a half-created node (§7.3). UNVERIFIED design
-    /// choice: §7.3 suggests the nonce in the note; putting it in the name keeps a `null`
-    /// note exact (the API cannot write `null` back, DM§6.4).
+    /// The nonce lets crash recovery find a half-created node (§7.3). It is in the name,
+    /// not the note, to keep a `null` note exact (the API cannot write `null` back,
+    /// DM§6.4).
     Deferred(String),
 }
 
@@ -338,14 +338,13 @@ impl Default for BrakeConfig {
     }
 }
 
-/// A mass-change brake that engaged (§8.3). The run must stop before any write and ask
-/// for `--force` (or `force: true` in the frontmatter).
+/// A mass-change brake that engaged (§8.3). The run must stop before any write. The
+/// message says what was refused, not how to override it: the CLI adds `(use --force)`,
+/// the daemon points to `force: true` in the frontmatter.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Error)]
 pub enum Brake {
     /// Too many deletes.
-    #[error(
-        "refusing to delete {visible} visible and {hidden} hidden nodes out of {base_visible} (use --force)"
-    )]
+    #[error("refusing to delete {visible} visible and {hidden} hidden nodes out of {base_visible}")]
     TooManyDeletes {
         /// Visible nodes deleted.
         visible: usize,
@@ -355,13 +354,13 @@ pub enum Brake {
         base_visible: usize,
     },
     /// Every visible node would be deleted: the file looks truncated or emptied.
-    #[error("the file is empty but {base_visible} nodes were visible (use --force)")]
+    #[error("the file is empty but {base_visible} nodes were visible")]
     EmptyFile {
         /// Visible nodes in the base file.
         base_visible: usize,
     },
     /// Too many completions.
-    #[error("refusing to complete {completes} nodes out of {base_visible} (use --force)")]
+    #[error("refusing to complete {completes} nodes out of {base_visible}")]
     TooManyCompletes {
         /// Completions.
         completes: usize,
@@ -872,14 +871,16 @@ impl Builder<'_> {
                 return Err(Self::guard(&op, GuardReason::UnknownNode));
             }
             // §15.1: a shell is removed with the mirror endpoint; what it takes with it
-            // (its persisted children, DM§10.5) is all hidden.
+            // (its persisted children, DM§10.5) is all hidden. Otherwise the merge's count
+            // (§4.5: completed nodes, and those below `depth:`, pending deletes or
+            // placeholders) is what the file did not show.
             let mirror = self.s.get(&d.node).is_some_and(Node::is_shell);
             let op = Op::Delete {
                 node: d.node.clone(),
                 hidden_descendants: if mirror {
                     self.s.descendants(&d.node).len()
                 } else {
-                    self.s.count_hidden_descendants(&d.node)
+                    d.hidden_descendants
                 },
                 mirror,
             };

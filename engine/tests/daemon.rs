@@ -544,6 +544,8 @@ fn a_braked_file_is_retried_but_does_not_hold_other_deletes() {
     let note = rig.note();
     assert_eq!(note.matches("refused by a brake").count(), 2, "{note}");
     assert!(note.contains("| [[b]] | Root B"), "{note}");
+    // The daemon has no `--force`: its messages name the frontmatter key.
+    assert!(!note.contains("--force"), "{note}");
 }
 
 // ---------------------------------------------------------------------------------------
@@ -832,4 +834,181 @@ fn api_errors_are_reported_and_a_401_stops_the_daemon() {
     let changed: Vec<PathBuf> = Vec::new();
     let err = rig.d.step(&api, &changed).expect_err("401 is fatal");
     assert!(syncflowy::daemon::is_fatal(&err), "{err}");
+}
+
+/// The status note's Roots section.
+fn roots(note: &str) -> String {
+    let start = note.find("## Roots\n").expect("a Roots section");
+    let rest = &note[start..];
+    let end = rest[3..].find("\n## ").map_or(rest.len(), |i| i + 3);
+    rest[..end].to_owned()
+}
+
+#[test]
+fn a_run_wide_failure_shows_in_every_root_row() {
+    let (env, _root, _a, _b, _file) = one_file();
+    let mut rig = Rig::new(env);
+    let api = FlakyApi {
+        inner: &rig.env.client,
+        mode: std::cell::Cell::new(1),
+    };
+    step_with(&mut rig.d, &api, &[]);
+    let r = roots(&rig.note());
+    assert!(r.contains("| error: API: server error 503"), "{r}");
+    assert!(!r.contains("not synced yet"), "{r}");
+    // Once a cycle succeeds the row is fine again.
+    api.mode.set(0);
+    rig.time.advance(Duration::from_secs(60));
+    step_with(&mut rig.d, &api, &[]);
+    let r = roots(&rig.note());
+    assert!(r.contains("| ok |"), "{r}");
+}
+
+#[test]
+fn a_file_without_a_checkpoint_says_how_to_adopt_it() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Root");
+    env.ui_create(Some(&root), "Alpha");
+    let file = env.path("root.md");
+    let mut rig = Rig::new(env);
+    write(&file, &format!("---\nworkflowy: {root}\n---\n- Alpha\n"));
+    rig.step(&[]);
+    rig.run_for(60);
+    let note = rig.note();
+    let r = roots(&note);
+    assert!(
+        r.contains(
+            "| not initialised: run `syncflowy render`, or set `force: true` to adopt the file |"
+        ),
+        "{r}"
+    );
+    assert!(
+        problems(&note).contains("set `force: true` in the frontmatter to adopt the file"),
+        "{note}"
+    );
+    assert!(!note.contains("--force"), "{note}");
+
+    // `force: true` adopts it.
+    write(
+        &file,
+        &format!("---\nworkflowy: {root}\nsyncflowy: {{force: true}}\n---\n- Alpha\n"),
+    );
+    rig.advance(1);
+    rig.step(&[&file]);
+    rig.run_for(120);
+    let r = roots(&rig.note());
+    assert!(r.contains("| ok |"), "{r}");
+}
+
+// ---------------------------------------------------------------------------------------
+// Stopping and restarting
+// ---------------------------------------------------------------------------------------
+
+#[test]
+fn stop_is_noted_and_the_event_log_survives_a_restart() {
+    let (env, ..) = one_file();
+    let ghost = env.path("ghost.md");
+    write(&ghost, "---\nworkflowy: 0123456789ab\n---\n- x\n");
+    let mut rig = Rig::new(env);
+    rig.step(&[]);
+    rig.run_for(60);
+    let note = rig.note();
+    assert!(note.contains("[[ghost]]: sync root"), "{note}");
+    assert!(!note.contains("Stopped at"), "{note}");
+    rig.advance(30);
+    rig.d.stop().unwrap();
+    let note = rig.note();
+    assert!(
+        note.contains("Stopped at 2026-09-21 14:14 UTC: nothing is synced"),
+        "{note}"
+    );
+    assert!(
+        note.contains("- 2026-09-21 14:14 UTC the daemon stopped\n"),
+        "{note}"
+    );
+
+    // A new daemon over the same state directory starts with the old events.
+    let cfg = rig.d.config().clone();
+    rig.d = Daemon::new(cfg, rig.time.clone()).unwrap();
+    rig.advance(30);
+    rig.step(&[]);
+    let note = rig.note();
+    assert!(!note.contains("Stopped at"), "{note}");
+    assert!(note.contains("the daemon stopped"), "{note}");
+    assert!(note.contains("[[ghost]]: sync root"), "{note}");
+}
+
+/// `syncflowy daemon` over `env`'s vault, polling every second, logging to `log`.
+fn spawn_daemon(env: &Env, log: &Path) -> std::process::Child {
+    std::process::Command::new(env!("CARGO_BIN_EXE_syncflowy"))
+        .args(["--api-url", env.mock.base_url(), "--state-dir"])
+        .arg(&env.cfg.state_dir)
+        .args(["daemon", "--vault"])
+        .arg(env.dir.path().join("vault"))
+        .args(["--debounce", "0", "--poll", "1"])
+        .args(["--min-export-interval", "0"])
+        .env("WORKFLOWY_API_KEY", env.mock.api_key())
+        .env_remove("WORKFLOWY_API_URL")
+        .env_remove("SYNCFLOWY_STATE_DIR")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::fs::File::create(log).unwrap())
+        .spawn()
+        .expect("spawn syncflowy daemon")
+}
+
+/// Wait up to 30 s for `cond` (this test runs the real binary, so it has to sleep).
+fn wait_for(what: &str, log: &Path, mut cond: impl FnMut() -> bool) {
+    let t = std::time::Instant::now();
+    while !cond() {
+        assert!(
+            t.elapsed() < Duration::from_secs(30),
+            "timed out waiting for {what}; daemon log:\n{}",
+            std::fs::read_to_string(log).unwrap_or_default()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+/// Send `signal` (`TERM`, `INT`) to `child` and return its exit code.
+fn signal_and_wait(child: &mut std::process::Child, signal: &str, log: &Path) -> Option<i32> {
+    let ok = std::process::Command::new("kill")
+        .args([&format!("-{signal}"), &child.id().to_string()])
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "kill -{signal}");
+    let mut status = None;
+    wait_for("the daemon to exit", log, || {
+        status = child.try_wait().unwrap();
+        status.is_some()
+    });
+    status.unwrap().code()
+}
+
+#[test]
+fn the_daemon_binary_stops_cleanly_on_sigterm_and_sigint() {
+    let (env, ..) = one_file();
+    let note_path = env.dir.path().join("vault").join(STATUS_NOTE);
+    let log = env.dir.path().join("daemon.log");
+    let note = || std::fs::read_to_string(&note_path).unwrap_or_default();
+
+    let mut child = spawn_daemon(&env, &log);
+    wait_for("a first cycle", &log, || note().contains("| ok |"));
+    assert_eq!(signal_and_wait(&mut child, "TERM", &log), Some(0));
+    let text = note();
+    assert!(text.contains("\nStopped at "), "{text}");
+    assert_eq!(text.matches("the daemon stopped").count(), 1, "{text}");
+    assert!(env.cfg.state_dir.join("daemon-events.json").is_file());
+
+    // Restarted: the note is rewritten and keeps the earlier stop in its events.
+    let mut child = spawn_daemon(&env, &log);
+    wait_for("the note to be rewritten", &log, || {
+        let t = note();
+        t.contains("| ok |") && !t.contains("Stopped at")
+    });
+    assert!(note().contains("the daemon stopped"));
+    assert_eq!(signal_and_wait(&mut child, "INT", &log), Some(0));
+    let text = note();
+    assert!(text.contains("\nStopped at "), "{text}");
+    assert_eq!(text.matches("the daemon stopped").count(), 2, "{text}");
 }

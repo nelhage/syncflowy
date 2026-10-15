@@ -34,14 +34,14 @@
     "id": "root",
     "name": "Root"
   },
-  "description": "§4.4: an untagged item with different text is a create, and the base item a delete.",
+  "description": "§4.4: an untagged item with different text is a create, and the base item a delete, unless the two are the only unmatched pair under their parent at the same index (i15); here the new line is at another position.",
   "expected": {
     "cancelled_pending": [],
     "conflicts": [],
     "creates": [
       {
         "layout": "bullets",
-        "line": 9,
+        "line": 1,
         "name": "Completely new words",
         "note": null,
         "parent": "root",
@@ -60,12 +60,12 @@
     ],
     "merged": [
       "root \"Root\"",
+      "  temp-1 \"Completely new words\"",
       "  a \"Alpha\" note=\"one\\ntwo\\nthree\"",
       "    a1 \"Alpha one\"",
       "    a2 \"Alpha two\"",
       "  b \"Beta\"",
-      "    b1 \"Beta one\"",
-      "  temp-1 \"Completely new words\""
+      "    b1 \"Beta one\""
     ],
     "moves": [],
     "orders": {
@@ -77,9 +77,9 @@
         "b1"
       ],
       "root": [
+        "temp-1",
         "a",
-        "b",
-        "temp-1"
+        "b"
       ]
     },
     "pushes": {},
@@ -100,6 +100,12 @@
     {
       "name": "Completely new words",
       "op": "set",
+      "tag": "c"
+    },
+    {
+      "index": 0,
+      "op": "move",
+      "parent": null,
       "tag": "c"
     },
     {

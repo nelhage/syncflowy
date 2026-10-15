@@ -7,7 +7,9 @@ mod sync_support;
 use std::time::Duration;
 
 use serde_json::json;
+use syncflowy::mdblock::DocConfig;
 use syncflowy::merge::ReportEvent;
+use syncflowy::plan::Op;
 use syncflowy::state::StateStore;
 use syncflowy::sync::{self, SyncOutcome};
 use syncflowy::tree::NodeId;
@@ -85,6 +87,15 @@ fn remote_delete_of_a_locally_edited_node_resurrects_it() {
     let tree = env.export();
     assert_eq!(child_names(&tree, &root), ["Alpha, edited", "Beta"]);
     assert!(!tree.contains(&a));
+    // Named by the base name and the new node's own tag, never by a temp id.
+    let new = by_name(&tree, "Alpha, edited").id.clone();
+    let line = format!(
+        "\"Alpha\" ({}) was deleted in Workflowy but edited in Markdown: re-created as \
+         \"Alpha, edited\" ({}, new) (the original is in Workflowy's Trash)",
+        short(&a),
+        short(&new)
+    );
+    assert!(r.messages.contains(&line), "{r:#?}");
     let text = read(&file);
     assert!(!text.contains(&short(&a).to_string()), "{text}");
     settle(&env, &file);
@@ -148,6 +159,46 @@ fn root_note_and_code_block_edits() {
         env.export().get(&kids[0].id).unwrap().name,
         "fn main() { run(); }"
     );
+    settle(&env, &file);
+}
+
+#[test]
+fn unfencing_or_forcing_a_multi_line_value_loses_nothing() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Root");
+    let code = env.ui_create_with(
+        Some(&root),
+        json!({"text": "line one\nline two", "layoutMode": "code-block"}),
+    );
+    let two = env.ui_create(Some(&root), "Two-line\nname");
+    let file = env.path("root.md");
+    env.render(&root, &file);
+    let lossy = |r: &sync::SyncReport| {
+        r.events
+            .iter()
+            .any(|e| matches!(e, ReportEvent::LossyWrite { .. }))
+    };
+
+    // The user saw both lines of the code block when they unfenced it.
+    let cs = short(&code);
+    edit(
+        &file,
+        &format!("- ``` ^wf-{cs}\n\tline one\n\tline two\n\t```\n"),
+        &format!("- A1 unfenced ^wf-{cs}\n"),
+    );
+    let r = env.sync(&file);
+    assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    assert!(!lossy(&r), "{r:#?}");
+    assert_eq!(env.export().get(&code).unwrap().name, "A1 unfenced");
+
+    // A forced edit of a read-only name: the user saw its 🔒.
+    let mut cfg = env.cfg.clone();
+    cfg.force = true;
+    edit(&file, "🔒 Two-line ⏎ name", "Two-line name forced");
+    let r = sync::sync_once(&env.client, &file, &cfg).unwrap();
+    assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+    assert!(!lossy(&r), "{r:#?}");
+    assert_eq!(env.export().get(&two).unwrap().name, "Two-line name forced");
     settle(&env, &file);
 }
 
@@ -227,6 +278,37 @@ fn conflict_on_a_node_moved_out_of_the_root_is_reported() {
 }
 
 #[test]
+fn ticking_a_node_renamed_remotely_reports_the_dropped_rename() {
+    let (env, _root, a, _b, file) = setup();
+    env.ui(
+        "edit",
+        json!({"id": a.as_str(), "text": "Alpha, renamed by them"}),
+    );
+    edit(&file, "- [ ] Alpha", "- [x] Alpha, my rename");
+    let r = env.sync(&file);
+    // §6.2: the completion is pushed and the remote name kept.
+    let tree = env.export();
+    let node = tree.get(&a).unwrap();
+    assert!(node.completed);
+    assert_eq!(node.name, "Alpha, renamed by them");
+    assert!(
+        r.events.iter().any(|e| matches!(
+            e,
+            ReportEvent::TickedConflict { node, local_md, .. }
+                if *node == a && local_md == "Alpha, my rename"
+        )),
+        "{r:#?}"
+    );
+    assert!(
+        r.messages
+            .iter()
+            .any(|m| m.contains("which you ticked") && m.contains("\"Alpha, my rename\"")),
+        "{r:#?}"
+    );
+    settle(&env, &file);
+}
+
+#[test]
 fn deleting_a_parent_takes_its_hidden_children() {
     let (env, root, a, _b, file) = setup();
     let done = env.ui_create(Some(&a), "done child");
@@ -240,10 +322,83 @@ fn deleting_a_parent_takes_its_hidden_children() {
         panic!("{r:#?}")
     };
     assert_eq!((pushed.deletes, pushed.hidden_deleted), (1, 1));
+    let named = format!(
+        "deleting \"Alpha\" ({}) also deletes 1 hidden item: \"done child\"",
+        short(&a)
+    );
+    assert!(r.messages.contains(&named), "{r:#?}");
     let tree = env.export();
     assert!(!tree.contains(&a) && !tree.contains(&done));
     assert_eq!(child_names(&tree, &root), ["Beta"]);
     settle(&env, &file);
+}
+
+#[test]
+fn deleting_a_line_counts_descendants_hidden_by_depth() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Root");
+    let parent = env.ui_create(Some(&root), "Parent");
+    let child = env.ui_create(Some(&parent), "Child");
+    let grandchild = env.ui_create(Some(&child), "Grandchild");
+    env.ui_create(Some(&root), "Other");
+    let file = env.path("root.md");
+    let doc = DocConfig {
+        max_depth: Some(1),
+        ..DocConfig::default()
+    };
+    env.render_with(&root, &file, &doc);
+    let text = read(&file);
+    assert!(!text.contains("Child"), "{text}");
+    let pl = line_of(&text, &parent).to_owned();
+    edit(&file, &format!("{pl}\n"), "");
+
+    let mut cfg = env.cfg.clone();
+    cfg.dry_run = true;
+    let r = sync::sync_once(&env.client, &file, &cfg).unwrap();
+    let SyncOutcome::DryRun { plan } = &r.outcome else {
+        panic!("{r:#?}")
+    };
+    assert!(
+        plan.ops.iter().any(|op| matches!(
+            op,
+            Op::Delete { node, hidden_descendants: 2, mirror: false } if *node == parent
+        )),
+        "{plan:#?}"
+    );
+
+    let r = env.sync(&file);
+    let SyncOutcome::Synced { pushed, .. } = r.outcome else {
+        panic!("{r:#?}")
+    };
+    assert_eq!((pushed.deletes, pushed.hidden_deleted), (1, 2));
+    let tree = env.export();
+    assert!(!tree.contains(&parent) && !tree.contains(&child) && !tree.contains(&grandchild));
+    settle(&env, &file);
+}
+
+#[test]
+fn a_dry_run_names_the_hidden_items_a_delete_takes() {
+    let (env, _root, a, _b, file) = setup();
+    for i in 0..12 {
+        let h = env.ui_create(Some(&a), &format!("h{i}"));
+        env.ui("complete", json!({"id": h.as_str()}));
+    }
+    env.sync(&file);
+    let text = read(&file);
+    let al = line_of(&text, &a).to_owned();
+    edit(&file, &format!("{al}\n"), "");
+    let mut cfg = env.cfg.clone();
+    cfg.force = true; // 13 deletes out of 2 visible items engage the brake
+    cfg.dry_run = true;
+    let r = sync::sync_once(&env.client, &file, &cfg).unwrap();
+    assert!(matches!(r.outcome, SyncOutcome::DryRun { .. }), "{r:#?}");
+    let names: Vec<String> = (0..10).map(|i| format!("\"h{i}\"")).collect();
+    let named = format!(
+        "deleting \"Alpha\" ({}) also deletes 12 hidden items: {}, and 2 more",
+        short(&a),
+        names.join(", ")
+    );
+    assert!(r.messages.contains(&named), "{r:#?}");
 }
 
 #[test]
@@ -259,13 +414,13 @@ fn deferred_deletes_wait_for_the_grace_period() {
     assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
     assert!(env.export().contains(&a));
     assert!(!read(&file).contains("Alpha"));
-    let st = sync::status(&cfg, &[]).unwrap();
+    let st = sync::status(&cfg).unwrap();
     assert_eq!(st[0].pending_deletes.len(), 1);
     // Next cycle with the file unchanged: due, sent.
     sync::sync_once(&env.client, &file, &cfg).unwrap();
     assert!(!env.export().contains(&a));
     assert_eq!(child_names(&env.export(), &root), ["Beta"]);
-    let st = sync::status(&cfg, &[]).unwrap();
+    let st = sync::status(&cfg).unwrap();
     assert!(st[0].pending_deletes.is_empty());
     let r = sync::sync_once(&env.client, &file, &cfg).unwrap();
     assert_eq!(r.outcome, SyncOutcome::Unchanged);
@@ -286,11 +441,7 @@ fn deferred_delete_is_cancelled_when_the_line_comes_back() {
     let r = sync::sync_once(&env.client, &file, &cfg).unwrap();
     assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
     assert!(read(&file).contains("Alpha"));
-    assert!(
-        sync::status(&cfg, &[]).unwrap()[0]
-            .pending_deletes
-            .is_empty()
-    );
+    assert!(sync::status(&cfg).unwrap()[0].pending_deletes.is_empty());
     assert!(env.export().contains(&a));
 }
 
@@ -459,6 +610,6 @@ fn skipped_local_content_is_not_committed_when_no_retry_is_left() {
 }
 
 fn root_of(env: &Env, file: &std::path::Path) -> NodeId {
-    let st = sync::status(&env.cfg, &[file.to_path_buf()]).unwrap();
-    st[0].root.clone()
+    let st = sync::status_of_files(&env.cfg, &[file.to_path_buf()]).unwrap();
+    st[0].status.as_ref().unwrap().root.clone()
 }

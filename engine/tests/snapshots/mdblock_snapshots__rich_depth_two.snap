@@ -1,0 +1,61 @@
+---
+source: tests/mdblock_snapshots.rs
+expression: md
+---
+---
+workflowy: 000000000001
+syncflowy: {depth: 2, gen: 7}
+tags: [workflowy, sync]
+---
+Free text here is the sync root's note.
+It has **two** lines & an ampersand.
+
+- Planning ^wf-000000000002
+	Note on "Planning": lines right under the heading.
+	- Draft the *spec* ^wf-000000000003
+		A note line.
+
+		After an empty line.
+		\- not a child, a note line
+	- Numbered steps ^wf-00000000000c
+	- [ ] Board layout is kept as a plain item ^wf-000000000010
+	- [ ] Paragraph layout ^wf-000000000011
+	- [ ] An h1 inside the outline ^wf-000000000012
+- ``` ^wf-000000000013
+	fn main() {
+	    println!("hi & bye");
+	}
+	```
+	runs on save
+- > To be or not to be ^wf-000000000014
+- --- ^wf-000000000015
+- ^wf-000000000016
+	- [ ] child of an empty bullet ^wf-000000000017
+- ⧉ (mirror of a deleted item) ^wf-000000000018-ro
+- [ ] 🔒 broken bold ^wf-000000000019-ro
+	a malformed name (UI:F1)
+- [ ] 🔒 line one ⏎ line two ^wf-00000000001a-ro
+- ```` ^wf-00000000001b
+	x
+	```
+	y
+	````
+- [ ] **bold** and unknown markup ^wf-00000000001c
+- [ ] See https://example.com/a?b=1&c=2 on 📅 2026-01-15 and at 📅 2026-01-15 14:30 ^wf-00000000001d
+- [ ] <u>underlined</u>, <span class="colored c-red">red</span>, [a link](https://example.com) and #tag @who ^wf-00000000001e
+- [ ] 1\. not a list ^wf-00000000001f
+- [ ] \- not a child ^wf-000000000020
+- [ ] \# not a heading ^wf-000000000021
+- [ ] \[ ] not a box ^wf-000000000022
+- [ ] a \^wf-8e1f00aa2b3c in the text and %\% percents ^wf-000000000023
+- [ ] A todo with children ^wf-000000000027
+	- [ ] leaf one ^wf-000000000028
+	- [ ] leaf two ^wf-000000000029
+		&#32;&#32;indented note line
+- [ ] Trailing empty note lines ^wf-00000000002a
+	first
+	
+	
+- [ ] Leading empty note line ^wf-00000000002b
+
+	second

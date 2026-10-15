@@ -18,9 +18,9 @@ use super::codec::TextCodec;
 use super::diff3::diff3_lines;
 use super::order::{lcs_members, merge_sibling_order};
 use super::{
-    Change, CrossFile, DeleteIntent, FieldPush, MergeError, MergeInput, MergeResult, MergeStats,
-    MoveIntent, NewNode, REMATCH_MAX_DISTANCE, REMATCH_MIN_RATIO, ReportEvent, is_placeholder_node,
-    visible_nodes,
+    Change, CrossFile, DeleteIntent, FieldPush, HIDDEN_LABELS_MAX, MergeError, MergeInput,
+    MergeResult, MergeStats, MoveIntent, NewNode, REMATCH_MAX_DISTANCE, REMATCH_MIN_RATIO,
+    ReportEvent, is_placeholder_node, visible_nodes,
 };
 use crate::mdblock::{Checkbox, ConflictMarker, ItemKind, LocalDoc, LocalItem};
 use crate::mdinline::{ConflictField, FieldKind, IdTag, InlineConfig, TagFlag, Tier};
@@ -126,8 +126,15 @@ struct Detected {
     /// The local name Markdown, if the name changed.
     name: Option<String>,
     name_kind: FieldKind,
+    /// The user saw all of the base name, so a write that cannot merge onto it loses
+    /// nothing worth a [`ReportEvent::LossyWrite`]: the item changed kind (a code block
+    /// unfenced, say) and the base round-trips in its old kind, or a read-only name was
+    /// edited with `force` (the `🔒` was in view).
+    name_seen: bool,
     /// The local note Markdown (lines joined by `\n`), if the note changed.
     note: Option<String>,
+    /// As `name_seen`, for a read-only note edited with `force`.
+    note_seen: bool,
     /// The target layout, if the Markdown changed kind (§4.3).
     layout: Option<String>,
 }
@@ -145,6 +152,8 @@ struct CreateValues {
     note: Option<String>,
     layout: String,
     lost: Vec<ConflictField>,
+    /// Fields whose typed Markdown held a link title, which WF cannot store.
+    dropped: Vec<ConflictField>,
 }
 
 /// A candidate identity from a tag.
@@ -263,6 +272,18 @@ fn is_untagged(item: &LocalItem) -> bool {
 
 fn similarity(a: &str, b: &str) -> f32 {
     TextDiff::from_chars(a, b).ratio()
+}
+
+/// §4.4 deleted-tag fallback: the similarity of an untagged line's text to a vanished
+/// node's. A line that keeps the old text as its prefix (text appended to the name)
+/// counts as similar whatever it appended.
+fn rematch_ratio(text: &str, old: &str) -> f32 {
+    let r = similarity(text, old);
+    if !old.is_empty() && text.starts_with(old) {
+        r.max(REMATCH_MIN_RATIO)
+    } else {
+        r
+    }
 }
 
 fn ratio_key(r: f32) -> i64 {
@@ -616,10 +637,20 @@ impl<'a, 'c> Engine<'a, 'c> {
         if self.base_sub.contains(n) || self.remote_sub.contains(n) {
             return Some(Cand::Local(n.clone()));
         }
-        if self.inp.remote.contains(n) {
+        if self.inp.remote.contains(n) && !self.inp.cross.still_in_own_file.contains(n) {
             return self.other_root_of(n).map(|r| Cand::Cross(n.clone(), r));
         }
         None
+    }
+
+    /// The tag names a node of another file of the run whose line is still there: a
+    /// paste here is a copy, not a move (`CrossFile::still_in_own_file`).
+    fn copied_tag(&self, t: &IdTag) -> bool {
+        self.inp.ids.get(&t.short).is_some_and(|n| {
+            self.inp.cross.still_in_own_file.contains(n)
+                && !self.base_sub.contains(n)
+                && !self.remote_sub.contains(n)
+        })
     }
 
     fn identify(&mut self) {
@@ -632,9 +663,17 @@ impl<'a, 'c> Engine<'a, 'c> {
             let Some(first) = tags.first() else { continue };
             *slot = tags.iter().find_map(|t| self.classify_tag(t));
             if slot.is_none() {
-                self.report.push(ReportEvent::ForeignTag {
-                    short: first.short.clone(),
-                    line: it.line,
+                // §4.4, §6.4: a tag still on its line in the other file is a copy.
+                let copied = tags.iter().find(|t| self.copied_tag(t));
+                self.report.push(match copied {
+                    Some(t) => ReportEvent::CopiedTag {
+                        short: t.short.clone(),
+                        line: it.line,
+                    },
+                    None => ReportEvent::ForeignTag {
+                        short: first.short.clone(),
+                        line: it.line,
+                    },
                 });
             }
         }
@@ -703,18 +742,54 @@ impl<'a, 'c> Engine<'a, 'c> {
             }
         }
         let w = self.best_duplicate(node, list, cand, state);
+        self.items[w].ident = self.ident_of(cand[w].clone().expect("candidate"));
+        // A losing line that carries other tags keeps the identity of the first of them
+        // that nobody else claims (§4.4 "take the last valid one"), in file order; only
+        // a line left with none is a new item.
+        let mut other_tag_lines = Vec::new();
+        for &i in list {
+            if i == w {
+                continue;
+            }
+            match self.unclaimed_other_tag(i, node, by_node) {
+                Some(c) => {
+                    self.items[i].ident = self.ident_of(c);
+                    other_tag_lines.push(self.items[i].item.line);
+                }
+                None => self.items[i].ident = Ident::Duplicate,
+            }
+        }
         self.report.push(ReportEvent::DuplicateTag {
             short: node.short().expect("resolved through the id map"),
             lines: list.iter().map(|&i| self.items[i].item.line).collect(),
             kept_line: self.items[w].item.line,
+            other_tag_lines,
         });
-        for &i in list {
-            if i != w {
-                self.items[i].ident = Ident::Duplicate;
-            }
-        }
-        self.items[w].ident = self.ident_of(cand[w].clone().expect("candidate"));
         state.insert(node.clone(), true);
+    }
+
+    /// The candidate of another tag on item `i`'s line (in "last valid" order, skipping
+    /// the node it lost, `lost`) whose node no line wins and no item has taken yet.
+    /// Every node some line names as its winning tag is claimed by that line
+    /// (`by_node`), so a fallback never takes a node from another item, and checking
+    /// what earlier fallbacks took reaches the fixed point in one pass.
+    fn unclaimed_other_tag(
+        &self,
+        i: usize,
+        lost: &NodeId,
+        by_node: &BTreeMap<NodeId, Vec<usize>>,
+    ) -> Option<Cand> {
+        let it = self.items[i].item;
+        it.tag
+            .iter()
+            .chain(it.extra_tags.iter().rev())
+            .filter_map(|t| self.classify_tag(t))
+            .find(|c| {
+                let n = c.node();
+                n != lost
+                    && !by_node.contains_key(n)
+                    && !self.items.iter().any(|li| li.ident.node() == Some(n))
+            })
     }
 
     /// §4.4: the occurrence that best matches the base item (text similarity, then same
@@ -832,7 +907,7 @@ impl<'a, 'c> Engine<'a, 'c> {
                     if dist > REMATCH_MAX_DISTANCE {
                         continue;
                     }
-                    let r = similarity(&text, &self.plain_of_md(bi.item));
+                    let r = rematch_ratio(&text, &self.plain_of_md(bi.item));
                     if r >= REMATCH_MIN_RATIO {
                         pairs.push((-ratio_key(r), dist, i, node.clone(), false));
                     }
@@ -863,13 +938,16 @@ impl<'a, 'c> Engine<'a, 'c> {
                         continue;
                     }
                     let name = &remote.get(p).expect("in remote").name;
-                    let r = similarity(&text, &self.codec.plain_text(name));
+                    let r = rematch_ratio(&text, &self.codec.plain_text(name));
                     if r >= REMATCH_MIN_RATIO {
                         pairs.push((-ratio_key(r), dist, i, p.clone(), true));
                     }
                 }
             }
             if pairs.is_empty() {
+                if self.rematch_sole_pairs(&claimed) {
+                    continue;
+                }
                 return;
             }
             pairs.sort();
@@ -892,6 +970,59 @@ impl<'a, 'c> Engine<'a, 'c> {
                 };
             }
         }
+    }
+
+    /// §4.4 deleted-tag fallback when the text changed too much: under a parent where
+    /// exactly one new line (untagged) and exactly one base item (its tag gone from the
+    /// file, not pasted into another file) are left unmatched, at the same sibling
+    /// index, the line is that item edited, whatever its text (a removed tag together
+    /// with a larger edit). The trade-off: a line deleted and another typed in its
+    /// place becomes a rename, which keeps the node's history and Workflowy-only
+    /// attributes instead of trashing them. True if anything was paired.
+    fn rematch_sole_pairs(&mut self, claimed: &BTreeSet<NodeId>) -> bool {
+        let mut unmatched: BTreeMap<NodeId, Vec<usize>> = BTreeMap::new();
+        for i in 0..self.items.len() {
+            if matches!(self.items[i].ident, Ident::New | Ident::Duplicate)
+                && let Some(pn) = self.parent_node(i)
+            {
+                unmatched.entry(pn).or_default().push(i);
+            }
+        }
+        let mut paired = false;
+        for (pn, list) in unmatched {
+            let [i] = list.as_slice() else { continue };
+            if !is_untagged(self.items[*i].item) {
+                continue;
+            }
+            let vanished: Vec<&NodeId> = self
+                .base_children
+                .get(&pn)
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+                .iter()
+                // Only a node still in the subtree: a rename must not follow a node
+                // moved out (its line would leave the file) or resurrect a deleted one.
+                .filter(|n| {
+                    !claimed.contains(*n)
+                        && !self.inp.cross.claimed_elsewhere.contains(*n)
+                        && self.remote_sub.contains(*n)
+                })
+                .collect();
+            let [node] = vanished.as_slice() else {
+                continue;
+            };
+            if self.base_items[*node].index != self.items[*i].index {
+                continue;
+            }
+            let node = (*node).clone();
+            self.report.push(ReportEvent::Rematched {
+                node: node.clone(),
+                line: self.items[*i].item.line,
+            });
+            self.items[*i].ident = Ident::Rematched(node);
+            paired = true;
+        }
+        paired
     }
 
     // ----- phase 2: cancellations and visibility --------------------------------------
@@ -1001,13 +1132,16 @@ impl<'a, 'c> Engine<'a, 'c> {
         let kb = field_kind(bi);
         let kl = field_kind(li);
         // §10 placeholders, §15.1 stubs and §5.3 read-only items.
-        let ro_item = !self.force
-            && (has_ro_flag(bi) || matches!(bi.kind, ItemKind::Placeholder | ItemKind::MirrorStub));
+        let ro_flagged =
+            has_ro_flag(bi) || matches!(bi.kind, ItemKind::Placeholder | ItemKind::MirrorStub);
+        let ro_item = !self.force && ro_flagged;
         let mut refused = false;
         let mut d = Detected {
             name: None,
             name_kind: kl,
+            name_seen: false,
             note: None,
+            note_seen: false,
             layout: None,
         };
 
@@ -1021,13 +1155,16 @@ impl<'a, 'c> Engine<'a, 'c> {
                     node: n.clone(),
                     field: ConflictField::Name,
                 });
-            } else if ro_item
-                || (!self.force
-                    && self.codec.classify(&base_node.name, kb, self.inline) == Tier::ReadOnly)
-            {
-                refused = true;
             } else {
-                d.name = Some(li.name_md.clone());
+                let tier = self.codec.classify(&base_node.name, kb, self.inline);
+                if ro_item || (!self.force && tier == Tier::ReadOnly) {
+                    refused = true;
+                } else {
+                    d.name = Some(li.name_md.clone());
+                    d.name_seen = ro_flagged
+                        || tier == Tier::ReadOnly
+                        || (kb != kl && tier <= Tier::Passthrough);
+                }
             }
         }
 
@@ -1038,20 +1175,20 @@ impl<'a, 'c> Engine<'a, 'c> {
                 self.codec
                     .md_to_wf(&Self::note_md(p), FieldKind::Note, self.inline)
             });
-            let base_note = base_node.note.as_deref().unwrap_or("");
             if stale {
                 self.report.push(ReportEvent::StaleEcho {
                     node: n.clone(),
                     field: ConflictField::Note,
                 });
-            } else if ro_item
-                || (!self.force
-                    && self.codec.classify(base_note, FieldKind::Note, self.inline)
-                        == Tier::ReadOnly)
-            {
-                refused = true;
             } else {
-                d.note = Some(local_note);
+                let base_note = base_node.note.as_deref().unwrap_or("");
+                let tier = self.codec.classify(base_note, FieldKind::Note, self.inline);
+                if ro_item || (!self.force && tier == Tier::ReadOnly) {
+                    refused = true;
+                } else {
+                    d.note = Some(local_note);
+                    d.note_seen = ro_flagged || tier == Tier::ReadOnly;
+                }
             }
         }
 
@@ -1320,12 +1457,14 @@ impl<'a, 'c> Engine<'a, 'c> {
         }
     }
 
-    /// §6.1 for a name (character-level text, no line merge).
+    /// §6.1 for a name (character-level text, no line merge). `seen`: see
+    /// [`Detected::name_seen`].
     #[allow(clippy::too_many_arguments)]
     fn merge_name(
         &mut self,
         n: &NodeId,
         kind: FieldKind,
+        seen: bool,
         base_val: &str,
         remote_val: &str,
         md: &str,
@@ -1335,11 +1474,34 @@ impl<'a, 'c> Engine<'a, 'c> {
         let w = self.codec.write_value(base_val, md, kind, self.inline);
         if base_val == remote_val {
             if w.wf != remote_val {
-                self.set_name(n, remote_val, w.wf, w.lost, push);
+                self.report_dropped(n, ConflictField::Name, md, kind);
+                self.set_name(n, remote_val, w.wf, w.lost && !seen, push);
             }
-        } else if w.wf != remote_val && !ticked {
-            // Both changed differently: remote wins, local kept as a marker.
-            self.add_conflict(n, ConflictField::Name, md.to_owned());
+        } else if w.wf != remote_val {
+            if ticked {
+                // §6.2 table row 1: the completion is pushed and the remote edit kept;
+                // the line leaves the file, so the report keeps the typed text.
+                self.report.push(ReportEvent::TickedConflict {
+                    node: n.clone(),
+                    field: ConflictField::Name,
+                    local_md: md.to_owned(),
+                });
+            } else {
+                // Both changed differently: remote wins, local kept as a marker.
+                self.add_conflict(n, ConflictField::Name, md.to_owned());
+            }
+        }
+    }
+
+    /// Reports a link title in the written Markdown `md` that WF cannot hold
+    /// ([`TextCodec::drops_text`]). Unlike [`ReportEvent::LossyWrite`] this is never
+    /// excused by the user having seen the base value: the title is their own text.
+    fn report_dropped(&mut self, n: &NodeId, field: ConflictField, md: &str, kind: FieldKind) {
+        if self.codec.drops_text(md, kind, self.inline) {
+            self.report.push(ReportEvent::LinkTitleDropped {
+                node: n.clone(),
+                field,
+            });
         }
     }
 
@@ -1399,10 +1561,13 @@ impl<'a, 'c> Engine<'a, 'c> {
         });
     }
 
-    /// §6.1 for a note: a line-level diff3 first, then a conflict.
+    /// §6.1 for a note: a line-level diff3 first, then a conflict. `seen`: see
+    /// [`Detected::note_seen`].
+    #[allow(clippy::too_many_arguments)]
     fn merge_note(
         &mut self,
         n: &NodeId,
+        seen: bool,
         base_val: &str,
         remote: Option<&str>,
         md: &str,
@@ -1413,21 +1578,32 @@ impl<'a, 'c> Engine<'a, 'c> {
         let w = self
             .codec
             .write_value(base_val, md, FieldKind::Note, self.inline);
+        let lost = w.lost && !seen;
         if base_val == rv {
             if w.wf != rv {
-                self.set_note(n, remote, w.wf, w.lost, push);
+                self.report_dropped(n, ConflictField::Note, md, FieldKind::Note);
+                self.set_note(n, remote, w.wf, lost, push);
             }
             return;
         }
-        if w.wf == rv || ticked {
+        if w.wf == rv {
+            return;
+        }
+        if ticked {
             // §6.2 table row 1: ticked vs edited remotely: push nothing but the
-            // completion, keep the remote edit.
+            // completion, keep the remote edit, and report the typed text.
+            self.report.push(ReportEvent::TickedConflict {
+                node: n.clone(),
+                field: ConflictField::Note,
+                local_md: md.to_owned(),
+            });
             return;
         }
         match diff3_lines(base_val, &w.wf, rv) {
             Some(merged) if self.codec.is_canonical(&merged) => {
                 if merged != rv {
-                    self.set_note(n, remote, merged, w.lost, push);
+                    self.report_dropped(n, ConflictField::Note, md, FieldKind::Note);
+                    self.set_note(n, remote, merged, lost, push);
                 }
             }
             _ => self.add_conflict(n, ConflictField::Note, md.to_owned()),
@@ -1483,8 +1659,12 @@ impl<'a, 'c> Engine<'a, 'c> {
                 // The preamble has no line number of its own: 0 stands for it.
                 self.refuse(&root, 0);
             } else {
+                // With `force`, a read-only preamble was edited in view of its `🔒`.
+                let seen =
+                    self.codec.classify(base_note, FieldKind::Note, self.inline) == Tier::ReadOnly;
                 self.merge_note(
                     &root,
+                    seen,
                     base_note,
                     remote_root.note.as_deref(),
                     &local_md,
@@ -1527,11 +1707,21 @@ impl<'a, 'c> Engine<'a, 'c> {
         if let Some(md) = &d.name
             && !divider_lost
         {
-            self.merge_name(nd, d.name_kind, &b.name, &r.name, md, ticked, &mut push);
+            self.merge_name(
+                nd,
+                d.name_kind,
+                d.name_seen,
+                &b.name,
+                &r.name,
+                md,
+                ticked,
+                &mut push,
+            );
         }
         if let Some(md) = &d.note {
             self.merge_note(
                 nd,
+                d.note_seen,
                 b.note.as_deref().unwrap_or(""),
                 r.note.as_deref(),
                 md,
@@ -1564,14 +1754,21 @@ impl<'a, 'c> Engine<'a, 'c> {
     }
 
     /// The parent a create goes under: the nearest local ancestor that is in `M`;
-    /// existing placeholders are skipped (refused) unless `force` (§10).
+    /// existing placeholders are skipped unless `force` (§10), and the lift is reported
+    /// ([`ReportEvent::Lifted`]).
     fn create_parent(&mut self, i: usize) -> NodeId {
-        let line = self.items[i].item.line;
         let (parent, placeholders) = self.create_parent_walk(i, &self.m);
-        for x in placeholders {
-            self.refuse(&x, line);
+        let parent = parent.unwrap_or_else(|| self.root.clone());
+        if let Some(placeholder) = placeholders.into_iter().next() {
+            let li = self.items[i].item;
+            self.report.push(ReportEvent::Lifted {
+                line: li.line,
+                name: self.plain_of_md(li),
+                placeholder,
+                parent: parent.clone(),
+            });
         }
-        parent.unwrap_or_else(|| self.root.clone())
+        parent
     }
 
     /// The walk of [`Engine::create_parent`] against `tree`: the parent (`None` for the
@@ -1624,9 +1821,16 @@ impl<'a, 'c> Engine<'a, 'c> {
             note,
             layout,
             lost,
+            dropped,
         } = self.create_values(i);
         for field in lost {
             self.report.push(ReportEvent::LossyWrite {
+                node: t.clone(),
+                field,
+            });
+        }
+        for field in dropped {
+            self.report.push(ReportEvent::LinkTitleDropped {
                 node: t.clone(),
                 field,
             });
@@ -1657,7 +1861,15 @@ impl<'a, 'c> Engine<'a, 'c> {
             resurrects: resurrects.clone(),
         });
         if let Some(old) = resurrects {
-            self.report.push(ReportEvent::Resurrected { old, new: t });
+            let old_name = match self.inp.base.get(&old) {
+                Some(b) => self.codec.plain_text(&b.name),
+                None => String::new(),
+            };
+            self.report.push(ReportEvent::Resurrected {
+                old,
+                new: t,
+                old_name,
+            });
         }
     }
 
@@ -1667,13 +1879,25 @@ impl<'a, 'c> Engine<'a, 'c> {
         let li = self.items[i].item;
         match &self.items[i].resurrects {
             Some(old) => self.resurrected_values(i, old),
-            None => CreateValues {
-                name: self.md_to_wf(&li.name_md, field_kind(li)),
-                note: (!li.note_md.is_empty())
-                    .then(|| self.md_to_wf(&Self::note_md(li), FieldKind::Note)),
-                layout: self.new_layout(li),
-                lost: Vec::new(),
-            },
+            None => {
+                let note_md = Self::note_md(li);
+                let drops = |md: &str, kind| self.codec.drops_text(md, kind, self.inline);
+                let dropped = [
+                    (ConflictField::Name, drops(&li.name_md, field_kind(li))),
+                    (
+                        ConflictField::Note,
+                        !li.note_md.is_empty() && drops(&note_md, FieldKind::Note),
+                    ),
+                ];
+                CreateValues {
+                    name: self.md_to_wf(&li.name_md, field_kind(li)),
+                    note: (!li.note_md.is_empty())
+                        .then(|| self.md_to_wf(&note_md, FieldKind::Note)),
+                    layout: self.new_layout(li),
+                    lost: Vec::new(),
+                    dropped: dropped.into_iter().filter(|l| l.1).map(|l| l.0).collect(),
+                }
+            }
         }
     }
 
@@ -1685,13 +1909,17 @@ impl<'a, 'c> Engine<'a, 'c> {
         let d = self.detected[i].clone().expect("base item detected");
         let kind = field_kind(li);
         let mut lost = Vec::new();
+        let mut dropped = Vec::new();
         let name = match &d.name {
             Some(md) => {
                 let w = self
                     .codec
                     .write_value(&b.name, md, d.name_kind, self.inline);
-                if w.lost {
+                if w.lost && !d.name_seen {
                     lost.push(ConflictField::Name);
+                }
+                if self.codec.drops_text(md, d.name_kind, self.inline) {
+                    dropped.push(ConflictField::Name);
                 }
                 w.wf
             }
@@ -1704,8 +1932,11 @@ impl<'a, 'c> Engine<'a, 'c> {
                 let w = self
                     .codec
                     .write_value(&base_note, md, FieldKind::Note, self.inline);
-                if w.lost {
+                if w.lost && !d.note_seen {
                     lost.push(ConflictField::Note);
+                }
+                if self.codec.drops_text(md, FieldKind::Note, self.inline) {
+                    dropped.push(ConflictField::Note);
                 }
                 w.wf
             }
@@ -1719,6 +1950,7 @@ impl<'a, 'c> Engine<'a, 'c> {
             note,
             layout,
             lost,
+            dropped,
         }
     }
 
@@ -1863,8 +2095,13 @@ impl<'a, 'c> Engine<'a, 'c> {
                 // Visible in the file and not deleted, or a remote addition.
                 true
             } else {
-                // A hidden descendant: deleted with it unless it changed.
+                // A hidden descendant: deleted with it unless it changed, or unless it
+                // (or a node below it) was pasted into another file of the run, whose
+                // merge moves it (a pending delete whose node's line was hidden).
+                let claimed = &self.inp.cross.claimed_elsewhere;
                 self.changed_deep(&c)
+                    || claimed.contains(&c)
+                    || self.m.descendants(&c).iter().any(|d| claimed.contains(d))
             };
             keep |= ck;
         }
@@ -1979,6 +2216,12 @@ impl<'a, 'c> Engine<'a, 'c> {
                 .filter(|d| self.base_items.contains_key(*d))
                 .count();
             let hidden = desc.len() - vis;
+            let hidden_labels = desc
+                .iter()
+                .filter(|d| !self.base_items.contains_key(*d))
+                .take(HIDDEN_LABELS_MAX)
+                .map(|d| self.codec.plain_text(&self.m.get(d).expect("in M").name))
+                .collect();
             let label = self.codec.plain_text(&self.m.get(&n).expect("in M").name);
             if dset.contains(&n) {
                 self.stats.deleted_visible += 1 + vis;
@@ -1992,6 +2235,7 @@ impl<'a, 'c> Engine<'a, 'c> {
                 visible_descendants: vis,
                 hidden_descendants: hidden,
                 label,
+                hidden_labels,
             });
         }
     }

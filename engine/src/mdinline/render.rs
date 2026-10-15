@@ -21,7 +21,8 @@ use super::chars::{
 };
 use super::dates::{self, CALENDAR, Date};
 use super::node::{El, N, plain_text};
-use super::tags::has_hazard;
+use super::parse::image_len;
+use super::tags::{has_hazard, tag_after_percents};
 
 /// How cautious the renderer is (see the module docs).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -124,6 +125,9 @@ pub(crate) struct Renderer<'a> {
     level: Level,
     /// The value has two or more `$`, which Obsidian could pair into math.
     dollars: bool,
+    /// The value has an odd number of `%%`: one of them cannot be half of a comment the
+    /// user typed, and could pair with a `%%wf:…%%` tag after the name.
+    odd_percents: bool,
     /// Delimiter characters that occur in a single run in the whole value (and so cannot
     /// pair); only used at [`Level::Minimal`].
     lone: Vec<char>,
@@ -137,6 +141,7 @@ impl<'a> Renderer<'a> {
             cfg,
             level,
             dollars: plain_text(nodes).matches('$').count() >= 2,
+            odd_percents: plain_text(nodes).matches("%%").count() % 2 == 1,
             lone: if level == Level::Minimal {
                 lone_delimiters(nodes)
             } else {
@@ -330,6 +335,17 @@ impl<'a> Renderer<'a> {
             let prev_c = k.checked_sub(1).map(|j| chars[j].1);
             let next_c = chars.get(k + 1).map(|x| x.1);
             let last = k + 1 == len;
+            // An image `![…](…)` is literal text in WF; `md_to_wf` reads it back as written,
+            // so it is written unescaped and keeps working in Obsidian (§4.2, EC 5).
+            if c == '!'
+                && let Some(n) = image_len(&t[i..])
+                && !t[i..i + n].contains('\n')
+                && !has_hazard(&t[i..i + n])
+            {
+                out.push_str(&t[i..i + n]);
+                k += t[i..i + n].chars().count();
+                continue;
+            }
             let esc = match c {
                 // A backslash before punctuation (or a line end, a hard break) is an escape.
                 '\\' => last || next_c.is_some_and(|x| x.is_ascii_punctuation() || x == '\n'),
@@ -367,9 +383,10 @@ impl<'a> Renderer<'a> {
                     },
                 },
                 '&' => entity_like_len(&t[i..]).is_some(),
-                // `![…](…)` would display as an image (literal text in WF), and `!` before
-                // a link element would make it one. An embed `![[…]]` is literal text both
-                // ways and is left alone, so it keeps working in Obsidian (§4.2, EC 5).
+                // `![…` that is not a whole image (written as is above) could still pair
+                // with a later `](…)`, and `!` before a link element would make it an
+                // image. An embed `![[…]]` is literal text both ways and is left alone, so
+                // it keeps working in Obsidian (§4.2, EC 5).
                 '!' => {
                     (next_c == Some('[') && !rest.starts_with("[["))
                         || (last
@@ -387,7 +404,10 @@ impl<'a> Renderer<'a> {
                 // could pair into math, so a `$` before a digit is escaped when the value
                 // has another `$`; math rarely starts with a digit.
                 '$' => self.dollars && next_c.is_some_and(|x| x.is_ascii_digit()),
-                '%' => prev_c == Some('%'),
+                // `%%` when it would start a tag (`%%wf:`, `%%wf-conflict:`, EC 4), or when
+                // the value's `%%` do not pair up (a lone one would pair with a comment-form
+                // tag on the line); an Obsidian comment `%%…%%` is written as typed.
+                '%' => prev_c == Some('%') && (self.odd_percents || tag_after_percents(rest)),
                 '^' => starts_with_ci(rest, "wf-"),
                 '(' => starts_with_ci(rest, "wid::"),
                 ':' => !in_link && url_colon(t, i, p),

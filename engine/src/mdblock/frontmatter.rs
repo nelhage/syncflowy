@@ -4,8 +4,8 @@
 //! (`workflowy:` and `syncflowy:`); every other line is kept verbatim.
 
 use super::{
-    CheckboxPolicy, DocConfig, Frontmatter, ParseError, ParseWarning, RootRef, TagStyle,
-    WarningKind,
+    CheckboxPolicy, DocConfig, Frontmatter, MAX_HEADINGS, ParseError, ParseWarning, RootRef,
+    TagStyle, WarningKind,
 };
 use crate::tree::{IdMap, NodeId, ShortId};
 
@@ -274,9 +274,30 @@ fn flow_end(s: &str) -> Option<usize> {
     None
 }
 
+/// The keys of `syncflowy:`, which are warned about when written at the top level.
+const OPTION_KEYS: [&str; 8] = [
+    "headings",
+    "ids",
+    "checkboxes",
+    "dates",
+    "depth",
+    "paused",
+    "force",
+    "gen",
+];
+
+/// The key of a top-level frontmatter line that is a `syncflowy:` option written outside
+/// it (`paused: true`), if `line` is one.
+pub(super) fn misplaced_option(line: &str) -> Option<&str> {
+    top_key(line)
+        .map(|(k, _)| k)
+        .filter(|k| OPTION_KEYS.contains(k))
+}
+
 struct ConfigState {
     config: DocConfig,
     generation: Option<u64>,
+    generation_text: Option<String>,
     paused: bool,
     force: bool,
 }
@@ -293,7 +314,7 @@ fn apply_entry(
     let v = v.trim();
     match key {
         "headings" => match v.parse::<u8>() {
-            Ok(n) if n <= 6 => st.config.headings = n,
+            Ok(n) if n <= MAX_HEADINGS => st.config.headings = n,
             _ => return Err(bad_config(key, v)),
         },
         "ids" => st.config.tags = tag_style(v).ok_or_else(|| bad_config(key, v))?,
@@ -313,8 +334,12 @@ fn apply_entry(
         }
         "paused" => st.paused = parse_bool(key, v)?,
         "force" => st.force = parse_bool(key, v)?,
-        // §9.1 guard 1: an unparseable `gen` is not an error; `sync` falls back to safe mode.
-        "gen" => st.generation = v.parse::<u64>().ok(),
+        // §9.1 guard 1: an unparseable `gen` is not an error; `sync` falls back to safe mode
+        // and names the value.
+        "gen" => {
+            st.generation = v.parse::<u64>().ok();
+            st.generation_text = st.generation.is_none().then(|| v.to_owned());
+        }
         _ => warnings.push(ParseWarning {
             line,
             kind: WarningKind::UnknownConfigKey,
@@ -357,6 +382,7 @@ pub(super) fn parse(lines: &[&str]) -> Result<Parsed, ParseError> {
     let mut st = ConfigState {
         config: DocConfig::default(),
         generation: None,
+        generation_text: None,
         paused: false,
         force: false,
     };
@@ -413,6 +439,31 @@ pub(super) fn parse(lines: &[&str]) -> Result<Parsed, ParseError> {
                     return Err(bad_config("syncflowy", value));
                 }
             }
+            Some((key, rest)) if OPTION_KEYS.contains(&key) => {
+                // An option written outside `syncflowy:` is kept verbatim but warned
+                // about. A top-level `paused: true` is honoured (pausing is the safe
+                // direction); a top-level `force` never is.
+                let value = unquote(strip_comment(rest));
+                let honoured = key == "paused" && value.trim().eq_ignore_ascii_case("true");
+                if honoured {
+                    st.paused = true;
+                }
+                warnings.push(ParseWarning {
+                    line: line_no,
+                    kind: WarningKind::MisplacedConfigKey,
+                    message: format!(
+                        "{key:?} is a syncflowy option; write it as syncflowy: {{{key}: {}}}{}",
+                        value.trim(),
+                        if honoured {
+                            " (the file is paused anyway)"
+                        } else {
+                            " (ignored here)"
+                        }
+                    ),
+                });
+                other.push(line.to_owned());
+                i += 1;
+            }
             _ => {
                 other.push(line.to_owned());
                 i += 1;
@@ -425,6 +476,7 @@ pub(super) fn parse(lines: &[&str]) -> Result<Parsed, ParseError> {
             root,
             config: st.config,
             generation: st.generation,
+            generation_text: st.generation_text,
             paused: st.paused,
             force: st.force,
             other,

@@ -44,9 +44,13 @@
 //!   100 ms = 10 req/s, §2), process-wide for this client, enforced before every attempt
 //!   including retries. Exports additionally respect
 //!   [`ClientConfig::export_min_interval`].
-//! * **Retries**: on 5xx, 429 and transport errors, retry up to
+//! * **Retries**: on 5xx and transport errors, retry up to
 //!   [`ClientConfig::max_retries`] times with exponential backoff
-//!   (`backoff * 2^attempt`, capped at 30 s). Exception: `create` is not idempotent, so
+//!   (`backoff * 2^attempt`, capped at 30 s). A 429 is retried until the waits for it
+//!   add up to [`ClientConfig::rate_limit_budget`] (default 90 s), waiting what its
+//!   `Retry-After` header asks (in seconds) or else the backoff: an enforced 1/min export
+//!   limit (§12.2) delays the verification export by up to a minute instead of failing a
+//!   run whose writes are done. Exception: `create` is not idempotent, so
 //!   it is retried only on 429 and **never** on a 5xx or on a transport error after the
 //!   request may have been sent. The application's own `500 internal_error` changes
 //!   nothing (DM§2.6) but is deterministic, so it is returned at once as
@@ -72,8 +76,8 @@
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -103,6 +107,10 @@ pub struct ClientConfig {
     pub max_retries: u32,
     /// Base backoff. Default 500 ms.
     pub backoff: Duration,
+    /// How long a request may wait in total for 429 answers before it fails with
+    /// [`ApiError::RateLimited`] (module docs). Default 90 s, enough to wait out a
+    /// 1-per-minute limit on exports (§12.2).
+    pub rate_limit_budget: Duration,
     /// Per-request timeout. Default 60 s (an export of 13k nodes took ~1 s).
     pub timeout: Duration,
     /// Optional JSONL request log.
@@ -119,6 +127,7 @@ impl ClientConfig {
             export_min_interval: Duration::ZERO,
             max_retries: 4,
             backoff: Duration::from_millis(500),
+            rate_limit_budget: Duration::from_secs(90),
             timeout: Duration::from_secs(60),
             request_log: None,
         }
@@ -294,6 +303,18 @@ struct Request<'a> {
 struct RawResponse {
     status: u16,
     text: String,
+    /// The `Retry-After` header in delta-seconds (an HTTP date is ignored).
+    retry_after: Option<Duration>,
+}
+
+/// How the retry loop waits (`std::thread::sleep`; tests record the waits instead).
+#[derive(Clone)]
+struct Sleeper(Arc<dyn Fn(Duration) + Send + Sync>);
+
+impl std::fmt::Debug for Sleeper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Sleeper")
+    }
 }
 
 /// The `ureq`-based client.
@@ -311,6 +332,8 @@ pub struct Client {
     /// Serialises appends to the request log.
     log_lock: Mutex<()>,
     requests: AtomicU64,
+    /// Waits between retries.
+    sleeper: Sleeper,
 }
 
 impl Client {
@@ -333,7 +356,19 @@ impl Client {
             last_export: Mutex::new(None),
             log_lock: Mutex::new(()),
             requests: AtomicU64::new(0),
+            sleeper: Sleeper(Arc::new(std::thread::sleep)),
         }
+    }
+
+    /// A client whose waits between retries call `sleep` instead of sleeping, for tests
+    /// of the retry policy (the rate limiter still sleeps).
+    pub fn with_sleeper(
+        cfg: ClientConfig,
+        sleep: impl Fn(Duration) + Send + Sync + 'static,
+    ) -> Client {
+        let mut c = Client::new(cfg);
+        c.sleeper = Sleeper(Arc::new(sleep));
+        c
     }
 
     /// The configuration.
@@ -455,6 +490,8 @@ impl Client {
 
     fn execute(&self, req: &Request<'_>) -> Result<Value, ApiError> {
         let mut attempt: u32 = 0;
+        // Time waited for 429 answers so far (bounded by `rate_limit_budget`).
+        let mut rate_limited = Duration::ZERO;
         loop {
             self.acquire_slot();
             self.requests.fetch_add(1, Ordering::SeqCst);
@@ -478,9 +515,26 @@ impl Client {
                     if status >= 500 && req.retry == Retry::NonIdempotent {
                         return Err(non_idempotent_server_error(status, &resp.text));
                     }
-                    // Retry 5xx and 429 (prod_client retries 429 too); never other 4xx.
-                    if (status >= 500 || status == 429) && can_retry {
-                        std::thread::sleep(self.backoff(attempt));
+                    // A 429 was not processed (any request may be resent): wait as asked,
+                    // within the budget.
+                    if status == 429 {
+                        let wait = resp.retry_after.unwrap_or_else(|| self.backoff(attempt));
+                        if rate_limited + wait <= self.cfg.rate_limit_budget {
+                            log::warn!(
+                                "{} {}: rate limited (429); retrying in {} s",
+                                req.method,
+                                req.path,
+                                wait.as_secs_f64()
+                            );
+                            (self.sleeper.0)(wait);
+                            rate_limited += wait;
+                            attempt += 1;
+                            continue;
+                        }
+                    }
+                    // Retry 5xx; never other 4xx.
+                    if status >= 500 && can_retry {
+                        (self.sleeper.0)(self.backoff(attempt));
                         attempt += 1;
                         continue;
                     }
@@ -497,7 +551,7 @@ impl Client {
                         });
                     }
                     if can_retry {
-                        std::thread::sleep(self.backoff(attempt));
+                        (self.sleeper.0)(self.backoff(attempt));
                         attempt += 1;
                         continue;
                     }
@@ -631,12 +685,22 @@ fn require_uuid(id: &NodeId) -> Result<(), ApiError> {
 
 fn read_response(resp: &mut ureq::http::Response<ureq::Body>) -> Result<RawResponse, ureq::Error> {
     let status = resp.status().as_u16();
+    let retry_after = resp
+        .headers()
+        .get("retry-after")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .map(Duration::from_secs);
     let text = resp
         .body_mut()
         .with_config()
         .limit(MAX_RESPONSE_BYTES)
         .read_to_string()?;
-    Ok(RawResponse { status, text })
+    Ok(RawResponse {
+        status,
+        text,
+        retry_after,
+    })
 }
 
 /// True if the error happened before any byte of the request could reach the server, so

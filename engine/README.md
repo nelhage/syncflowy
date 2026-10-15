@@ -58,8 +58,10 @@ S="--api-url http://127.0.0.1:8765 --state-dir /tmp/st"
 ### `render <ROOT> <OUT.md> [--headings N] [--force]`
 
 Renders the subtree under `ROOT` (a short id, a full UUID, or a `https://workflowy.com/#/<short>` URL) into a new
-file and records the first checkpoint, which starts the sync. `--headings N` renders depth 1..N as `#` headings.
-It refuses to overwrite an existing file or checkpoint unless `--force` is given.
+file and records the first checkpoint, which starts the sync. `--headings N` (0 to 6) renders depth 1..N as `#`
+headings. It refuses to overwrite an existing file or checkpoint unless `--force` is given. With `--force`, an
+existing file that names the same root keeps its `syncflowy:` options (not `gen`, `force` or `paused`) and its
+other frontmatter lines, and `--headings` changes only the heading depth; delete the file first for a clean reset.
 
 ```console
 $ syncflowy $S render 5e23116b-0a18-4c58-82b5-cbe4cb0343ff vault/plan.md
@@ -76,14 +78,29 @@ or `unchanged`, `paused`, `refused: ...` (a brake) or `skipped: ...`.
 * `--force` overrides the mass-change brakes and the orphan-placeholder guards (see Safety). It also bootstraps a
   file that has no checkpoint (see Limitations).
 * `--dry-run` plans and prints the operations, and writes nothing. It does not recover a leftover journal; it
-  warns that one is pending.
+  warns that one is pending. A delete that takes hidden items (completed, or below `depth:`) names them, as the
+  report of a real sync does.
+* **Moving a line between files**: cut the tagged line from one file, paste it into the other, and sync both
+  files in one command. The node moves with its id, children and Workflowy-only attributes. If you sync only the
+  file you cut from, the engine finds the tag in the other file (it reads the files recorded in the state
+  directory's other checkpoints) and holds the delete back with
+  `warning: "Item E" (67edfe175330) is in other.md; sync both files in one command to move it`. The line stays
+  out of the file and the delete stays pending until a run syncs both files (a move) or no longer finds the tag
+  (the delete is sent). If the other file is paused, the run leaves it out, so the warning says
+  `..., which is paused; unpause it and sync both files in one command to move it` and the delete stays held
+  until then. A held delete that is finally sent counts and names the cut line's children as hidden items,
+  including those that were visible when it was cut. Syncing only the file you pasted into makes the line a new node, since its tag belongs to
+  a file outside the run, and the original is then deleted. A tagged line *copied* into another file while it
+  stays in its own file becomes a new node there, as a copied line does within one file.
 
 ```console
 $ syncflowy $S sync --dry-run vault/plan.md
-vault/plan.md: dry run: 3 op(s)
-  would Create { temp: NodeId("temp-1"), parent: ..., name: Direct("A new local item"), ... }
-  would Move { ... }
-  would Complete { node: NodeId("859d1384-...") }
+vault/plan.md: dry run: 4 op(s)
+  op 0: create temp-1 under 8d88348a-... (direct)
+  op 1: move 859d1384-... to the bottom of 8d88348a-...
+  op 2: complete 859d1384-...
+  op 3: delete 2cfa93ea-... (+1 hidden)
+  deleting "Old ideas" (3d437204e52d) also deletes 1 hidden item: "Hedge maze"
 ```
 
 ### `daemon --vault <DIR> [options]`
@@ -102,12 +119,18 @@ identified by root, not by path, so renaming a file needs no handling.
 
 The daemon never exits on a per-file error; it logs it (use `-v`) and shows it in the status note. It exits on a
 fatal error, such as an unusable state directory or an API 401.
+On SIGTERM or SIGINT (Ctrl-C) it finishes the cycle in progress, writes `Stopped at ...` to the status note and
+exits 0; a second signal ends it at once (an interrupted cycle is recovered by the next run). Its event log is
+kept in the state directory, so the status note's event sections survive a restart.
 
 ### `status [FILE.md]...`
 
 Prints the local state without calling the API: for each root its generation, when it last synced, which file
 holds it, whether the file has local changes, whether an interrupted cycle awaits recovery, and the pending
-deletes.
+deletes. With files, it shows their roots; a file that does not exist prints `<file>: missing`, and one whose
+root has no checkpoint in this state directory prints `<file>: no checkpoint for root <root> in this state
+directory`. The other files are still shown, and the exit status is 1. `status` only reads: it does not create
+the state directory.
 
 ```console
 $ syncflowy $S status
@@ -146,19 +169,30 @@ A note on "Planning": the lines right under the heading.
 
 * **Frontmatter**: `workflowy:` names the sync root. `syncflowy:` holds options (`headings`, `ids`, `checkboxes`,
   `dates`, `depth`, `paused`, `force`) and `gen`, the render generation the file came from (written by the
-  engine; do not edit). Other frontmatter keys are kept as written.
+  engine; do not edit). Other frontmatter keys are kept as written. An option written outside `syncflowy:`
+  (`paused: true` on its own line) is kept too, with a warning; only a top-level `paused: true` takes effect, a
+  top-level `force` never does.
 * **Items**: `- ` list items, indented with tabs when written (tabs or consistent spaces are read). The first line
   is the node's name, the indented lines after it are its note, nested items are children. The text between the
   frontmatter and the first item is the root's note. The root's own name is not in the file.
 * **Id tags** at the end of the first line identify nodes: `^wf-<12 hex>` on list items, `%%wf:<12 hex>%%` on
   headings. Other forms are read too (see `ids` in `src/mdblock.rs`). A line without a tag is a new node and
-  gets its tag at the next sync. Do not remove tags from lines you keep.
+  gets its tag at the next sync. Do not remove tags from lines you keep. If you do, an untagged line is matched
+  back to the node whose tag vanished when it sits under the same parent nearby with similar text (or with the
+  old text as its prefix), or when the two are the only unmatched pair under that parent at the same position,
+  whatever the text; the report says `line N: untagged item matched to ...`. So deleting a line and typing a new
+  one in its place renames the node.
 * **Inline text**: `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``, `[text](url)`, bare URLs, `<u>`, colour
   spans and other well-formed WF-HTML as literal HTML, dates as a compact form. Obsidian-only syntax
-  (`[[wikilinks]]`, `==highlight==`, `$math$`) is sent to Workflowy as literal text and written back unescaped.
+  (`[[wikilinks]]`, `![[embeds]]`, `![images](url)`, `==highlight==`, `$math$`, `%%comments%%`) is sent to
+  Workflowy as literal text and written back unescaped (a `%%` that would read as an id tag stays escaped). A link
+  title (`[text](url "title")`) is dropped, and the report says so.
 * **Node kinds**: `- [ ] ` boxes appear on todo nodes and leaves (cosmetic; `- ` and `- [ ] ` both mean "not
-  completed"). A fenced block is a code-block node, `- > text` a quote, `- ---` a divider, `1.` markers are a
-  numbered list. Other layouts render as plain items and keep their layout in the checkpoint.
+  completed"); a node whose children are hidden by `depth:` is not a leaf. `checkboxes:` changes this (`todos`,
+  `all`, or `none`: no boxes at all, todo nodes included; they keep their layout, and `[x]` still ticks). A
+  fenced block is a code-block node (Workflowy code has no language: a fence's info string such as `python` is
+  dropped with a warning), `- > text` a quote, `- ---` a divider, `1.` markers are a numbered list. Other layouts
+  render as plain items and keep their layout in the checkpoint.
 * **Completed nodes are not in the file.** `- [x]` is a command: see ticking below.
 * A node whose text cannot be represented exactly is shown with `🔒` and the `-ro` tag flag, and edits to it are
   refused.
@@ -171,7 +205,8 @@ A note on "Planning": the lines right under the heading.
 * **Ticking is not deleting.** Ticking `[x]` on a line completes the node in Workflowy (only that node, not its
   children) and removes the line and its subtree from the file. It can only be undone in Workflowy, where
   un-completing makes it reappear. **Deleting a line deletes the node** (to the Workflowy trash), together with
-  its hidden, completed descendants, which you cannot see.
+  its hidden descendants (completed, or below `depth:`), which you cannot see; the report and the dry run name
+  them (the first ten).
 * **Mass-change brakes** (§8.3) stop a run before anything is written, report `refused: ...` and exit 1:
   * the file is empty (or has no items) while the base showed items and the merge deletes nodes,
   * the deletes (visible plus hidden) exceed 50, or 20% of the base's visible nodes once there are at least 5,
@@ -183,12 +218,14 @@ A note on "Planning": the lines right under the heading.
   period and one more cycle in which the file is unchanged. Putting the line back cancels it; pasting its tag
   into another synced file turns it into a move. While another synced file has edits waiting for their debounce,
   no pending delete is sent. `status` and the status note list them. Plain `sync` (no grace period) sends
-  deletes at once.
+  deletes at once, except the delete of a line whose tag is in another synced file (see `sync`). The brakes
+  count a held or deferred delete when it is first seen.
 * **Conflict markers** (§6.1). When you and a collaborator both changed a node's name or note, Workflowy's
   version stays and yours is kept as a child line `- ⚠ your text %%wf-conflict:name%%` (or `:note`) before the
   node's real children. It is never synced. Edit the real line if you want your version, then delete the
   marker. Deleting the marker marks the conflict resolved. When a node was moved out of the file in Workflowy
-  and both sides edited the same field, Workflowy wins and your text is only logged.
+  and both sides edited the same field, Workflowy wins and your text is only logged; likewise when you tick a
+  line whose name or note a collaborator changed (the tick is pushed).
 * **Beta API only** (§10, DM§10.5). The engine talks to `https://beta.workflowy.com`, which serves the same
   account and data as production but reports mirrors properly. Production reports a mirror as an empty node, so
   edits to it would be invisible to Workflowy users; `--api-url` refuses the production host.
@@ -205,13 +242,16 @@ A note on "Planning": the lines right under the heading.
   placeholder `⧉ (mirror of a deleted item)` with the `-ro` flag: its children are not shown, and edits or
   deletes of it are refused without `--force` (§10). Creating a mirror from Markdown and the UI's promotion of a
   mirror when its origin is deleted are not supported. An empty node is an ordinary, editable item.
-* **Safe mode** (§9.1 guard 1). If the file's `gen` is missing or no longer in the render history (for example a
-  hand-written or stale file), the engine cannot know what you changed. It then pushes text edits and creates,
-  but applies no deletes, moves or reorders, and says so in the report.
+* **Safe mode** (§9.1 guard 1). If the file's `gen` is missing, not a number, or no longer in the render history
+  (for example a hand-written or stale file), the engine cannot know what you changed. It then pushes text edits
+  and creates, but applies no deletes, moves, reorders or ticks, and says so in the report
+  (`the file's gen (999) is unknown: safe mode (no deletes, moves, reorders or ticks)`).
 * **Other guards.** Every update checks the remote value just before writing it (a collaborator's later edit
   becomes a conflict, not an overwrite). Creates are journaled and nonce-tagged so a crash never duplicates a
   node; an interrupted cycle is recovered by the next run. A file that cannot be parsed (frontmatter) is skipped,
-  never read as "everything deleted". Two files claiming one root are both skipped. A synced file that is a
+  never read as "everything deleted". Two files claiming one root are both paused, also when they are synced by
+  separate `sync` commands (the checkpoint records the file last synced; a rename is fine), and a file whose name
+  looks like a sync conflict copy (`(conflicted copy ...)`, `(... conflict ...)`, `.sync-conflict-`) is skipped. A synced file that is a
   symlink stays a symlink and keeps its mode. `paused: true` in the frontmatter stops syncing a file.
 * **The status note** (daemon): `Workflowy Sync Status.md` in the vault, rewritten after every cycle. It lists each
   root with its file, last sync, generation and state, the conflicts awaiting resolution, the pending deletes, per-file
@@ -222,6 +262,7 @@ A note on "Planning": the lines right under the heading.
 
 ```text
 <state_dir>/
+  daemon-events.json       the daemon's event log (the status note's event sections)
   roots/<root uuid>/
     checkpoint.json        base_md and base_wf of the last write, the generation, the file's config
     pending.json           pending deletes
@@ -236,15 +277,23 @@ the server that talks to Workflowy: there must be only one engine per account.
 
 ## Known limitations
 
-* One engine, one writer. Several engines on one root are not supported.
+* One engine, one writer. Several engines on one root are not supported, and nothing detects them: use one
+  state directory per vault and account, and run every `sync`, `render` and `daemon` for those files with it. The
+  per-root lock covers only one state directory. Two engines with separate state directories on the same files
+  read each other's `gen` as unknown (safe mode, with no hint why) or, worse, as one of their own generations
+  with different text, and then merge against the wrong base.
 * The engine needs the beta API (§10); it does not run against production. Mirrors are never
   created from Markdown, a stub is read-only, and an origin that still has mirrors cannot be deleted from
   Markdown. A mirror's hidden persisted children (DM§10.5) are never shown and go with the mirror when it is
   removed. Observed on the beta host on 2026-10-13 only through the mock.
 * Dates render compactly only for the observed forms; ranges, times, and locale or 24-hour variants stay literal HTML.
-* Markdown link titles are not supported (`[a](b "t")` is literal text). Images are literal text.
+* Markdown link titles are dropped (`[a](b "t")` is pushed as a link to `b`, and the report says the title was dropped). Images
+  and Obsidian comments are literal text in Workflowy (a `%%x%%` typed there is hidden in Obsidian).
 * A node that cannot round-trip is shown read-only (`🔒`); edit it in Workflowy.
-* The client sends at most 10 requests per second and exports once per cycle; the documented export limit of one per minute was not observed in production (the daemon's `--min-export-interval` keeps to it).
+* The client sends at most 10 requests per second. A cycle exports once, or twice when it pushes (the second
+  export verifies the push and renders the file). The documented export limit of one per minute was not observed
+  in production; the daemon spaces its cycles by `--min-export-interval`, and if the limit is ever enforced, a
+  429 is retried for up to 90 s in total, waiting as its `Retry-After` header asks (design §12.2).
 * The engine has only been run against the mock server, never against the real API. Anything marked UNVERIFIED
   below depends on behaviour nobody has observed.
 * A cycle that cannot be settled after its retries (collaborator edits racing the push) commits nothing and is
@@ -263,7 +312,7 @@ location.
 | `mdblock.rs`, `mdblock/*` | whether Obsidian keeps whitespace-only note lines; code at heading depth; no checkbox on quotes; an explicit null `depth` means unlimited |
 | `tree.rs` | a shell whose layout was changed later; ties of equal priorities (server breaks them by creation sequence) |
 | `mirrors.rs` | the sticky choice of the full placement; a content whose placements are all hidden keeps the previous choice; a refused mirror delete keeps the whole subtree |
-| `merge.rs`, `merge/*` | foreign tags of other roots; remote wins silently for a conflict that has no marker form; moved-out edit conflicts only reported; "nearby" for identity repair; divider and `---` exceptions; a layout changed on both sides keeps the remote's; diff3 treats adjacent-line edits as mergeable; cross-file bases |
+| `merge.rs`, `merge/*` | foreign tags of other roots; remote wins silently for a conflict that has no marker form; moved-out edit conflicts only reported; "nearby" for identity repair, and pairing the only unmatched line and item at one index whatever the text; divider and `---` exceptions; a layout changed on both sides keeps the remote's; diff3 treats adjacent-line edits as mergeable; cross-file bases |
 | `plan.rs` | brake thresholds; the nonce in create names; the create-pipeline check against the mock's model; an emptied file that deletes nothing is not braked |
 | `apply.rs` | two minutes of clock skew; the extra pre-write GET checks |
 | `wfclient.rs` | no gateway 5xx or 429 seen from production, so retry and non-retry rules are guesses |

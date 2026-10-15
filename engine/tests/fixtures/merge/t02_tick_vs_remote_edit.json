@@ -60,7 +60,22 @@
       ]
     },
     "pushes": {},
-    "report": [],
+    "report": [
+      {
+        "TickedConflict": {
+          "field": "Name",
+          "local_md": "Alpha local",
+          "node": "a"
+        }
+      },
+      {
+        "TickedConflict": {
+          "field": "Note",
+          "local_md": "one\ntwo\nthree\nfour",
+          "node": "a"
+        }
+      }
+    ],
     "stats": {
       "base_visible": 6,
       "conflicts": 0,

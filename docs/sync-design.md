@@ -149,13 +149,13 @@ Each WF-HTML construct is mapped to the most faithful Markdown. Anything without
 | anything else that is well-formed | passthrough | |
 | `#tag`, `@mention` | the same text | WF tags are plain text (UI:C2), and Obsidian tags have the same syntax, which is a happy accident. |
 
-Things in Markdown with no WF meaning (`[[wikilinks]]`, `==highlight==`, `$math$`, `![[embeds]]`, footnotes)
-are sent to Workflowy as **literal text**. WF users then see `[[Page]]`. That is acceptable but visible.
+Things in Markdown with no WF meaning (`[[wikilinks]]`, `==highlight==`, `$math$`, `![[embeds]]`, `![images](…)`,
+`%%comments%%`, footnotes) are sent to Workflowy as **literal text**. WF users then see `[[Page]]`. That is acceptable but visible.
 They are rendered back unescaped, so they keep working in Obsidian after a sync.
 
 **Escaping is the trickiest part of the dialect.** WF text such as `1. foo`, `> x`, `# x`, `[ ] x`,
 `- x` or `---` at the start of a name or note line, `*` and `_` mid-text, a trailing `^abc` or `[wid:: …]`, and
-`%%` would all be misread by Obsidian or by our parser. Render escapes minimally (to limit visual noise), and
+a `%%wf:` would all be misread by Obsidian or by our parser. Render escapes minimally (to limit visual noise), and
 parse accepts both escaped and unescaped forms wherever that is unambiguous. Line-leading escapes matter most
 in notes, where a WF note line starting with `- ` would otherwise become a child node.
 
@@ -219,11 +219,16 @@ GET by short id recovers it if the checkpoint is lost (DM§3.1).
 Ids in a freely edited text file are fragile. The engine must handle all of these:
 
 - **Duplicated tag** (a line was copied): the occurrence that best matches the base (text similarity,
-  then position) keeps the identity. The others are new nodes, and their tags are rewritten on output.
+  then position) keeps the identity. An other occurrence whose line carries a further valid tag that no
+  line wins (its own tag next to a copied one) keeps that node; the rest are new nodes, and their tags
+  are rewritten on output.
 - **Deleted tag, text kept**: this looks like delete plus create, which would destroy the node's WF history
   and, worse, re-create the node's WF-only features (colour, mirror status, `layoutMode`) as lost. Fallback:
   pair each unmatched new item with an unmatched deleted base item of the same parent, position and similar
-  text, and treat the pair as an edit.
+  text (or text that keeps the old name as its prefix), and treat the pair as an edit. When the two are the
+  only unmatched pair under their parent and at the same index, pair them whatever the text: a real "delete
+  a line, type a new one in its place" then becomes a rename, which keeps the old node's history (the smaller
+  loss). The report names every such pairing.
 - **Tag of a node outside this file**: the user pasted from another synced file or typed a tag. This is a
   cross-file move if the id exists remotely (§6.4), and is ignored with a warning otherwise.
 - **Edits that make a tag ambiguous** (text after the tag, two tags on a line): take the last valid one.
@@ -252,7 +257,8 @@ not an option.
 
 Deleting a visible parent deletes its hidden (completed) children too. That is correct Workflowy semantics,
 but the Markdown user cannot see what they are deleting. The delete brake (§8.3) should count hidden
-descendants, and the sync report should name them.
+descendants, and the sync report should name them (the engine names the first ten, in the report and in a dry
+run).
 
 ## 5. Fidelity: how lossy rendering stays lossless
 
@@ -276,7 +282,9 @@ express (leading or trailing whitespace, an unrecognised attribute and so on) **
 just the edited part**. Refinement: let `b` be the base WF value and `b' = md_to_wf(render(b))` its lossy
 round-trip. If `b' == b`, write `md_to_wf(new_md)`. Otherwise compute the edit from `b'` to
 `md_to_wf(new_md)` and apply it to `b` with a three-way text merge (character-level for names, line-level for notes).
-If that merge does not apply cleanly, fall back to the naive write and log what was lost.
+If that merge does not apply cleanly, fall back to the naive write and log what was lost. Nothing is logged
+when the user saw all of `b`: the item changed kind (a code block unfenced, say) and `b` round-trips in its
+old kind, or a read-only value (§5.3) was edited with `force`.
 
 ### 5.3 Representability tiers
 
@@ -342,7 +350,7 @@ Completion and hiding interact with all of these (§4.5):
 
 | local | remote | result |
 |---|---|---|
-| ticked | edited | push nothing but the completion, and keep the remote edit. The node disappears from the file. |
+| ticked | edited | push nothing but the completion, and keep the remote edit. The node disappears from the file; a local edit of the same field is reported with its text. |
 | edited (and/or children added) | completed it, or an ancestor | push the edits and creates anyway: the nodes exist and WF users can see them greyed under the completed item. Then they disappear from the file. **Report this**, because the Markdown user's fresh work vanishes from view. |
 | deleted | completed it | completion counts as an edit, so the delete loses: the node stays (completed, hidden). |
 | moved it | completed it | apply the move. The node is hidden at its new position. |
@@ -368,7 +376,15 @@ on either side of C. Nobody in Markdown can tell, and WF users with "show comple
 
 A single export serves every synced file in the vault, so run all of them in one pass with a global id map.
 This turns "deleted in `a.md`, appears with its tag in `b.md`" into a **move** instead of a delete plus an
-unknown id. Sync roots must not nest. Alternatively, a nested root could render in the outer file as a link or
+unknown id. A tag that is still on its line in its own file was copied, not moved: the pasted line is a new
+node, as for a duplicated tag within one file (§4.4). When files are synced one at a time (the CLI), a run
+that would delete a node whose tag (or a descendant's) is in another synced file outside the run (found
+through the files the other checkpoints record) holds the delete back as a pending delete (§9.1 guard 2) and
+asks for both files to be synced together (and, if that file is paused, which leaves it out of any run, for it
+to be unpaused first); a stale or missing recorded file only costs the check. When such a delete is finally
+sent, its line is no longer in the base render, so all its descendants count and are named as hidden, also
+those that were visible when it was cut (an over-report in the safe direction, as for deferred deletes). Sync roots
+must not nest. Alternatively, a nested root could render in the outer file as a link or
 an `![[embed]]` and be treated there as a hidden subtree.
 
 ## 7. Applying changes to Workflowy
@@ -394,8 +410,9 @@ or a concurrent edit, and the next cycle picks it up as a remote change.
 
 Create's `name` is transformed (markdown, entities, line splitting, completion leak), so:
 
-1. `POST /nodes {parent_id: <uuid>, name: "", note: <wf note or omitted>, layoutMode: <layout>, position: "bottom"}`.
-   An empty name creates exactly one node named `""` (DM§6.2 step 7). `note` and `layoutMode` are verbatim on create.
+1. `POST /nodes {parent_id: <uuid>, name: "⟳syncflowy:<nonce>", note: <wf note or omitted>, layoutMode: <layout>,
+   position: "bottom"}`. The nonce (§7.3) is a fixed point of the create pipeline, so it creates exactly one node with
+   that name. `note` and `layoutMode` are verbatim on create.
 2. `POST /nodes/:id {name: <wf name>}`.
 3. `POST /nodes/:id/complete` if the item was typed already ticked (rare).
 
@@ -404,8 +421,8 @@ That is 2 requests per node. Optimisation: if a name is provably a fixed point o
 newline), send it directly and skip step 2. Check the whitelist against the mock's `text.py`, which implements the
 pipeline: a test sends whitelisted names through the mock's create and asserts they come back unchanged.
 
-During step 1–2, collaborators can briefly see an empty bullet. A crash between the steps leaves a
-blank node, which the journal handles.
+During step 1–2, collaborators can briefly see the nonce as the name. A crash between the steps leaves a
+node named by its nonce, which the journal handles.
 
 ### 7.3 Journal and crash recovery
 
@@ -414,9 +431,12 @@ create a duplicate on retry. Approach:
 
 - Write each planned operation to a journal (in the checkpoint directory) before sending it, and record
   the result after.
-- For creates, put a nonce in the first request (for example `note: "⟳syncflowy:<nonce>"`, replaced in
+- For creates, put a nonce in the first request, as the name (`name: "⟳syncflowy:<nonce>"`, replaced in
   step 2), so that recovery can find a half-created node by scanning the export for the nonce.
-  The cost is that the nonce is visible for a moment.
+  The cost is that the nonce is visible for a moment. Not in the note: the API cannot write a `null` note
+  back (DM§6.4), so a nonce note would turn the note of every note-less new node into `""`, while the name
+  is overwritten in step 2 anyway. A name that is sent directly (the whitelist path of §7.2) has no nonce;
+  recovery finds it as an unknown child of the parent with exactly that name.
 - On startup with a non-empty journal, reconcile it against a fresh export before doing anything else.
 
 ## 8. Ordering and structural safety
@@ -529,7 +549,8 @@ Details:
   takes the engine's side. That is right when the merge was good. Guard 3 covers bad merges.
 - If `gen` is missing, unparseable, or older than the kept history (keep, say, 30 days or 200 generations),
   use **safe mode**: field edits are applied only where the text differs from *every* known version of that
-  node (Guard 3), and there are no deletes, no moves and no reorders. Report it.
+  node (Guard 3), and there are no deletes, no moves, no reorders and no ticks (a line typed as `[x]` is
+  created unticked). Report it.
 
 #### Guard 2: deferred deletes
 
@@ -568,6 +589,8 @@ Every engine write to a file is a chance for a concurrent merge with a client. W
 something the user needs to see:
 
 - **Remote changes or new id tags**: write.
+- **Changed `syncflowy:` options** (for example `ids:` or `checkboxes:`): write, so the new form shows at once.
+  A new checkbox policy is applied to every line, not only to new ones.
 - **Pure normalisation** (`__x__` → `**x**`, re-escaping): defer it until the file next needs a write for
   another reason.
 - **Debounce on the server side**: push and re-render a file only after it has been unchanged for some quiet
@@ -594,6 +617,9 @@ is the likeliest glitch in this topology.
 - If a **file is missing**, pause that root and report. Do not re-render it unasked, because deleting it on a
   client is the obvious way to say "stop syncing this", and the engine must not delete anything in response.
 - Files whose names look like conflict copies are never synced.
+- `syncflowy sync`, which is given files instead of scanning a vault, also compares a file with the one recorded
+  in the root's checkpoint: if that one still exists under another path and still names the root, the root is
+  claimed twice and the file is not synced. A rename (the old path is gone, or names another root) is accepted.
 
 #### Guard 6: other writers on the clients
 
@@ -611,7 +637,8 @@ With the engine on a headless server, the vault is also its user interface:
   when they fire, safe-mode episodes, resurrections dropped, and API errors.
 - Per-root controls live in the file's frontmatter, so they can be set from any device. Examples:
   `syncflowy: {paused: true}` and `syncflowy: {force: true}`, the latter for a one-time override of the
-  mass-change brake, which the engine clears after use.
+  mass-change brake, which the engine clears after use. An option typed outside `syncflowy:` gets a warning;
+  a top-level `paused: true` is honoured anyway (pausing is the safe direction), a top-level `force` never is.
 - Obsidian Sync's own version history is a second safety net for the Markdown side. The engine's base history
   is the safety net for "what did we believe and push", and it should be kept long enough to reconstruct any
   push from the sync logs.
@@ -645,7 +672,7 @@ of it are not pushed without `--force`. Items typed under it are created under i
 
 | tell | avoidable? |
 |---|---|
-| A brief empty bullet (or a nonce note) while a node is created | Shorten the gap; the whitelist path avoids it. |
+| A brief `⟳syncflowy:<nonce>` name while a node is created | Shorten the gap; the whitelist path avoids it. |
 | Parents we create appear collapsed | No (UI:C2). |
 | Several siblings shuffle when we insert mid-list | No (§8.1). |
 | Text in a slightly non-UI form | Yes: always write canonical WF-HTML. |
@@ -687,6 +714,13 @@ is ever enforced. Hiding completed nodes makes the list walk more attractive for
 never needs to list below a completed node: its cost is the number of *visible* nodes, not the subtree size.
 Pushes do not need a pull first if the checkpoint is fresh: plan against `B`, guard each
 write with a GET, and reconcile at the next export.
+
+What the engine does: the daemon spaces its cycles by `--min-export-interval` (default 60 s), but a cycle that
+pushes exports twice (before the merge, and again to verify and re-render), and the CLI never waits between
+runs. A proactive wait would make every pushing `sync` take a minute for a limit that has never been seen
+enforced. Instead an enforced limit degrades gracefully: the client retries a 429 until its waits add up to
+`rate_limit_budget` (default 90 s), waiting what `Retry-After` asks (else the backoff), so the verification
+export of a run whose writes are done is delayed by up to a minute rather than failed.
 
 ### 12.3 Heading mapping
 
@@ -871,20 +905,36 @@ module docs have the details.
   pushes your edits and ticks to it where it now is. If both sides edited the same field, Workflowy wins and the
   local text is only logged (a marker cannot be shown because the line leaves the file).
 - **Cross-file moves (§6.4)** compare the pasted line against the source file's base, so a collaborator's edit is
-  not reverted. Without such a base nothing is pushed for the move.
+  not reverted. Without such a base nothing is pushed for the move. A node whose delete is pending in the source
+  file is compared against its line rendered from the source's `base_wf`, which equals the line that was cut
+  (a remote change cancels a pending delete).
+- **Files synced one at a time (§6.4).** The CLI holds back a delete whose node is tagged in another synced file
+  outside the run (read through `Checkpoint::file`), as a pending delete, so that a cut and paste synced in two
+  commands is not a delete and a create. The brakes count it when first seen, as they count the daemon's
+  deferred deletes; a file emptied into another file and synced alone is therefore still braked.
 - **Safe mode (§9.1 guard 1)** also applies to a bootstrap with `--force` and no checkpoint, which takes the remote
   as the base.
 - **Deferred deletes (guard 2)** are held while another synced file has edits waiting for its debounce, which the
   design does not ask for. Plain `sync` has no grace period and sends deletes at once.
+- **The create nonce is in the name (§7.3)**, not in the note as first sketched, because the API cannot write a
+  `null` note back.
 - **Creates are never resent after a 5xx.** Any 5xx other than the application's own `internal_error` is treated as
   "maybe applied" and settled by the nonce scan of §7.3. No gateway 5xx or 429 has been observed.
 - **Dry run** does not recover a leftover journal, since recovery writes.
 - **Code blocks** with a ``` line are written with a longer fence and stay editable; the design left this open.
-- **Obsidian syntax** (`[[x]]`, `![[x]]`, `==x==`, `$x$`) is written back unescaped (§4.2), except a `$` before a
-  digit when the value holds another `$`, to keep prices from reading as math.
-- **Dates, locale variants and link titles** have no compact or structured form; they stay literal.
+  A fence's info string (a language typed in Obsidian) is dropped with a warning, since Workflowy code blocks
+  have none; the API's create pipeline would have made it the first line of the code.
+- **Obsidian syntax** (`[[x]]`, `![[x]]`, `![alt](img)`, `==x==`, `$x$`, `%%comments%%`) is written back
+  unescaped (§4.2), except a `$` before a digit when the value holds another `$`, to keep prices from reading as
+  math, and a `%%` that would read as a tag (`%%wf:`, `%%wf-conflict:`) or has no partner in the value (it would
+  pair with a `%%wf:…%%` tag). An image is literal text exactly as typed (no link inside). A `%%x%%` typed by a
+  Workflowy user is therefore hidden in Obsidian's reading view.
+- **Dates and locale variants** have no compact or structured form; they stay literal. A **link title**
+  (`[a](u "t")`) has no WF form either: the link is pushed without it and the report says the title was dropped.
 - **Checkbox policy, id tag form, depth, headings** are frontmatter options (`checkboxes`, `ids`, `depth`,
-  `headings`); the design only recommended making the tag form configurable.
+  `headings`); the design only recommended making the tag form configurable. `checkboxes: none` shows no boxes,
+  `todo` nodes included (their layout is kept). A node whose children are hidden by `depth` counts as interior
+  for the box, so it does not look like a leaf.
 - **Files** are written in place through symlinks and keep their mode. The state directory layout (checkpoint,
   pending deletes, history, journal, lock) is described in `engine/src/state.rs`.
 - **Not done:** several engines on one account, any

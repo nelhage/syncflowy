@@ -23,7 +23,7 @@ Last cycle: 2026-09-21 14:14 UTC
 
 ## Pending deletes
 
-Removed from a file but not yet deleted in Workflowy (§9.1 guard 2). Put the line back to cancel; paste its tag into another synced file to move it there.
+Removed from a file but not yet deleted in Workflowy. Put the line back to cancel; paste its tag into another synced file to move it there.
 
 - [[Projects]]: "Alpha", removed 2026-09-21 14:14 UTC, deleted at the first cycle after 2026-09-21 14:24 UTC with the file unchanged
 
@@ -34,7 +34,7 @@ Removed from a file but not yet deleted in Workflowy (§9.1 guard 2). Put the li
 
 ## Safe-mode episodes
 
-- 2026-09-21 14:14 UTC [[notes/Inbox]]: the file's gen (missing) is unknown: safe mode (no deletes, moves or reorders)
+- 2026-09-21 14:14 UTC [[notes/Inbox]]: the file's gen (missing) is unknown: safe mode (no deletes, moves, reorders or ticks)
 
 ## Dropped resurrections and stale echoes
 

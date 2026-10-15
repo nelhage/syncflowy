@@ -90,13 +90,15 @@
       {
         "Resurrected": {
           "new": "temp-1",
-          "old": "b"
+          "old": "b",
+          "old_name": "Beta"
         }
       },
       {
         "Resurrected": {
           "new": "temp-2",
-          "old": "b1"
+          "old": "b1",
+          "old_name": "Beta one"
         }
       }
     ],

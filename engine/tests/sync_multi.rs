@@ -300,6 +300,198 @@ fn file_emptied_into_another_file_is_not_braked() {
     settled(&t);
 }
 
+/// The source file of a cross-file move also pushes an edit, so it is verified: the
+/// node that left it for the other file of the run is not reported missing.
+#[test]
+fn cross_file_move_with_an_edit_in_the_source_verifies_clean() {
+    let t = two_files();
+    cut_and_paste(&t, str::to_owned);
+    edit(&t.a, "Stays in alpha", "Stays in alpha, renamed");
+    let rs = reports(&t.env, &t.env.client, &[t.a.clone(), t.b.clone()]);
+    for r in &rs {
+        assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+        assert!(r.discrepancies.is_empty(), "{r:#?}");
+    }
+    let tree = t.env.export();
+    assert_eq!(tree.parent(&t.x), Some(&t.target));
+    assert_eq!(tree.parent(&t.x_child), Some(&t.x));
+    assert_eq!(tree.get(&t.keep).unwrap().name, "Stays in alpha, renamed");
+    settled(&t);
+}
+
+fn deletes(api: &TestApi) -> usize {
+    api.calls()
+        .iter()
+        .filter(|c| c.starts_with("delete"))
+        .count()
+}
+
+/// §6.4 with the files synced one at a time: the source file's run finds the cut line's
+/// tag in the other file recorded in the state directory and holds the delete back
+/// (hidden from the file, kept pending) instead of deleting the node; the run that
+/// syncs both files then moves it, with the edit made while pasting.
+#[test]
+fn cut_and_paste_synced_one_file_at_a_time_holds_the_delete() {
+    let t = two_files();
+    cut_and_paste(&t, |p| p.replace("Wanders off", "Wanders far off"));
+    let x_short = short(&t.x).to_string();
+    for _ in 0..2 {
+        let api = TestApi::new(&t.env.client);
+        let r = sync::sync_once(&api, &t.a, &t.env.cfg).expect("sync");
+        assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+        assert_eq!(deletes(&api), 0, "{:?}", api.calls());
+        let expected = format!(
+            "\"Wanders off\" ({x_short}) is in beta.md; sync both files in one command to move it"
+        );
+        assert_eq!(r.warnings, [expected], "{r:#?}");
+        let tree = t.env.export();
+        assert_eq!(tree.parent(&t.x), Some(&t.ra));
+        assert!(!read(&t.a).contains("Wanders off"), "{}", read(&t.a));
+    }
+
+    let api = TestApi::new(&t.env.client);
+    let rs = reports(&t.env, &api, &[t.a.clone(), t.b.clone()]);
+    for r in &rs {
+        assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+        assert!(r.warnings.is_empty(), "{r:#?}");
+        assert!(r.discrepancies.is_empty(), "{r:#?}");
+    }
+    assert!(
+        api.calls()
+            .iter()
+            .all(|c| !c.starts_with("create") && !c.starts_with("delete")),
+        "{:?}",
+        api.calls()
+    );
+    let tree = t.env.export();
+    assert_eq!(tree.parent(&t.x), Some(&t.target));
+    assert_eq!(tree.parent(&t.x_child), Some(&t.x));
+    assert_eq!(tree.get(&t.x).unwrap().name, "Wanders far off");
+    assert!(!read(&t.a).contains("Wanders"));
+    assert!(line_of(&read(&t.b), &t.x).contains("Wanders far off"));
+    settled(&t);
+}
+
+/// When the other file no longer has the tag (here: it was synced alone first, which
+/// made its pasted line a new node), the held delete is sent: today's delete and
+/// create, nothing lost.
+#[test]
+fn held_delete_is_sent_once_the_tag_is_gone() {
+    let t = two_files();
+    cut_and_paste(&t, str::to_owned);
+    let r = t.env.sync(&t.a);
+    assert_eq!(r.warnings.len(), 1, "{r:#?}");
+    let r = t.env.sync(&t.b);
+    assert!(
+        r.events
+            .iter()
+            .any(|e| matches!(e, syncflowy::merge::ReportEvent::ForeignTag { .. })),
+        "{r:#?}"
+    );
+    let api = TestApi::new(&t.env.client);
+    let r = sync::sync_once(&api, &t.a, &t.env.cfg).expect("sync");
+    assert!(r.warnings.is_empty(), "{r:#?}");
+    assert_eq!(deletes(&api), 1, "{:?}", api.calls());
+    let tree = t.env.export();
+    assert!(
+        tree.get(&t.x)
+            .is_none_or(|n| tree.parent(&n.id) != Some(&t.ra))
+    );
+    assert_eq!(child_names(&tree, &t.ra), ["Stays in alpha"]);
+    assert_eq!(child_names(&tree, &t.target), ["Wanders off"]);
+}
+
+/// A recorded path that is stale (the other file was renamed) only costs the check:
+/// the delete is sent as before.
+#[test]
+fn stale_recorded_path_falls_back_to_the_delete() {
+    let t = two_files();
+    cut_and_paste(&t, str::to_owned);
+    std::fs::rename(&t.b, t.env.path("renamed.md")).unwrap();
+    let api = TestApi::new(&t.env.client);
+    let r = sync::sync_once(&api, &t.a, &t.env.cfg).expect("sync");
+    assert!(r.warnings.is_empty(), "{r:#?}");
+    assert_eq!(deletes(&api), 1, "{:?}", api.calls());
+}
+
+/// A deleted parent whose child was cut into the other file is held too (the child's tag
+/// is there). When both files are synced, the pending parent's delete loses to the child
+/// that moves out from under it, as it would if the child's line were visible: nothing
+/// is deleted and the child keeps its id.
+#[test]
+fn held_parent_delete_loses_to_its_child_moving_out() {
+    let t = two_files();
+    let a_text = read(&t.a);
+    let x_line = line_of(&a_text, &t.x).to_owned();
+    let child_line = line_of(&a_text, &t.x_child).to_owned();
+    edit(&t.a, &format!("{x_line}\n{child_line}\n"), "");
+    let b_text = read(&t.b);
+    let dest = line_of(&b_text, &t.target).to_owned();
+    let pasted = child_line.trim_start();
+    edit(&t.b, &format!("{dest}\n"), &format!("{dest}\n\t{pasted}\n"));
+    let r = t.env.sync(&t.a);
+    assert_eq!(r.warnings.len(), 1, "{r:#?}");
+    assert!(r.warnings[0].contains("\"with its child\""), "{r:#?}");
+
+    let api = TestApi::new(&t.env.client);
+    let rs = reports(&t.env, &api, &[t.a.clone(), t.b.clone()]);
+    assert!(
+        api.calls()
+            .iter()
+            .all(|c| !c.starts_with("create") && !c.starts_with("delete")),
+        "{:?}",
+        api.calls()
+    );
+    assert!(
+        rs[0].events.iter().any(
+            |e| matches!(e, syncflowy::merge::ReportEvent::DeleteLost { node } if node == &t.x)
+        ),
+        "{rs:#?}"
+    );
+    let tree = t.env.export();
+    assert_eq!(tree.parent(&t.x), Some(&t.ra));
+    assert_eq!(tree.parent(&t.x_child), Some(&t.target));
+    assert!(line_of(&read(&t.a), &t.x).contains("Wanders off"));
+    settled(&t);
+}
+
+/// §4.4 across files: a tagged line copied into another file while it stays in its own
+/// file is a new node there, as a duplicated tag within one file; the original stays.
+#[test]
+fn tag_copied_between_files_is_a_new_node() {
+    let t = two_files();
+    let a_text = read(&t.a);
+    let x_line = line_of(&a_text, &t.x).to_owned();
+    let b_text = read(&t.b);
+    let dest = line_of(&b_text, &t.target).to_owned();
+    edit(&t.b, &format!("{dest}\n"), &format!("{dest}\n\t{x_line}\n"));
+    let api = TestApi::new(&t.env.client);
+    let rs = reports(&t.env, &api, &[t.a.clone(), t.b.clone()]);
+    assert!(
+        api.calls()
+            .iter()
+            .all(|c| !c.starts_with("move") && !c.starts_with("delete")),
+        "{:?}",
+        api.calls()
+    );
+    assert!(
+        rs[1]
+            .events
+            .iter()
+            .any(|e| matches!(e, syncflowy::merge::ReportEvent::CopiedTag { .. })),
+        "{rs:#?}"
+    );
+    let tree = t.env.export();
+    assert_eq!(tree.parent(&t.x), Some(&t.ra));
+    assert_eq!(tree.parent(&t.x_child), Some(&t.x));
+    assert_eq!(child_names(&tree, &t.target), ["Wanders off"]);
+    let copy = tree.children(&t.target)[0].clone();
+    assert_ne!(copy, t.x);
+    assert!(line_of(&read(&t.a), &t.x).contains("Wanders off"));
+    assert!(line_of(&read(&t.b), &copy).contains("Wanders off"));
+    settled(&t);
+}
+
 #[test]
 fn edits_in_both_files_in_one_run() {
     let t = two_files();
@@ -388,4 +580,121 @@ fn per_file_failures_do_not_stop_the_run() {
         SyncOutcome::Synced { .. }
     ));
     assert_eq!(t.env.export().get(&t.target).unwrap().name, "Destination!");
+}
+
+/// Pause `file` with `paused: true` in its `syncflowy:` options, or, with `top_level`,
+/// on a line of its own (also honoured).
+fn pause(file: &std::path::Path, top_level: bool) {
+    let text = read(file);
+    let paused = if top_level {
+        text.replacen("---\n", "---\npaused: true\n", 1)
+    } else {
+        text.replacen("syncflowy: {", "syncflowy: {paused: true, ", 1)
+    };
+    assert_ne!(paused, text, "{text}");
+    write(file, &paused);
+}
+
+/// §6.4 with the other file paused: `sync_all` leaves a paused file out of the run, so
+/// syncing both in one command cannot move the node either. The delete stays held (the
+/// conservative outcome) and the warning says to unpause the other file; once it is
+/// unpaused, the run that syncs both files moves the node.
+#[test]
+fn held_delete_while_the_other_file_is_paused() {
+    for top_level in [false, true] {
+        let t = two_files();
+        cut_and_paste(&t, str::to_owned);
+        pause(&t.b, top_level);
+        let x_short = short(&t.x).to_string();
+        let expected = format!(
+            "\"Wanders off\" ({x_short}) is in beta.md, which is paused; \
+             unpause it and sync both files in one command to move it"
+        );
+        let api = TestApi::new(&t.env.client);
+        let r = sync::sync_once(&api, &t.a, &t.env.cfg).expect("sync");
+        assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+        assert_eq!(deletes(&api), 0, "{:?}", api.calls());
+        assert_eq!(r.warnings, std::slice::from_ref(&expected), "{r:#?}");
+
+        // Both files in one command: beta.md is paused, so it is not in the run.
+        let api = TestApi::new(&t.env.client);
+        let rs = reports(&t.env, &api, &[t.a.clone(), t.b.clone()]);
+        assert_eq!(
+            rs[1].outcome,
+            SyncOutcome::Paused(PauseReason::Frontmatter),
+            "{rs:#?}"
+        );
+        assert_eq!(rs[0].warnings, [expected], "{rs:#?}");
+        assert!(
+            api.calls()
+                .iter()
+                .all(|c| !c.starts_with("create") && !c.starts_with("delete")),
+            "{:?}",
+            api.calls()
+        );
+        let tree = t.env.export();
+        assert_eq!(tree.parent(&t.x), Some(&t.ra));
+        assert_eq!(tree.parent(&t.x_child), Some(&t.x));
+        assert!(!read(&t.a).contains("Wanders off"), "{}", read(&t.a));
+
+        // Unpaused, the run that syncs both files moves it.
+        let b_text = read(&t.b);
+        write(
+            &t.b,
+            &b_text
+                .replacen("paused: true, ", "", 1)
+                .replacen("paused: true\n", "", 1),
+        );
+        let api = TestApi::new(&t.env.client);
+        let rs = reports(&t.env, &api, &[t.a.clone(), t.b.clone()]);
+        for r in &rs {
+            assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
+            assert!(r.warnings.is_empty(), "{r:#?}");
+        }
+        assert!(
+            api.calls()
+                .iter()
+                .all(|c| !c.starts_with("create") && !c.starts_with("delete")),
+            "{:?}",
+            api.calls()
+        );
+        let tree = t.env.export();
+        assert_eq!(tree.parent(&t.x), Some(&t.target));
+        assert_eq!(tree.parent(&t.x_child), Some(&t.x));
+        settled(&t);
+    }
+}
+
+/// A held delete sent once the tag is gone takes the cut line's hidden descendants and
+/// names them. The held line is no longer in the base render, so its children that were
+/// visible when it was cut ("with its child") are counted and named as hidden too: a
+/// slight over-report in the safe direction, as for the daemon's deferred deletes.
+#[test]
+fn held_delete_sent_later_names_its_hidden_items() {
+    let t = two_files();
+    let done = t.env.ui_create(Some(&t.x), "done grandchild");
+    t.env
+        .ui("complete", serde_json::json!({"id": done.as_str()}));
+    t.env.sync(&t.a);
+    assert!(!read(&t.a).contains("done grandchild"));
+    cut_and_paste(&t, str::to_owned);
+    let r = t.env.sync(&t.a);
+    assert_eq!(r.warnings.len(), 1, "{r:#?}");
+    t.env.sync(&t.b);
+
+    let api = TestApi::new(&t.env.client);
+    let r = sync::sync_once(&api, &t.a, &t.env.cfg).expect("sync");
+    assert!(r.warnings.is_empty(), "{r:#?}");
+    assert_eq!(deletes(&api), 1, "{:?}", api.calls());
+    let SyncOutcome::Synced { pushed, .. } = &r.outcome else {
+        panic!("{r:#?}")
+    };
+    assert_eq!((pushed.deletes, pushed.hidden_deleted), (1, 2), "{r:#?}");
+    let named = format!(
+        "deleting \"Wanders off\" ({}) also deletes 2 hidden items: \"with its child\", \"done grandchild\"",
+        short(&t.x)
+    );
+    assert!(r.messages.contains(&named), "{r:#?}");
+    let tree = t.env.export();
+    assert!(!tree.contains(&t.x) && !tree.contains(&t.x_child) && !tree.contains(&done));
 }

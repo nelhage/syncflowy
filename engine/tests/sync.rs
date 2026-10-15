@@ -14,7 +14,7 @@ use syncflowy::mdblock::{self, DocConfig};
 use syncflowy::merge::ReportEvent;
 use syncflowy::plan::Brake;
 use syncflowy::state::StateStore;
-use syncflowy::sync::{self, PauseReason, SyncOutcome};
+use syncflowy::sync::{self, PauseReason, RenderConfig, SyncOutcome};
 use syncflowy::tree::{NodeId, Position};
 use syncflowy::wfclient::Api;
 
@@ -196,6 +196,74 @@ fn render_with_headings_round_trips() {
     assert_ne!(f.env.snapshot(), before);
 }
 
+#[test]
+fn forced_render_keeps_the_old_frontmatter() {
+    let f = fixture();
+    edit(
+        &f.file,
+        "syncflowy: {gen: 1}",
+        "syncflowy: {ids: comment, checkboxes: all, depth: 2, paused: true, force: true, gen: 1}\n\
+         tags: [plans]\npaused: true",
+    );
+    let short = f.root.short().unwrap().to_string();
+    let mut forced = f.env.cfg.clone();
+    forced.force = true;
+    let render = |opts: RenderConfig| {
+        sync::render_once(&f.env.client, &short, &f.file, opts, &forced).unwrap()
+    };
+    let r = render(RenderConfig::default());
+    assert_eq!(r.outcome, SyncOutcome::Rendered { generation: 2 });
+    let text = read(&f.file);
+    assert!(
+        text.contains(
+            "syncflowy: {ids: comment, checkboxes: all, depth: 2, gen: 2}\ntags: [plans]\n---\n"
+        ),
+        "options and other lines kept; gen, force, paused and the top-level option not:\n{text}"
+    );
+    assert!(text.contains("- [ ] Plan %%wf:"), "{text}");
+
+    // --headings overrides only headings.
+    render(RenderConfig {
+        headings: Some(1),
+        ..RenderConfig::default()
+    });
+    let text = read(&f.file);
+    assert!(
+        text.contains("syncflowy: {headings: 1, ids: comment, checkboxes: all, depth: 2, gen: 3}"),
+        "{text}"
+    );
+
+    // A file of another root keeps nothing (and says so).
+    let other = f.env.ui_create(None, "Other");
+    let other_file = f.env.path("other.md");
+    f.env.render(&other, &other_file);
+    std::fs::copy(&f.file, &other_file).unwrap();
+    let other_short = other.short().unwrap().to_string();
+    let r = sync::render_once(
+        &f.env.client,
+        &other_short,
+        &other_file,
+        &DocConfig::default(),
+        &forced,
+    )
+    .unwrap();
+    assert!(
+        r.warnings.iter().any(|w| w.contains("another root")),
+        "{r:#?}"
+    );
+    assert!(read(&other_file).contains("syncflowy: {gen: 2}\n---\n"));
+
+    // Library callers get the same bound as the command line.
+    let fresh = f.env.path("fresh.md");
+    let doc = DocConfig {
+        headings: 7,
+        ..DocConfig::default()
+    };
+    let e = sync::render_once(&f.env.client, &short, &fresh, &doc, &forced).unwrap_err();
+    assert!(matches!(e, Error::Parse(_)), "{e}");
+    assert!(!fresh.exists());
+}
+
 // ---------------------------------------------------------------------------------------
 // The fast path
 // ---------------------------------------------------------------------------------------
@@ -286,6 +354,47 @@ fn local_rename_and_note_edit_are_pushed() {
 }
 
 #[test]
+fn link_titles_are_dropped_and_reported() {
+    let f = fixture();
+    let draft = line_of(&read(&f.file), &f.draft).to_owned();
+    edit(
+        &f.file,
+        "Buy milk",
+        "Buy [milk](https://example.com \"oat\")",
+    );
+    edit(
+        &f.file,
+        &format!("{draft}\n"),
+        &format!("{draft}\n\t- See [docs](https://e.com 'title')\n"),
+    );
+    let r = f.env.sync(&f.file);
+    synced(&r);
+    let tree = f.env.export();
+    assert_eq!(
+        tree.get(&f.milk).unwrap().name,
+        r#"Buy <a href="https://example.com">milk</a>"#
+    );
+    by_name(&tree, r#"See <a href="https://e.com">docs</a>"#);
+    let lossy: Vec<&ReportEvent> = r
+        .events
+        .iter()
+        .filter(|e| matches!(e, ReportEvent::LinkTitleDropped { .. }))
+        .collect();
+    assert_eq!(lossy.len(), 2, "{r:#?}");
+    assert!(
+        !r.events
+            .iter()
+            .any(|e| matches!(e, ReportEvent::LossyWrite { .. })),
+        "{r:#?}"
+    );
+    assert!(lossy.contains(&&ReportEvent::LinkTitleDropped {
+        node: f.milk.clone(),
+        field: syncflowy::mdinline::ConflictField::Name,
+    }));
+    assert_settled(&f);
+}
+
+#[test]
 fn local_normalisation_is_deferred() {
     let f = fixture();
     edit(&f.file, "Draft the spec", "Draft the __whole__ spec");
@@ -304,6 +413,87 @@ fn local_normalisation_is_deferred() {
         .ui("edit", json!({"id": f.later.as_str(), "text": "Later on"}));
     f.env.sync(&f.file);
     assert!(read(&f.file).contains("Draft the **whole** spec"));
+}
+
+#[test]
+fn changed_options_rewrite_the_file() {
+    let f = fixture();
+    // `ids:` alone: the new tag form is written at once.
+    edit(
+        &f.file,
+        "syncflowy: {gen: 1}",
+        "syncflowy: {ids: comment, gen: 1}",
+    );
+    let r = f.env.sync(&f.file);
+    assert_eq!(synced(&r), (true, 2), "{r:#?}");
+    let text = read(&f.file);
+    let short = f.milk.short().unwrap();
+    assert!(
+        line_of(&text, &f.milk).ends_with(&format!("Buy milk %%wf:{short}%%")),
+        "{text}"
+    );
+    assert!(!text.contains("^wf-"), "{text}");
+    assert_settled(&f);
+
+    // `checkboxes: todos`: the leaves' boxes go, although they were in the file.
+    edit(
+        &f.file,
+        "syncflowy: {ids: comment, gen: 2}",
+        "syncflowy: {ids: comment, checkboxes: todos, gen: 2}",
+    );
+    let r = f.env.sync(&f.file);
+    assert_eq!(synced(&r), (true, 3), "{r:#?}");
+    let text = read(&f.file);
+    assert!(!text.contains("[ ]"), "{text}");
+    assert_settled(&f);
+
+    // `checkboxes: all`: interior items get a box too.
+    edit(&f.file, "checkboxes: todos", "checkboxes: all");
+    let r = f.env.sync(&f.file);
+    assert_eq!(synced(&r), (true, 4), "{r:#?}");
+    let text = read(&f.file);
+    for n in [&f.plan, &f.errands, &f.milk, &f.later] {
+        assert!(
+            line_of(&text, n).trim_start().starts_with("- [ ] "),
+            "{text}"
+        );
+    }
+    assert_settled(&f);
+}
+
+#[test]
+fn checkboxes_none_hides_todo_boxes_but_keeps_todos() {
+    let f = fixture();
+    let todo = f.env.ui_create_with(
+        Some(&f.later),
+        json!({"text": "A todo", "layoutMode": "todo"}),
+    );
+    edit(
+        &f.file,
+        "syncflowy: {gen: 1}",
+        "syncflowy: {checkboxes: none, gen: 1}",
+    );
+    f.env.sync(&f.file);
+    let text = read(&f.file);
+    assert!(!text.contains("[ ]"), "{text}");
+    assert_eq!(
+        line_of(&text, &todo).trim_start(),
+        format!("- A todo ^wf-{}", short(&todo))
+    );
+    assert_settled(&f);
+    // An edit of the box-less line keeps the layout; typing `[x]` still ticks it.
+    edit(&f.file, "- A todo", "- A todo, renamed");
+    f.env.sync(&f.file);
+    let node = f.env.export().get(&todo).unwrap().clone();
+    assert_eq!(
+        (node.name.as_str(), node.layout.as_str()),
+        ("A todo, renamed", "todo")
+    );
+    edit(&f.file, "- A todo, renamed", "- [x] A todo, renamed");
+    f.env.sync(&f.file);
+    assert!(f.env.export().get(&todo).unwrap().completed);
+    assert!(!read(&f.file).contains("A todo"));
+    assert_settled(&f);
 }
 
 #[test]
@@ -669,6 +859,59 @@ fn paused_file_is_not_synced() {
     let r = sync::sync_once(&api, &f.file, &f.env.cfg).unwrap();
     assert_eq!(r.outcome, SyncOutcome::Paused(PauseReason::Frontmatter));
     assert!(api.calls().is_empty());
+}
+
+#[test]
+fn top_level_paused_pauses_but_top_level_force_does_not_force() {
+    let f = fixture();
+    let text = read(&f.file);
+    edit(
+        &f.file,
+        "syncflowy: {gen: 1}",
+        "paused: true\nsyncflowy: {gen: 1}",
+    );
+    edit(&f.file, "Buy milk", "Buy soy milk");
+    let before = f.env.snapshot();
+    let api = TestApi::new(&f.env.client);
+    let r = sync::sync_once(&api, &f.file, &f.env.cfg).unwrap();
+    assert_eq!(r.outcome, SyncOutcome::Paused(PauseReason::Frontmatter));
+    assert!(api.calls().is_empty(), "{:?}", api.calls());
+    assert_eq!(f.env.snapshot(), before);
+
+    // A top-level `force: true` is warned about and overrides no brake.
+    let truncated: String = text
+        .replace("syncflowy: {gen: 1}", "force: true\nsyncflowy: {gen: 1}")
+        .lines()
+        .take_while(|l| !l.contains("Errands"))
+        .map(|l| format!("{l}\n"))
+        .collect();
+    write(&f.file, &truncated);
+    let mut braking = f.env.cfg.clone();
+    braking.brakes.max_deletes = 1;
+    let r = sync::sync_once(&f.env.client, &f.file, &braking).unwrap();
+    assert!(matches!(r.outcome, SyncOutcome::Braked(_)), "{r:#?}");
+    assert!(
+        r.warnings
+            .iter()
+            .any(|w| w.starts_with("line 3: \"force\" is a syncflowy option")),
+        "{r:#?}"
+    );
+}
+
+#[test]
+fn unparseable_gen_is_named_in_the_safe_mode_warning() {
+    let f = fixture();
+    edit(&f.file, "syncflowy: {gen: 1}", "syncflowy: {gen: three}");
+    let r = f.env.sync(&f.file);
+    assert!(
+        r.warnings.contains(
+            &"the file's gen (\"three\") is not a number: safe mode (no deletes, moves, \
+              reorders or ticks)"
+                .to_owned()
+        ),
+        "{r:#?}"
+    );
+    assert!(read(&f.file).contains("gen: 2"));
 }
 
 #[test]
@@ -1178,15 +1421,15 @@ fn symlinked_file_stays_a_link_and_keeps_its_mode() {
 #[test]
 fn status_reports_local_state() {
     let f = fixture();
-    let s = sync::status(&f.env.cfg, &[]).unwrap();
+    let s = sync::status(&f.env.cfg).unwrap();
     assert_eq!(s.len(), 1);
     assert_eq!(s[0].root, f.root);
     assert_eq!(s[0].generation, 1);
     assert_eq!(s[0].locally_modified, Some(false));
     assert!(!s[0].journal_pending);
     edit(&f.file, "Buy milk", "Buy soy milk");
-    let s = sync::status(&f.env.cfg, std::slice::from_ref(&f.file)).unwrap();
-    assert_eq!(s[0].locally_modified, Some(true));
+    let s = sync::status_of_files(&f.env.cfg, std::slice::from_ref(&f.file)).unwrap();
+    assert_eq!(s[0].status.as_ref().unwrap().locally_modified, Some(true));
 }
 
 #[test]

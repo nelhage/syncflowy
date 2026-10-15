@@ -549,6 +549,8 @@ enum Reply {
     Status(u16, &'static str),
     /// Read the request, then close without answering.
     Hangup,
+    /// Answer 429 with this `Retry-After` header (and an empty body).
+    RetryAfter(&'static str),
 }
 
 #[derive(Debug, Clone)]
@@ -621,6 +623,12 @@ fn fake_server(script: Vec<Reply>) -> Fake {
                     let resp = format!(
                         "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                         body.len()
+                    );
+                    let _ = stream.write_all(resp.as_bytes());
+                }
+                Reply::RetryAfter(secs) => {
+                    let resp = format!(
+                        "HTTP/1.1 429 X\r\nRetry-After: {secs}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                     );
                     let _ = stream.write_all(resp.as_bytes());
                 }
@@ -760,6 +768,44 @@ fn retries_5xx_and_429_but_not_4xx() {
             body: "c".into()
         })
     );
+    assert_eq!(c.request_count(), 7);
+}
+
+/// §12.2: an enforced 1/min export limit is waited out (as `Retry-After` asks, within
+/// `rate_limit_budget`), not reported as a failure after the run's writes.
+#[test]
+fn a_429_waits_as_retry_after_asks_within_the_budget() {
+    let export = r#"{"nodes": []}"#;
+    let fake = fake_server(vec![
+        Reply::RetryAfter("45"),
+        Reply::RetryAfter("15"),
+        Reply::Status(200, export),
+        // Without the header: the backoff.
+        Reply::Status(429, ""),
+        Reply::Status(200, export),
+        // Over the budget: typed, after the waits that fit.
+        Reply::RetryAfter("60"),
+        Reply::RetryAfter("60"),
+    ]);
+    let waits = Arc::new(Mutex::new(Vec::new()));
+    let w = Arc::clone(&waits);
+    // max_retries does not bound 429s: the budget does.
+    let mut cfg = quick_config(fake.base_url.clone(), 0);
+    cfg.rate_limit_budget = Duration::from_secs(90);
+    let c = Client::with_sleeper(cfg, move |d| w.lock().unwrap().push(d));
+    let secs = Duration::from_secs;
+
+    assert_eq!(c.export().unwrap(), vec![]);
+    assert_eq!(*waits.lock().unwrap(), [secs(45), secs(15)]);
+    assert_eq!(c.request_count(), 3);
+
+    waits.lock().unwrap().clear();
+    assert_eq!(c.export().unwrap(), vec![]);
+    assert_eq!(*waits.lock().unwrap(), [Duration::from_millis(5)]);
+
+    waits.lock().unwrap().clear();
+    assert_eq!(c.export(), Err(ApiError::RateLimited));
+    assert_eq!(*waits.lock().unwrap(), [secs(60)]);
     assert_eq!(c.request_count(), 7);
 }
 

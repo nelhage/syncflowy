@@ -48,6 +48,15 @@
 //!    cycle's time). It has no frontmatter, so it is never mistaken for a synced file.
 //! 6. Never exit on a per-file error; log it and show it in the status note. Exit only on
 //!    a fatal error: the state directory is unusable, or the API answers 401.
+//! 7. **Stop** on SIGTERM or SIGINT: [`run`] lets the step in progress finish (a cycle
+//!    is never cut short, so no journal is left behind), then [`Daemon::stop`] writes
+//!    `Stopped at ...` to the status note, and `run` returns `Ok` (exit 0). A second
+//!    signal while stopping ends the process at once (exit 1; the next run recovers an
+//!    interrupted cycle from its journal).
+//!
+//! The event log (the status note's event sections, at most [`MAX_EVENTS`]) is saved in
+//! the state directory ([`EVENTS_FILE`]) after every step that changed it, and loaded
+//! by [`Daemon::new`], so a restart keeps it.
 //!
 //! # Guards (§9.1) and where they live
 //!
@@ -79,17 +88,19 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use signal_hook::consts::{SIGINT, SIGTERM};
 
 use crate::apply::ApplyError;
 use crate::error::Error;
 use crate::mdblock::{self, ItemKind, LocalDoc, LocalItem, ParseError, RootRef};
-use crate::merge::ReportEvent;
+use crate::merge::{Labels, ReportEvent};
 use crate::state::{self, Checkpoint, Fingerprint, StateStore, fingerprint};
 use crate::sync::{self, Clock, PauseReason, SyncConfig, SyncOutcome, SyncReport};
 use crate::tree::{NodeId, ShortId};
@@ -111,6 +122,12 @@ pub const STATUS_NOTE: &str = "Workflowy Sync Status.md";
 
 /// How many events the status note keeps (newest first).
 pub const MAX_EVENTS: usize = 50;
+
+/// The event log's file in the state directory (JSON, newest first).
+pub const EVENTS_FILE: &str = "daemon-events.json";
+
+/// While waiting between steps, how often [`run`] checks for a stop signal.
+const STOP_POLL: Duration = Duration::from_millis(200);
 
 /// The shortest wait between two steps of [`run`] (no busy loop).
 const MIN_WAIT: Duration = Duration::from_millis(500);
@@ -526,12 +543,46 @@ pub struct Daemon {
     /// The last outcome per file.
     outcomes: BTreeMap<PathBuf, SyncOutcome>,
     /// Current errors per file (`""` for the run-wide one).
-    errors: BTreeMap<PathBuf, String>,
+    errors: BTreeMap<PathBuf, StoredError>,
     events: VecDeque<Event>,
+    /// True if `events` changed since it was last saved.
+    events_dirty: bool,
+    /// Set by [`Daemon::stop`].
+    stopped_at: Option<i64>,
     deletes_held: bool,
     status_text: Option<String>,
     /// The content of each dirty file when it was last handed to a cycle.
     attempted: BTreeMap<PathBuf, Fingerprint>,
+}
+
+/// A current error of a file (or of the whole run), kept until the file syncs again.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StoredError {
+    /// The message, with the daemon's own remedy ([`daemon_message`]).
+    text: String,
+    /// `Error::NoCheckpoint`: shown as [`RootState::NoCheckpoint`].
+    no_checkpoint: bool,
+}
+
+impl StoredError {
+    fn of(e: &Error) -> StoredError {
+        StoredError {
+            text: daemon_message(e),
+            no_checkpoint: matches!(e, Error::NoCheckpoint(_)),
+        }
+    }
+}
+
+/// An error's message as the daemon shows it: the engine's messages name no remedy where
+/// the CLI's (`--force`) and the daemon's (the frontmatter) differ, so the daemon adds
+/// its own.
+fn daemon_message(e: &Error) -> String {
+    match e {
+        Error::NoCheckpoint(_) => format!(
+            "{e}; run `syncflowy render`, or set `force: true` in the frontmatter to adopt the file"
+        ),
+        _ => e.to_string(),
+    }
 }
 
 /// True for errors after which the daemon must stop (module docs, step 6): the API
@@ -588,14 +639,18 @@ fn event_kind(e: &ReportEvent) -> Option<EventKind> {
         | ReportEvent::DroppedMove { .. }
         | ReportEvent::DeleteLost { .. }
         | ReportEvent::ForeignTag { .. }
+        | ReportEvent::CopiedTag { .. }
         | ReportEvent::DuplicateTag { .. }
         | ReportEvent::ReadOnlyEditRefused { .. }
+        | ReportEvent::Lifted { .. }
         | ReportEvent::PlaceholderDeleteRefused { .. }
         | ReportEvent::MirrorDeleteRefused { .. }
         | ReportEvent::Conflict { .. }
         | ReportEvent::MovedOutConflict { .. }
+        | ReportEvent::TickedConflict { .. }
         | ReportEvent::ConflictLost { .. }
         | ReportEvent::LossyWrite { .. }
+        | ReportEvent::LinkTitleDropped { .. }
         | ReportEvent::PendingDeleteCancelled { .. } => Some(EventKind::Info),
         ReportEvent::MovedIn { from_file_root, .. } => {
             from_file_root.as_ref().map(|_| EventKind::Info)
@@ -623,6 +678,7 @@ impl Daemon {
             });
         }
         let store = StateStore::open(&cfg.sync.state_dir)?;
+        let events = load_events(&store);
         if let (Ok(state), Ok(vault)) = (
             std::fs::canonicalize(&cfg.sync.state_dir),
             std::fs::canonicalize(&cfg.vault),
@@ -651,7 +707,9 @@ impl Daemon {
             last_ok: BTreeMap::new(),
             outcomes: BTreeMap::new(),
             errors: BTreeMap::new(),
-            events: VecDeque::new(),
+            events,
+            events_dirty: false,
+            stopped_at: None,
             deletes_held: false,
             status_text: None,
             attempted: BTreeMap::new(),
@@ -716,6 +774,33 @@ impl Daemon {
             text,
         });
         self.events.truncate(MAX_EVENTS);
+        self.events_dirty = true;
+    }
+
+    /// Save the event log if it changed. A failure is logged, not fatal.
+    fn save_events(&mut self) {
+        if !self.events_dirty {
+            return;
+        }
+        let path = self.store.dir().join(EVENTS_FILE);
+        let result = serde_json::to_vec_pretty(&self.events)
+            .map_err(std::io::Error::other)
+            .and_then(|bytes| state::atomic_write(&path, &bytes));
+        match result {
+            Ok(()) => self.events_dirty = false,
+            Err(e) => log::warn!("{}: cannot save the event log: {e}", path.display()),
+        }
+    }
+
+    /// Stop (module docs, step 7): log it, write `Stopped at ...` to the status note and
+    /// save the event log. Call it between steps.
+    pub fn stop(&mut self) -> Result<(), Error> {
+        let at = self.time.unix();
+        self.stopped_at = Some(at);
+        self.log_event(None, EventKind::Info, "the daemon stopped".to_owned());
+        self.write_status()?;
+        self.save_events();
+        Ok(())
     }
 
     /// Step 1: discover and classify the synced files.
@@ -907,14 +992,19 @@ impl Daemon {
                 continue; // the warning above already says so
             }
             if let Some(kind) = event_kind(e) {
-                self.log_event(Some(file), kind, e.describe(&tree));
+                let labels = Labels {
+                    tree: &tree,
+                    created: Some(&report.created),
+                    planned: None,
+                };
+                self.log_event(Some(file), kind, e.describe_with(&labels));
             }
         }
         for d in &report.discrepancies {
             self.log_event(
                 Some(file),
                 EventKind::Error,
-                format!("verification after the push: {d:?}"),
+                format!("verification after the push: {d}"),
             );
         }
     }
@@ -970,11 +1060,12 @@ impl Daemon {
                 } else {
                     EventKind::Error
                 };
-                self.log_event(None, kind, format!("the cycle failed: {e}"));
-                self.errors.insert(PathBuf::new(), e.to_string());
+                let err = StoredError::of(&e);
+                self.log_event(None, kind, format!("the cycle failed: {}", err.text));
                 for f in &files {
-                    results.push((f.clone(), Err(e.to_string())));
+                    results.push((f.clone(), Err(err.text.clone())));
                 }
+                self.errors.insert(PathBuf::new(), err);
             }
             Ok(file_results) => {
                 self.errors.remove(Path::new(""));
@@ -991,12 +1082,13 @@ impl Daemon {
                             } else {
                                 EventKind::Error
                             };
-                            if self.errors.get(&fr.file) != Some(&e.to_string()) {
-                                self.log_event(Some(&fr.file), kind, e.to_string());
+                            let err = StoredError::of(&e);
+                            if self.errors.get(&fr.file) != Some(&err) {
+                                self.log_event(Some(&fr.file), kind, err.text.clone());
                             }
-                            self.errors.insert(fr.file.clone(), e.to_string());
                             self.outcomes.remove(&fr.file);
-                            results.push((fr.file, Err(e.to_string())));
+                            results.push((fr.file.clone(), Err(err.text.clone())));
+                            self.errors.insert(fr.file, err);
                         }
                     }
                 }
@@ -1024,14 +1116,17 @@ impl Daemon {
             if let Some(n) = &t.node {
                 seen.insert(n.clone());
             }
-            let state = match (
-                &t.state,
-                self.errors.get(&t.path),
-                self.outcomes.get(&t.path),
-            ) {
+            // A file without an error of its own shows the run-wide one (an export that
+            // failed, a rejected key), if any.
+            let error = self
+                .errors
+                .get(&t.path)
+                .or_else(|| self.errors.get(Path::new("")));
+            let state = match (&t.state, error, self.outcomes.get(&t.path)) {
                 (FileState::Paused, ..) => RootState::Paused(PauseReason::Frontmatter),
                 (FileState::Unreadable(e), ..) => RootState::Skipped(e.clone()),
-                (_, Some(e), _) => RootState::Failed(e.clone()),
+                (_, Some(e), _) if e.no_checkpoint => RootState::NoCheckpoint,
+                (_, Some(e), _) => RootState::Failed(e.text.clone()),
                 (FileState::Dirty, ..) if self.debouncer.contains(&t.path) => RootState::Waiting,
                 (_, None, Some(o)) => match o {
                     SyncOutcome::Unchanged
@@ -1125,10 +1220,11 @@ impl Daemon {
             errors: self
                 .errors
                 .iter()
-                .map(|(p, e)| (p.clone(), e.clone()))
+                .map(|(p, e)| (p.clone(), e.text.clone()))
                 .collect(),
             discovery: self.discovery.clone(),
             events: self.events.iter().cloned().collect(),
+            stopped_at: self.stopped_at,
         })
     }
 
@@ -1201,17 +1297,56 @@ impl Daemon {
                 Err(e) => {
                     self.log_event(None, EventKind::ApiError, format!("fatal: {e}; stopping"));
                     let _ = self.write_status();
+                    self.save_events();
                     return Err(e);
                 }
             }
         }
         report.status_written = self.write_status()?;
+        self.save_events();
         Ok(report)
     }
 }
 
-/// Run the daemon loop until a fatal error (module docs). Uses the real clock.
+/// The saved event log ([`EVENTS_FILE`]), or an empty one if there is none or it does
+/// not decode (logged).
+fn load_events(store: &StateStore) -> VecDeque<Event> {
+    let path = store.dir().join(EVENTS_FILE);
+    let bytes = match std::fs::read(&path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return VecDeque::new(),
+        Err(e) => {
+            log::warn!("{}: {e}", path.display());
+            return VecDeque::new();
+        }
+    };
+    match serde_json::from_slice::<VecDeque<Event>>(&bytes) {
+        Ok(mut events) => {
+            events.truncate(MAX_EVENTS);
+            events
+        }
+        Err(e) => {
+            log::warn!("{}: cannot read the event log: {e}", path.display());
+            VecDeque::new()
+        }
+    }
+}
+
+/// Run the daemon loop until a fatal error, or until SIGTERM or SIGINT (module docs,
+/// step 7: then `Ok`). Uses the real clock.
 pub fn run(api: &dyn Api, cfg: &DaemonConfig) -> Result<(), Error> {
+    let stop = Arc::new(AtomicBool::new(false));
+    for sig in [SIGTERM, SIGINT] {
+        let registered =
+            signal_hook::flag::register_conditional_shutdown(sig, 1, Arc::clone(&stop))
+                .and_then(|_| signal_hook::flag::register(sig, Arc::clone(&stop)));
+        if let Err(e) = registered {
+            return Err(Error::Io {
+                path: cfg.vault.clone(),
+                source: std::io::Error::other(format!("cannot handle signal {sig}: {e}")),
+            });
+        }
+    }
     let mut daemon = Daemon::new(cfg.clone(), Arc::new(RealTime))?;
     let watch_error = |e: notify::Error| Error::Io {
         path: cfg.vault.clone(),
@@ -1227,16 +1362,20 @@ pub fn run(api: &dyn Api, cfg: &DaemonConfig) -> Result<(), Error> {
     log::info!("watching {}", cfg.vault.display());
 
     let mut changed: Vec<PathBuf> = Vec::new();
-    loop {
+    let stopping = || stop.load(Ordering::SeqCst);
+    'steps: loop {
         daemon.step(api, &changed)?;
         changed.clear();
         let mut deadline = daemon.next_wakeup().max(Instant::now() + MIN_WAIT);
         loop {
+            if stopping() {
+                break 'steps;
+            }
             let now = Instant::now();
             if now >= deadline {
                 break;
             }
-            match rx.recv_timeout(deadline - now) {
+            match rx.recv_timeout((deadline - now).min(STOP_POLL)) {
                 Ok(Ok(event)) => {
                     let before = changed.len();
                     changed.extend(event.paths.into_iter().filter(|p| daemon.is_relevant(p)));
@@ -1250,7 +1389,7 @@ pub fn run(api: &dyn Api, cfg: &DaemonConfig) -> Result<(), Error> {
                     changed.push(cfg.vault.clone());
                     deadline = deadline.min(Instant::now() + COALESCE);
                 }
-                Err(RecvTimeoutError::Timeout) => break,
+                Err(RecvTimeoutError::Timeout) => {}
                 Err(RecvTimeoutError::Disconnected) => {
                     return Err(Error::Io {
                         path: cfg.vault.clone(),
@@ -1260,6 +1399,8 @@ pub fn run(api: &dyn Api, cfg: &DaemonConfig) -> Result<(), Error> {
             }
         }
     }
+    log::info!("stopping on a signal");
+    daemon.stop()
 }
 
 #[cfg(test)]

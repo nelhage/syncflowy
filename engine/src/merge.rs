@@ -41,12 +41,18 @@
 //!    (§4.4 "take the last valid one"), that resolves through `ids` to a node in `base`
 //!    or in the remote subtree identifies it. If several items carry the same tag, the
 //!    one that best matches its `base_doc` item (text similarity of the plain text of
-//!    the names, then same parent, then position) keeps it; the others are new nodes
-//!    ([`ReportEvent::DuplicateTag`]). Duplicates are resolved parents first, and "same
-//!    parent" compares the parent item's resolved identity, so a pasted copy of a
-//!    subtree is created whole and the original children stay under the original.
+//!    the names, then same parent, then position) keeps it. Each other one takes the
+//!    next valid tag on its line whose node no line wins and no other item took (so a
+//!    line with its own tag and a copied one keeps its node), and only a line left
+//!    without one is a new node ([`ReportEvent::DuplicateTag`]). Duplicates are
+//!    resolved parents first, and "same parent" compares the parent item's resolved
+//!    identity, so a pasted copy of a subtree is created whole and the original
+//!    children stay under the original.
 //! 2. A tag resolving to a node inside another managed root (`cross.other_roots`, the
-//!    roots themselves excluded) is a cross-file move into this file (§6.4). Any other
+//!    roots themselves excluded) is a cross-file move into this file (§6.4), unless the
+//!    tag is still on its line in its own file (`cross.still_in_own_file`): then the
+//!    line is a copy and a new node, as a duplicated tag within one file
+//!    ([`ReportEvent::CopiedTag`]). Any other
 //!    tag (unknown, ambiguous, or a node elsewhere in the account) is ignored with
 //!    [`ReportEvent::ForeignTag`] and the item is new. UNVERIFIED design choice: §4.4
 //!    would move any existing node; we only move nodes out of managed roots, to avoid
@@ -65,10 +71,17 @@
 //! 4. Deleted-tag fallback: an untagged item under the same parent as an unmatched base
 //!    item (tagged in `base_doc`, tag missing from `local_doc`), at a nearby sibling
 //!    position (at most [`REMATCH_MAX_DISTANCE`] apart), with similar text (similarity
-//!    ratio >= [`REMATCH_MIN_RATIO`]), is that base item edited
+//!    ratio >= [`REMATCH_MIN_RATIO`], or the item's text starts with the base item's:
+//!    text appended to the name), is that base item edited
 //!    ([`ReportEvent::Rematched`]). Same for an item that reappears where a
 //!    pending-delete node was (§9.1 guard 2). Pairs are chosen greedily by best ratio,
-//!    then nearest position, parents before children.
+//!    then nearest position, parents before children. When no such pair is left, an
+//!    untagged item that is the only unmatched item under its parent is paired with the
+//!    only unmatched base item there (still in the subtree remotely, not pasted into
+//!    another file), whatever the text, if both are at the same sibling index: a tag
+//!    removed together with a larger edit (§1: a delete and create would lose the
+//!    node's Workflowy-only attributes). UNVERIFIED design choice: a line deleted and
+//!    another typed in its place becomes a rename, the smaller loss.
 //! 5. Everything else is a local create, numbered `NodeId::temp(1)`, `temp(2)`, … in file
 //!    pre-order (resurrections are numbered in the same sequence).
 //!
@@ -113,7 +126,8 @@
 //! node (unless it is already completed remotely: [`ReportEvent::AlreadyCompleted`]), and
 //! other edits to it and its subtree are still pushed (planned before the completion).
 //! A field of a ticked node that was also changed remotely keeps the remote value with
-//! no conflict marker (the node leaves the file). A new item typed as `[x]` is created
+//! no conflict marker (the node leaves the file); the local text is kept in the report
+//! ([`ReportEvent::TickedConflict`]). A new item typed as `[x]` is created
 //! and then completed. Ticks are never brakes. A tick of a placeholder (§10: the line
 //! is or was a placeholder, or the node is an orphan shell remotely) is a write to an
 //! orphan shell: refused without `force` ([`ReportEvent::ReadOnlyEditRefused`]).
@@ -150,7 +164,9 @@
 //! Placeholders are never deleted unless `force` ([`ReportEvent::PlaceholderDeleteRefused`]).
 //! A node missing from `local_doc` whose tag is in `cross.claimed_elsewhere` moved to
 //! another file: it is neither deleted nor moved here (the other file's merge moves
-//! it); it stays in `M` at its remote position.
+//! it); it stays in `M` at its remote position. So does a locally deleted (or pending)
+//! node with such a node below it that was hidden in the base: its delete loses
+//! ([`ReportEvent::DeleteLost`]), as when that node's line was visible.
 //!
 //! **Mirrors (§15.1, `crate::mirrors`).** On a view tree (base and remote alike) a
 //! shell placement that renders its origin in full is an ordinary item whose edits,
@@ -271,6 +287,11 @@ pub struct CrossFile {
     /// Nodes whose tags appear in another file's current text (a cut from this file
     /// pasted there): missing here means "moved away", not "deleted".
     pub claimed_elsewhere: BTreeSet<NodeId>,
+    /// Nodes of the other roots whose tags are still in their own file's current text: a
+    /// line carrying one here is a copy, so it is a new node (as a duplicated tag within
+    /// one file, §4.4), not a move.
+    #[serde(default)]
+    pub still_in_own_file: BTreeSet<NodeId>,
     /// For nodes of the other roots whose tags appear in this file (a cut from another
     /// file pasted here): that file's base for them, against which the pasted line is
     /// merged. A node without an entry never has its fields pushed.
@@ -444,6 +465,35 @@ pub struct DeleteIntent {
     pub hidden_descendants: usize,
     /// Plain text of the node's name, for reports.
     pub label: String,
+    /// Plain text of the names of the first [`HIDDEN_LABELS_MAX`] hidden descendants, in
+    /// file order, for reports.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hidden_labels: Vec<String>,
+}
+
+/// How many hidden descendants of a delete the report names (§4.5).
+pub const HIDDEN_LABELS_MAX: usize = 10;
+
+impl DeleteIntent {
+    /// `deleting "Old ideas" (<short id>) also deletes 1 hidden item: "Hedge maze"`, or
+    /// `None` if the delete takes no hidden descendant (§4.5: the report names them).
+    pub fn describe_hidden(&self) -> Option<String> {
+        let n = self.hidden_descendants;
+        if n == 0 {
+            return None;
+        }
+        let mut names: Vec<String> = self.hidden_labels.iter().map(|l| quoted(l)).collect();
+        if n > names.len() {
+            names.push(format!("and {} more", n - names.len()));
+        }
+        let short = self.node.short().map(|s| s.to_string()).unwrap_or_default();
+        Some(format!(
+            "deleting {} ({short}) also deletes {n} hidden item{}: {}",
+            quoted(&self.label),
+            if n == 1 { "" } else { "s" },
+            names.join(", ")
+        ))
+    }
 }
 
 /// Counts used by the brakes (§8.3) and the report.
@@ -472,7 +522,13 @@ pub struct MergeStats {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReportEvent {
     /// A remotely deleted node edited locally was re-created (§6.2).
-    Resurrected { old: NodeId, new: NodeId },
+    Resurrected {
+        old: NodeId,
+        new: NodeId,
+        /// Plain text of the deleted node's base name (it is in no tree any more).
+        #[serde(default)]
+        old_name: String,
+    },
     /// Local edits/creates under a node completed remotely were pushed and vanish from
     /// view (§6.2 table).
     VanishedWork {
@@ -496,6 +552,14 @@ pub enum ReportEvent {
         field: ConflictField,
         local_md: String,
     },
+    /// A field of a node ticked locally was edited on both sides: the completion is
+    /// pushed and Workflowy's value kept (§6.2 table), and since the ticked line leaves
+    /// the file, the local text is kept here.
+    TickedConflict {
+        node: NodeId,
+        field: ConflictField,
+        local_md: String,
+    },
     /// A node moved into the subtree remotely, or from another file (§6.2, §6.4).
     MovedIn {
         node: NodeId,
@@ -507,20 +571,35 @@ pub enum ReportEvent {
     DeleteLost { node: NodeId },
     /// A tag that does not belong to this file was ignored (§4.4).
     ForeignTag { short: ShortId, line: usize },
-    /// A duplicated tag: `kept_line` kept the identity, the others became new nodes.
+    /// A tag of another file of the run that is still on its line there: the line here
+    /// is a copy and became a new node (§4.4, §6.4).
+    CopiedTag { short: ShortId, line: usize },
+    /// A duplicated tag: `kept_line` kept the identity, the lines in `other_tag_lines`
+    /// kept the node of another tag they carry (§4.4), the others became new nodes.
     DuplicateTag {
         short: ShortId,
         lines: Vec<usize>,
         kept_line: usize,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        other_tag_lines: Vec<usize>,
     },
     /// An untagged item was matched to a base node by the fallback (§4.4).
     Rematched { node: NodeId, line: usize },
     /// An untagged item was matched to a node from an interrupted apply.
     Adopted { node: NodeId, line: usize },
     /// An edit of a read-only item or placeholder was refused (§5.3, §10), or an item
-    /// typed or moved under a placeholder was. `line` 0 stands for the preamble (the
-    /// root's note).
+    /// moved under a placeholder was. `line` 0 stands for the preamble (the root's note).
     ReadOnlyEditRefused { node: NodeId, line: usize },
+    /// An item typed under a placeholder or stub (§10, §15.1) was created under
+    /// `parent`, the nearest ancestor that can hold it, instead.
+    Lifted {
+        line: usize,
+        /// Plain text of the new item's name.
+        name: String,
+        /// The (nearest) placeholder it was typed under.
+        placeholder: NodeId,
+        parent: NodeId,
+    },
     /// A delete of a placeholder was refused without `force` (§10).
     PlaceholderDeleteRefused { node: NodeId },
     /// A delete was refused because `node` is, or holds, the mirror origin `origin`,
@@ -536,6 +615,9 @@ pub enum ReportEvent {
     ConflictLost { node: NodeId, field: ConflictField },
     /// A §5.2 write could not preserve what Markdown could not show.
     LossyWrite { node: NodeId, field: ConflictField },
+    /// The typed Markdown held a link title (`[a](u "t")`), which a Workflowy link
+    /// cannot store: the link was written without it.
+    LinkTitleDropped { node: NodeId, field: ConflictField },
     /// A tick of a node already completed remotely was skipped (DM§4.5).
     AlreadyCompleted { node: NodeId },
     /// A pending delete was cancelled because the node reappeared (§9.1 guard 2).
@@ -544,20 +626,78 @@ pub enum ReportEvent {
     SafeMode { suppressed: usize },
 }
 
+/// Where [`ReportEvent::describe_with`] finds the names of the nodes it mentions.
+#[derive(Debug, Clone, Copy)]
+pub struct Labels<'a> {
+    /// The remote tree (after the apply, when describing a finished sync).
+    pub tree: &'a Tree,
+    /// Temp id -> real id of the nodes created (`ApplyOutcome::created`).
+    pub created: Option<&'a BTreeMap<NodeId, NodeId>>,
+    /// Looked up for nodes not (yet) in `tree`: the merged tree `M` of a dry run, where
+    /// new nodes still have their temp ids.
+    pub planned: Option<&'a Tree>,
+}
+
+impl<'a> Labels<'a> {
+    /// Names from `tree` alone.
+    pub fn new(tree: &'a Tree) -> Labels<'a> {
+        Labels {
+            tree,
+            created: None,
+            planned: None,
+        }
+    }
+
+    /// `"<plain text of the name>" (<short id>)`, with `, new` for a node this sync
+    /// creates; the short id alone if the node is unknown. A temp id is never shown.
+    pub fn label(&self, id: &NodeId) -> String {
+        let name = |n: &Node| quoted(&codec::plain_text_lossy(&n.name));
+        if id.is_temp() {
+            let real = self.created.and_then(|c| c.get(id));
+            if let Some((real, node)) = real.and_then(|r| Some((r, self.tree.get(r)?))) {
+                let short = real.short().map(|s| s.to_string()).unwrap_or_default();
+                return format!("{} ({short}, new)", name(node));
+            }
+            return match self.planned.and_then(|t| t.get(id)) {
+                Some(node) => format!("{} (new)", name(node)),
+                None => "a new item".to_owned(),
+            };
+        }
+        let short = id
+            .short()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| id.to_string());
+        match self.tree.get(id).or_else(|| self.planned?.get(id)) {
+            Some(node) => format!("{} ({short})", name(node)),
+            None => short,
+        }
+    }
+}
+
 impl ReportEvent {
     /// A one-line human-readable description (used in logs and the status note).
     /// `tree` (the remote tree) is used to name nodes by their plain-text names.
     pub fn describe(&self, tree: &Tree) -> String {
-        let n = |id: &NodeId| node_label(tree, id);
+        self.describe_with(&Labels::new(tree))
+    }
+
+    /// [`ReportEvent::describe`], naming nodes from `labels`.
+    pub fn describe_with(&self, labels: &Labels<'_>) -> String {
+        let n = |id: &NodeId| labels.label(id);
         let f = |field: &ConflictField| match field {
             ConflictField::Name => "name",
             ConflictField::Note => "note",
         };
         match self {
-            ReportEvent::Resurrected { old, new } => format!(
-                "{} was deleted in Workflowy but edited in Markdown: re-created as a new node ({new})",
-                n(old)
-            ),
+            ReportEvent::Resurrected { old, new, old_name } => {
+                let short = old.short().map(|s| s.to_string()).unwrap_or_default();
+                format!(
+                    "{} ({short}) was deleted in Workflowy but edited in Markdown: re-created as {} \
+                     (the original is in Workflowy's Trash)",
+                    quoted(old_name),
+                    n(new)
+                )
+            }
             ReportEvent::VanishedWork {
                 node,
                 completed_ancestor,
@@ -592,6 +732,15 @@ impl ReportEvent {
                 f(field),
                 n(node)
             ),
+            ReportEvent::TickedConflict {
+                node,
+                field,
+                local_md,
+            } => format!(
+                "conflict on the {} of {}, which you ticked: Workflowy's version kept; yours was {local_md:?}",
+                f(field),
+                n(node)
+            ),
             ReportEvent::MovedIn {
                 node,
                 from_file_root,
@@ -621,15 +770,33 @@ impl ReportEvent {
                     "line {line}: id tag {short} does not belong to this file; treated as a new item"
                 )
             }
+            ReportEvent::CopiedTag { short, line } => format!(
+                "line {line}: id tag {short} is still in the file it comes from; treated as a copy (a new item)"
+            ),
             ReportEvent::DuplicateTag {
                 short,
                 lines,
                 kept_line,
+                other_tag_lines,
             } => {
-                let lines: Vec<String> = lines.iter().map(usize::to_string).collect();
+                let join = |ls: &[usize]| -> String {
+                    let ls: Vec<String> = ls.iter().map(usize::to_string).collect();
+                    ls.join(", ")
+                };
+                let new_items = lines.len().saturating_sub(1 + other_tag_lines.len());
+                let other = match other_tag_lines.as_slice() {
+                    [] => String::new(),
+                    [one] => format!("line {one} keeps its other id tag"),
+                    many => format!("lines {} keep their other id tags", join(many)),
+                };
+                let rest = match (other.is_empty(), new_items) {
+                    (true, _) => "the others are new items".to_owned(),
+                    (false, 0) => other,
+                    (false, _) => format!("{other}, the others are new items"),
+                };
                 format!(
-                    "id tag {short} appears on lines {}; line {kept_line} keeps it, the others are new items",
-                    lines.join(", ")
+                    "id tag {short} appears on lines {}; line {kept_line} keeps it, {rest}",
+                    join(lines)
                 )
             }
             ReportEvent::Rematched { node, line } => {
@@ -642,6 +809,13 @@ impl ReportEvent {
             ReportEvent::ReadOnlyEditRefused { node, line } => format!(
                 "line {line}: {} is read-only (or a mirror placeholder); the edit was not sent",
                 n(node)
+            ),
+            ReportEvent::Lifted {
+                line, name, parent, ..
+            } => format!(
+                "line {line}: {} was typed under a read-only placeholder; created under {} instead",
+                quoted(name),
+                n(parent)
             ),
             ReportEvent::PlaceholderDeleteRefused { node } => format!(
                 "{} is a mirror placeholder; its delete was not sent (use force)",
@@ -680,6 +854,11 @@ impl ReportEvent {
                 f(field),
                 n(node)
             ),
+            ReportEvent::LinkTitleDropped { node, field } => format!(
+                "the {} of {} was written without its link title: Workflowy links have none",
+                f(field),
+                n(node)
+            ),
             ReportEvent::AlreadyCompleted { node } => {
                 format!("{} was already completed in Workflowy", n(node))
             }
@@ -693,16 +872,11 @@ impl ReportEvent {
     }
 }
 
-/// `"<plain text of the name>" (<short id>)`, or the id alone if unknown.
-fn node_label(tree: &Tree, id: &NodeId) -> String {
-    let short = id
-        .short()
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| id.to_string());
-    match tree.get(id) {
-        Some(node) => format!("\"{}\" ({short})", codec::plain_text_lossy(&node.name)),
-        None => short,
-    }
+/// Plain text in double quotes, on one line: line breaks are shown as ` ⏎ `, as the
+/// renderer does for a multi-line name.
+fn quoted(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    format!("\"{}\"", lines.join(" ⏎ "))
 }
 
 /// The merge's output.
@@ -862,6 +1036,7 @@ mod tests {
             ReportEvent::Resurrected {
                 old: a.clone(),
                 new: NodeId::temp(1),
+                old_name: "Two\nlines".to_owned(),
             },
             ReportEvent::VanishedWork {
                 node: a.clone(),
@@ -874,6 +1049,11 @@ mod tests {
                 new_parent: None,
             },
             ReportEvent::MovedOutConflict {
+                node: a.clone(),
+                field: ConflictField::Name,
+                local_md: "typed".to_owned(),
+            },
+            ReportEvent::TickedConflict {
                 node: a.clone(),
                 field: ConflictField::Name,
                 local_md: "typed".to_owned(),
@@ -891,10 +1071,15 @@ mod tests {
                 short: short.clone(),
                 line: 3,
             },
+            ReportEvent::CopiedTag {
+                short: short.clone(),
+                line: 3,
+            },
             ReportEvent::DuplicateTag {
                 short,
                 lines: vec![3, 9],
                 kept_line: 9,
+                other_tag_lines: Vec::new(),
             },
             ReportEvent::Rematched {
                 node: a.clone(),
@@ -907,6 +1092,12 @@ mod tests {
             ReportEvent::ReadOnlyEditRefused {
                 node: a.clone(),
                 line: 4,
+            },
+            ReportEvent::Lifted {
+                line: 5,
+                name: "typed".to_owned(),
+                placeholder: b.clone(),
+                parent: a.clone(),
             },
             ReportEvent::PlaceholderDeleteRefused { node: a.clone() },
             ReportEvent::MirrorDeleteRefused {
@@ -933,6 +1124,10 @@ mod tests {
                 node: a.clone(),
                 field: ConflictField::Name,
             },
+            ReportEvent::LinkTitleDropped {
+                node: a.clone(),
+                field: ConflictField::Name,
+            },
             ReportEvent::AlreadyCompleted { node: a.clone() },
             ReportEvent::PendingDeleteCancelled { node: a.clone() },
             ReportEvent::SafeMode { suppressed: 2 },
@@ -947,6 +1142,68 @@ mod tests {
         );
         // Unknown nodes are named by their short id.
         assert!(events[1].describe(&tree).contains("0000000000bb"));
+        // A remotely deleted node is named by its base name, on one line; a temp id is
+        // never shown.
+        assert_eq!(
+            events[0].describe(&tree),
+            "\"Two ⏎ lines\" (0000000000aa) was deleted in Workflowy but edited in Markdown: \
+             re-created as a new item (the original is in Workflowy's Trash)"
+        );
+    }
+
+    #[test]
+    fn labels_resolve_created_and_planned_nodes() {
+        let a = NodeId::from_api("00000000-0000-4000-8000-0000000000aa");
+        let c = NodeId::from_api("00000000-0000-4000-8000-0000000000cc");
+        let t = NodeId::temp(1);
+        let tree = Tree::from_nodes([
+            Node::new(a.clone(), None, "Two\nline name"),
+            Node::new(c.clone(), None, "a child I added"),
+        ])
+        .expect("tree");
+        let planned =
+            Tree::from_nodes([Node::new(t.clone(), None, "typed &amp; new")]).expect("tree");
+        let created = BTreeMap::from([(t.clone(), c.clone())]);
+        let refused = ReportEvent::ReadOnlyEditRefused {
+            node: a.clone(),
+            line: 5,
+        };
+        assert_eq!(
+            refused.describe(&tree),
+            "line 5: \"Two ⏎ line name\" (0000000000aa) is read-only (or a mirror placeholder); \
+             the edit was not sent"
+        );
+        let vanished = ReportEvent::VanishedWork {
+            node: t.clone(),
+            completed_ancestor: a.clone(),
+        };
+        // After the apply: the created map gives the real node.
+        let after = Labels {
+            tree: &tree,
+            created: Some(&created),
+            planned: None,
+        };
+        assert!(
+            vanished
+                .describe_with(&after)
+                .starts_with("\"a child I added\" (0000000000cc, new) was pushed but is hidden"),
+            "{}",
+            vanished.describe_with(&after)
+        );
+        // A dry run: the merged tree names it.
+        let dry = Labels {
+            tree: &tree,
+            created: None,
+            planned: Some(&planned),
+        };
+        assert!(
+            vanished
+                .describe_with(&dry)
+                .starts_with("\"typed & new\" (new) was pushed"),
+            "{}",
+            vanished.describe_with(&dry)
+        );
+        assert!(!vanished.describe(&tree).contains("temp-"));
     }
 
     #[test]

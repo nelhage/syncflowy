@@ -20,9 +20,14 @@ use std::time::Duration;
 
 use clap::{Parser, Subcommand};
 
+use syncflowy::apply;
 use syncflowy::daemon::{self, DaemonConfig};
-use syncflowy::mdblock::DocConfig;
-use syncflowy::sync::{self, PauseReason, SyncConfig, SyncOutcome, SyncReport};
+use syncflowy::mdblock::{DocConfig, MAX_HEADINGS};
+use syncflowy::mdinline::ConflictField;
+use syncflowy::merge::ReportEvent;
+use syncflowy::sync::{
+    self, PauseReason, RenderConfig, RootStatus, SyncConfig, SyncOutcome, SyncReport,
+};
 use syncflowy::wfclient::{Client, ClientConfig, DEFAULT_BASE_URL};
 
 #[derive(Debug, Parser)]
@@ -36,8 +41,8 @@ struct Cli {
     #[arg(long, env = "WORKFLOWY_API_KEY", hide_env_values = true, global = true)]
     api_key: Option<String>,
 
-    /// API base URL: the beta API (default) or the mock server for tests. The production
-    /// host is refused: it cannot tell a mirror from an empty node (DM§10.5).
+    /// API base URL (default: the beta API). The production host is refused: it reports
+    /// mirrors as empty items.
     #[arg(long, env = "WORKFLOWY_API_URL", default_value = DEFAULT_BASE_URL, global = true)]
     api_url: String,
 
@@ -65,10 +70,13 @@ enum Command {
         root: String,
         /// Output Markdown file.
         out: PathBuf,
-        /// Render depth 1..N as headings.
-        #[arg(long, default_value_t = 0)]
-        headings: u8,
-        /// Overwrite an existing file or checkpoint.
+        /// Render depth 1..N as headings (0 to 6; default 0, or the options kept by
+        /// --force).
+        #[arg(long, value_parser = clap::value_parser!(u8).range(0..=i64::from(MAX_HEADINGS)))]
+        headings: Option<u8>,
+        /// Overwrite an existing file or checkpoint. An existing file that names the same
+        /// root keeps its options and other frontmatter lines (not gen, force or paused);
+        /// for a clean reset, delete the file first.
         #[arg(long)]
         force: bool,
     },
@@ -126,6 +134,7 @@ fn client(cli: &Cli) -> anyhow::Result<Client> {
     let key = cli
         .api_key
         .clone()
+        .filter(|k| !k.trim().is_empty())
         .ok_or_else(|| anyhow::anyhow!("no API key: pass --api-key or set WORKFLOWY_API_KEY"))?;
     let base_url = cli.api_url.trim_end_matches('/').to_owned();
     if is_production_host(&base_url) {
@@ -147,6 +156,14 @@ fn is_production_host(base_url: &str) -> bool {
     let host = rest.split(['/', ':']).next().unwrap_or("");
     let host = host.to_ascii_lowercase();
     host == "workflowy.com" || host == "www.workflowy.com"
+}
+
+/// The CLI's remedy for an error whose message names none (the daemon words its own).
+fn cli_hint(e: &syncflowy::Error) -> &'static str {
+    match e {
+        syncflowy::Error::NoCheckpoint(_) => "; run `syncflowy render` first or use --force",
+        _ => "",
+    }
 }
 
 /// One line for an outcome.
@@ -176,8 +193,8 @@ fn describe_outcome(outcome: &SyncOutcome) -> String {
         SyncOutcome::Rendered { generation } => format!("rendered (gen {generation})"),
         SyncOutcome::DryRun { plan } => {
             let mut s = format!("dry run: {} op(s)", plan.ops.len());
-            for op in &plan.ops {
-                s.push_str(&format!("\n  would {op:?}"));
+            for line in apply::plan_lines(plan) {
+                s.push_str(&format!("\n  {line}"));
             }
             s
         }
@@ -195,7 +212,7 @@ fn describe_outcome(outcome: &SyncOutcome) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        SyncOutcome::Braked(b) => format!("refused: {b}"),
+        SyncOutcome::Braked(b) => format!("refused: {b} (use --force)"),
         SyncOutcome::Skipped { reason } => format!("skipped: {reason}"),
     }
 }
@@ -213,14 +230,28 @@ fn print_report(report: &SyncReport) -> bool {
     for m in &report.messages {
         println!("  {m}");
     }
+    // A conflict recorded this run is already among the messages, by name; the
+    // others are markers from earlier runs, still unresolved.
     for c in &report.conflicts {
-        println!(
-            "  conflict on the {:?} of {}: resolve the marker in the file",
-            c.field, c.node
-        );
+        let new = report.events.iter().any(|e| {
+            matches!(e, ReportEvent::Conflict { node, field } if *node == c.node && *field == c.field)
+        });
+        if !new {
+            let field = match c.field {
+                ConflictField::Name => "name",
+                ConflictField::Note => "note",
+            };
+            let node = c
+                .node
+                .short()
+                .map_or_else(|| c.node.to_string(), |s| s.to_string());
+            println!(
+                "  unresolved conflict on the {field} of {node}: resolve the marker in the file"
+            );
+        }
     }
     for d in &report.discrepancies {
-        println!("  verification: {d:?}");
+        println!("  verification: {d}");
     }
     !matches!(
         report.outcome,
@@ -242,11 +273,11 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
         } => {
             let api = client(&cli)?;
             cfg.force = *force;
-            let doc = DocConfig {
+            let opts = RenderConfig {
+                doc: DocConfig::default(),
                 headings: *headings,
-                ..DocConfig::default()
             };
-            let report = sync::render_once(&api, root, out, &doc, &cfg)?;
+            let report = sync::render_once(&api, root, out, opts, &cfg)?;
             Ok(print_report(&report))
         }
         Command::Sync {
@@ -264,7 +295,7 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
                     Ok(report) => ok &= print_report(&report),
                     Err(e) => {
                         ok = false;
-                        eprintln!("{}: error: {e}", r.file.display());
+                        eprintln!("{}: error: {e}{}", r.file.display(), cli_hint(&e));
                     }
                 }
             }
@@ -289,35 +320,50 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
             Ok(true)
         }
         Command::Status { files } => {
-            let roots = sync::status(&cfg, files)?;
-            if roots.is_empty() {
-                println!("no synced roots in {}", cfg.state_dir.display());
+            if files.is_empty() {
+                let roots = sync::status(&cfg)?;
+                if roots.is_empty() {
+                    println!("no synced roots in {}", cfg.state_dir.display());
+                }
+                roots.iter().for_each(print_root_status);
+                return Ok(true);
             }
-            for s in roots {
-                println!(
-                    "{}: gen {}, last synced at {} (unix), file {}",
-                    s.root,
-                    s.generation,
-                    s.synced_at,
-                    s.file
-                        .as_ref()
-                        .map(|p| p.display().to_string())
-                        .unwrap_or_else(|| "-".into()),
-                );
-                match s.locally_modified {
-                    Some(true) => println!("  the file has local changes not yet synced"),
-                    Some(false) => println!("  the file is as last written"),
-                    None => println!("  the file cannot be read"),
-                }
-                if s.journal_pending {
-                    println!("  an unfinished cycle was interrupted: the next sync recovers it");
-                }
-                for (node, label, first_seen) in &s.pending_deletes {
-                    println!("  pending delete: {label:?} ({node}), first seen at {first_seen}");
+            let mut ok = true;
+            for f in sync::status_of_files(&cfg, files)? {
+                match &f.status {
+                    Ok(s) => print_root_status(s),
+                    Err(problem) => {
+                        ok = false;
+                        println!("{}: {problem}", f.file.display());
+                    }
                 }
             }
-            Ok(true)
+            Ok(ok)
         }
+    }
+}
+
+fn print_root_status(s: &RootStatus) {
+    println!(
+        "{}: gen {}, last synced at {} (unix), file {}",
+        s.root,
+        s.generation,
+        s.synced_at,
+        s.file
+            .as_ref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "-".into()),
+    );
+    match s.locally_modified {
+        Some(true) => println!("  the file has local changes not yet synced"),
+        Some(false) => println!("  the file is as last written"),
+        None => println!("  the file cannot be read"),
+    }
+    if s.journal_pending {
+        println!("  an unfinished cycle was interrupted: the next sync recovers it");
+    }
+    for (node, label, first_seen) in &s.pending_deletes {
+        println!("  pending delete: {label:?} ({node}), first seen at {first_seen}");
     }
 }
 
@@ -333,7 +379,9 @@ fn main() -> ExitCode {
         Ok(true) => ExitCode::SUCCESS,
         Ok(false) => ExitCode::from(1),
         Err(e) => {
-            eprintln!("error: {e:#}");
+            // Every message already names its cause (`Error`'s variants print their
+            // source), so the chain is not appended again.
+            eprintln!("error: {e}");
             ExitCode::from(2)
         }
     }
