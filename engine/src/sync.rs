@@ -72,7 +72,9 @@
 //!     tree with the merge's conflicts, pending deletes hidden, and `Sticky` checkboxes
 //!     from the current file; the frontmatter is the file's own with `force` cleared.
 //! 12. **Write** unless guard 4 says not to: if the base is the checkpoint, the file has
-//!     no `force: true`, and the new render (with the current `gen`) is byte-identical or
+//!     no `force: true`, its `syncflowy:` options are those of the last write
+//!     (`Checkpoint::config`; a changed `checkboxes:` also renders without sticky
+//!     boxes), and the new render (with the current `gen`) is byte-identical or
 //!     `mdblock::equivalent` to the current file, nothing the user needs to see changed
 //!     (pure normalisation is deferred): the file is not written and `gen` stays.
 //!     Otherwise: `gen` = one more than both the checkpoint's and every kept history
@@ -1019,10 +1021,17 @@ fn finish(
     let root = a.root.clone();
     let mut fm = a.doc.frontmatter.clone();
     fm.force = false;
+    // The options the file was last written with: a change of them is shown at once,
+    // and a new checkbox policy starts from no sticky boxes.
+    let last_config = p.checkpoint.as_ref().map(|c| &c.config);
+    let config_changed = last_config.is_some_and(|c| *c != fm.config);
     let extras = ViewExtras {
         conflicts: p.merge.conflicts.clone(),
         hidden: p.deferred.clone(),
-        sticky: sticky_from(&a.doc, &p.ids),
+        sticky: match last_config {
+            Some(c) if c.checkboxes != fm.config.checkboxes => Sticky::default(),
+            _ => sticky_from(&a.doc, &p.ids),
+        },
     };
     let view = View::build(remote, &root, &fm.config, &extras)?;
     let subtree = remote
@@ -1031,14 +1040,15 @@ fn finish(
     let current_gen = p.checkpoint.as_ref().map(|c| c.generation);
 
     // Guard 4: write only when the user needs to see something.
-    let keep_file = p.base.kind == BaseKind::Checkpoint && !a.doc.frontmatter.force && {
-        let mut same = fm.clone();
-        same.generation = current_gen;
-        let text = mdblock::render(&view, &same);
-        text == a.text
-            || mdblock::parse(&text)
-                .is_ok_and(|d| mdblock::equivalent(&d, &a.doc, &fm.config.inline))
-    };
+    let keep_file =
+        p.base.kind == BaseKind::Checkpoint && !a.doc.frontmatter.force && !config_changed && {
+            let mut same = fm.clone();
+            same.generation = current_gen;
+            let text = mdblock::render(&view, &same);
+            text == a.text
+                || mdblock::parse(&text)
+                    .is_ok_and(|d| mdblock::equivalent(&d, &a.doc, &fm.config.inline))
+        };
 
     let (md, generation, wrote) = match (keep_file, current_gen) {
         (true, Some(g)) => (a.text.clone(), g, false),

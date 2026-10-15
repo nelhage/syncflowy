@@ -307,6 +307,52 @@ fn local_normalisation_is_deferred() {
 }
 
 #[test]
+fn changed_options_rewrite_the_file() {
+    let f = fixture();
+    // `ids:` alone: the new tag form is written at once.
+    edit(
+        &f.file,
+        "syncflowy: {gen: 1}",
+        "syncflowy: {ids: comment, gen: 1}",
+    );
+    let r = f.env.sync(&f.file);
+    assert_eq!(synced(&r), (true, 2), "{r:#?}");
+    let text = read(&f.file);
+    let short = f.milk.short().unwrap();
+    assert!(
+        line_of(&text, &f.milk).ends_with(&format!("Buy milk %%wf:{short}%%")),
+        "{text}"
+    );
+    assert!(!text.contains("^wf-"), "{text}");
+    assert_settled(&f);
+
+    // `checkboxes: todos`: the leaves' boxes go, although they were in the file.
+    edit(
+        &f.file,
+        "syncflowy: {ids: comment, gen: 2}",
+        "syncflowy: {ids: comment, checkboxes: todos, gen: 2}",
+    );
+    let r = f.env.sync(&f.file);
+    assert_eq!(synced(&r), (true, 3), "{r:#?}");
+    let text = read(&f.file);
+    assert!(!text.contains("[ ]"), "{text}");
+    assert_settled(&f);
+
+    // `checkboxes: all`: interior items get a box too.
+    edit(&f.file, "checkboxes: todos", "checkboxes: all");
+    let r = f.env.sync(&f.file);
+    assert_eq!(synced(&r), (true, 4), "{r:#?}");
+    let text = read(&f.file);
+    for n in [&f.plan, &f.errands, &f.milk, &f.later] {
+        assert!(
+            line_of(&text, n).trim_start().starts_with("- [ ] "),
+            "{text}"
+        );
+    }
+    assert_settled(&f);
+}
+
+#[test]
 fn local_move_between_parents_is_pushed() {
     let f = fixture();
     let text = read(&f.file);

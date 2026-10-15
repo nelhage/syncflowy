@@ -569,6 +569,8 @@ Every engine write to a file is a chance for a concurrent merge with a client. W
 something the user needs to see:
 
 - **Remote changes or new id tags**: write.
+- **Changed `syncflowy:` options** (for example `ids:` or `checkboxes:`): write, so the new form shows at once.
+  A new checkbox policy is applied to every line, not only to new ones.
 - **Pure normalisation** (`__x__` → `**x**`, re-escaping): defer it until the file next needs a write for
   another reason.
 - **Debounce on the server side**: push and re-render a file only after it has been unchanged for some quiet
