@@ -36,6 +36,7 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the Python suit
 
 | path | what it is |
 |---|---|
+| [docs/user-guide/README.md](docs/user-guide/README.md) | **User guide**: what syncflowy does, a quick start, the command-line reference, the synced Markdown file, and what each edit does in Workflowy. Start here to use the engine. |
 | [docs/sync-design.md](docs/sync-design.md) | **Design of the sync engine**: the Markdown dialect, three-way merge, applying changes through the API, ordering and safety, deployment as one daemon behind Obsidian Sync, mirrors (as placeholders on production, as their origins on the beta API), and the choice of Rust. |
 | [docs/workflowy/README.md](docs/workflowy/README.md) | Index and one-page summary of the API investigation. Start here for anything about Workflowy's behaviour. |
 | [docs/workflowy/data-model.md](docs/workflowy/data-model.md) | **The authoritative API spec**: storage model, every endpoint, validation, ids, priorities, `modifiedAt`, text processing, mirrors (production, and the beta API's mirror-aware semantics in §10.5). |

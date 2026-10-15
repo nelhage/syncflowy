@@ -1,5 +1,7 @@
 # syncflowy engine
 
+User documentation is in [../docs/user-guide/](../docs/user-guide/README.md).
+
 A two-way sync between [Workflowy](https://workflowy.com) subtrees and Markdown files, written in Rust. One
 Workflowy node (the **sync root**) and its subtree is mirrored into one Markdown file; the file can live in an
 Obsidian vault. The specification is [`../docs/sync-design.md`](../docs/sync-design.md) (cited as §x.y in the
