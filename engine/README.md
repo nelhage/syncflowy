@@ -159,18 +159,18 @@ Top-level note
 A note on "Planning": the lines right under the heading.
 
 - [ ] A new local item ^wf-7691c31e3664
-	its note (the lines indented under the first line, before any child)
+    its note (the lines indented under the first line, before any child)
 - Draft the **spec**, <u>underlined</u>, [a link](https://example.com) ^wf-472caa53fd65
-	- [ ] Write the mock ^wf-1696183c3a62
-	- [x] Run the UI scenarios ^wf-77aa12cd0e9f
-	- ⚠ my conflicting wording %%wf-conflict:name%%
+    - [ ] Write the mock ^wf-1696183c3a62
+    - [x] Run the UI scenarios ^wf-77aa12cd0e9f
+    - ⚠ my conflicting wording %%wf-conflict:name%%
 - A line you just typed, with no tag
 - ``` ^wf-0123456789ab
-	x = 1
-	```
+    x = 1
+    ```
 - ⧉ (mirror of a deleted item) ^wf-b2863eed4436-ro
 - Weekly review ^wf-3c4d5e6f7a8b
-	- ⧉ [[#^wf-472caa53fd65|Draft the spec]] ^wf-11aa22bb33cc-ro
+    - ⧉ [[#^wf-472caa53fd65|Draft the spec]] ^wf-11aa22bb33cc-ro
 ```
 
 * **Frontmatter**: `workflowy:` names the sync root. `syncflowy:` holds options (`headings`, `ids`, `checkboxes`,
@@ -178,7 +178,7 @@ A note on "Planning": the lines right under the heading.
   engine; do not edit). Other frontmatter keys are kept as written. An option written outside `syncflowy:`
   (`paused: true` on its own line) is kept too, with a warning; only a top-level `paused: true` takes effect, a
   top-level `force` never does.
-* **Items**: `- ` list items, indented with tabs when written (tabs or consistent spaces are read). The first line
+* **Items**: `- ` list items, indented with four spaces per level when written (tabs or consistent spaces are read). The first line
   is the node's name, the indented lines after it are its note, nested items are children. The text between the
   frontmatter and the first item is the root's note. The root's own name is not in the file.
 * **Id tags** at the end of the first line identify nodes: `^wf-<12 hex>` on list items, `%%wf:<12 hex>%%` on

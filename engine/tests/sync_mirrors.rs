@@ -107,13 +107,13 @@ fn render_shows_mirrored_content_in_full_and_a_second_placement_as_a_stub() {
     let expected = format!(
         "---\nworkflowy: {root}\nsyncflowy: {{gen: 1}}\n---\n\
          - Plan ^wf-{plan}\n\
-         \t- [ ] Draft ^wf-{draft}\n\
+         \x20   - [ ] Draft ^wf-{draft}\n\
          - Later ^wf-{later}\n\
-         \t{stub}\n\
+         \x20   {stub}\n\
          - Inbox ^wf-{shell}\n\
-         \ttriage daily\n\
-         \t- [ ] item 1 ^wf-{item1}\n\
-         \t- [ ] item 2 ^wf-{item2}\n",
+         \x20   triage daily\n\
+         \x20   - [ ] item 1 ^wf-{item1}\n\
+         \x20   - [ ] item 2 ^wf-{item2}\n",
         root = short(&f.root),
         plan = short(&f.plan),
         draft = short(&f.draft),
@@ -139,15 +139,15 @@ fn edits_ticks_creates_and_moves_through_the_shell_reach_the_origin() {
     edit(&f.file, "- Inbox ^wf-", "- Inbox today ^wf-");
     edit(
         &f.file,
-        "\ttriage daily\n",
-        "\ttriage daily\n\tand weekly\n",
+        "    triage daily\n",
+        "    triage daily\n    and weekly\n",
     );
     edit(&f.file, "- [ ] item 1 ^wf-", "- [ ] item one ^wf-");
     edit(&f.file, "- [ ] item 2 ^wf-", "- [x] item 2 ^wf-");
     let text = read(&f.file);
-    let text = format!("{text}\t- item 3\n");
+    let text = format!("{text}    - item 3\n");
     // Move Draft under the mirrored Inbox.
-    let draft_line = format!("\t- [ ] Draft ^wf-{}\n", short(&f.draft));
+    let draft_line = format!("    - [ ] Draft ^wf-{}\n", short(&f.draft));
     let text = text.replacen(&draft_line, "", 1) + &draft_line;
     write(&f.file, &text);
 
@@ -187,7 +187,7 @@ fn edits_ticks_creates_and_moves_through_the_shell_reach_the_origin() {
     let text = read(&f.file);
     assert!(text.contains(&format!("- Inbox today ^wf-{}", short(&f.shell))));
     assert!(text.contains("item one") && !text.contains("item 2"));
-    assert!(line_of(&text, &f.draft).starts_with("\t- [ ] Draft"));
+    assert!(line_of(&text, &f.draft).starts_with("    - [ ] Draft"));
     assert!(line_of(&text, &item3.id).contains("item 3"));
     assert_settled(&f);
 }
@@ -251,7 +251,7 @@ fn deleting_an_origin_that_still_has_mirrors_is_refused() {
     let f = fixture();
     let text = read(&f.file);
     let plan = format!(
-        "- Plan ^wf-{}\n\t- [ ] Draft ^wf-{}\n",
+        "- Plan ^wf-{}\n    - [ ] Draft ^wf-{}\n",
         short(&f.plan),
         short(&f.draft)
     );
@@ -286,7 +286,7 @@ fn deleting_the_stub_removes_that_mirror() {
     let text = read(&f.file);
     write(
         &f.file,
-        &text.replacen(&format!("\t{}\n", stub_line(&f)), "", 1),
+        &text.replacen(&format!("    {}\n", stub_line(&f)), "", 1),
     );
     let r = f.env.sync(&f.file);
     synced(&r);
@@ -336,8 +336,8 @@ fn items_typed_under_a_stub_are_lifted_and_reported() {
     write(
         &f.file,
         &text.replacen(
-            &format!("\t{line}\n"),
-            &format!("\t{line}\n\t\t- under the stub\n"),
+            &format!("    {line}\n"),
+            &format!("    {line}\n        - under the stub\n"),
             1,
         ),
     );
@@ -385,9 +385,9 @@ fn the_full_placement_is_sticky_across_reorders() {
     // Move "Later" (with the stub) above "Plan": the stub now comes first in pre-order,
     // but Plan keeps the full rendering.
     let text = read(&f.file);
-    let later_block = format!("- Later ^wf-{}\n\t{}\n", short(&f.later), stub_line(&f));
+    let later_block = format!("- Later ^wf-{}\n    {}\n", short(&f.later), stub_line(&f));
     let plan_block = format!(
-        "- Plan ^wf-{}\n\t- [ ] Draft ^wf-{}\n",
+        "- Plan ^wf-{}\n    - [ ] Draft ^wf-{}\n",
         short(&f.plan),
         short(&f.draft)
     );
@@ -437,7 +437,7 @@ fn a_mirror_added_in_workflowy_appears_as_its_content() {
     // The first placement keeps the full rendering; the new one is a stub of the shell.
     assert!(text.contains(&format!("- Inbox ^wf-{}", short(&f.shell))));
     let expected = format!(
-        "\t- {} ^wf-{}-ro",
+        "    - {} ^wf-{}-ro",
         mdblock::stub_text(&short(&f.shell), "Inbox"),
         short(&shell2)
     );
@@ -485,7 +485,11 @@ fn two_files_showing_the_same_content_both_edit_it() {
     let text_b = read(&file_b);
     write(
         &file_b,
-        &text_b.replacen(&format!("\t- [ ] item 2 ^wf-{}\n", short(&f.item2)), "", 1),
+        &text_b.replacen(
+            &format!("    - [ ] item 2 ^wf-{}\n", short(&f.item2)),
+            "",
+            1,
+        ),
     );
     let results =
         syncflowy::sync::sync_all(&f.env.client, &[f.file.clone(), file_b.clone()], &f.env.cfg)

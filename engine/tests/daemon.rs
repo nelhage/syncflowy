@@ -596,7 +596,7 @@ fn a_resurrection_by_a_merge_is_dropped() {
     edit(
         &file,
         &format!("{beta}\n"),
-        &format!("{beta}\n\t{alpha_line}\n"),
+        &format!("{beta}\n    {alpha_line}\n"),
     );
     rig.advance(5);
     rig.step(&[&file]);

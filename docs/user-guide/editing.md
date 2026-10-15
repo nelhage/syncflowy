@@ -35,8 +35,8 @@ Rendered files are often shown without their frontmatter; other cuts are marked 
   [the report](cli.md#the-report).
 - **Workflowy changes always come in** at the next sync of the file: renames, new nodes, completions (the line
   disappears), un-completions (it reappears), moves out of the subtree (it disappears).
-- **The engine sometimes re-spells your Markdown** when it rewrites the file: `__bold__` becomes `**bold**`, spaces
-  become tabs, `*` markers become `-`. The meaning stays the same.
+- **The engine sometimes re-spells your Markdown** when it rewrites the file: `__bold__` becomes `**bold**`, other
+  indentation becomes four spaces per level, `*` markers become `-`. The meaning stays the same.
 - **`sync` sends deletes at once. The daemon waits** ([pending deletes](#pending-deletes-in-the-daemon)). One
   exception: `sync` holds back the delete of a line whose tag is in another synced file
   ([moving between files](#moving-between-files)).
@@ -50,9 +50,9 @@ workflowy: 0a4b5bee-04d5-42ab-9f71-4cabb25dd3dc
 syncflowy: {gen: 1}
 ---
 - Alpha ^wf-a6ef3b6605ed
-	- [ ] Alpha child ^wf-355aed801456
+    - [ ] Alpha child ^wf-355aed801456
 - [ ] Beta ^wf-826f2d7b23cc
-	a note on Beta
+    a note on Beta
 - [ ] Gamma ^wf-919e98b5d273
 ```
 
@@ -66,15 +66,15 @@ a box:
 
 ```markdown
 - Alpha ^wf-a6ef3b6605ed
-	- [ ] Alpha child ^wf-355aed801456
-	- Nested new item
+    - [ ] Alpha child ^wf-355aed801456
+    - Nested new item
 - [ ] Beta ^wf-826f2d7b23cc
-	a note on Beta
+    a note on Beta
 - Between Beta and Gamma
 - [ ] Gamma ^wf-919e98b5d273
 - New at the end
-	- its child
-		- grandchild
+    - its child
+        - grandchild
 - [ ] A typed checkbox item
 ```
 
@@ -88,15 +88,15 @@ vault/plan.md: synced: 6 created, 0 updated, 0 moved, 3 reordered, 0 completed, 
 
 ```markdown
 - Alpha ^wf-a6ef3b6605ed
-	- [ ] Alpha child ^wf-355aed801456
-	- [ ] Nested new item ^wf-23d21c8f81e9
+    - [ ] Alpha child ^wf-355aed801456
+    - [ ] Nested new item ^wf-23d21c8f81e9
 - [ ] Beta ^wf-826f2d7b23cc
-	a note on Beta
+    a note on Beta
 - [ ] Between Beta and Gamma ^wf-af58e4f0cd73
 - [ ] Gamma ^wf-919e98b5d273
 - New at the end ^wf-3b46e134206f
-	- its child ^wf-51b929388d7d
-		- [ ] grandchild ^wf-87e32beafc09
+    - its child ^wf-51b929388d7d
+        - [ ] grandchild ^wf-87e32beafc09
 - [ ] A typed checkbox item ^wf-262b04ba51e4
 ```
 
@@ -115,12 +115,12 @@ its first child.
 
 ```markdown
 - Alpha (renamed) ^wf-a6ef3b6605ed
-	A brand-new note on Alpha
-	second note line
-	- [ ] Alpha child ^wf-355aed801456
-	- [ ] Nested new item ^wf-23d21c8f81e9
+    A brand-new note on Alpha
+    second note line
+    - [ ] Alpha child ^wf-355aed801456
+    - [ ] Nested new item ^wf-23d21c8f81e9
 - [ ] Beta ^wf-826f2d7b23cc
-	a note on Beta, edited
+    a note on Beta, edited
 - [ ] Between Beta and Gamma ^wf-af58e4f0cd73
 - [ ] **Gamma** with *italic*, `code`, ~~strike~~ and [a link](https://example.com) ^wf-919e98b5d273
 ```
@@ -172,8 +172,8 @@ out here):
 - [ ] Between __Beta__ and Gamma, see [[Other note]] and ==highlight== ^wf-af58e4f0cd73
 - [ ] **Gamma** with *italic*, `code`, ~~strike~~ and [a link](https://example.com) ^wf-919e98b5d273
 - [x] New at the end ^wf-3b46e134206f
-	- its child ^wf-51b929388d7d
-		- [ ] grandchild ^wf-87e32beafc09
+    - its child ^wf-51b929388d7d
+        - [ ] grandchild ^wf-87e32beafc09
 - [ ] A typed checkbox item ^wf-262b04ba51e4
 ```
 
@@ -190,10 +190,10 @@ workflowy: 0a4b5bee-04d5-42ab-9f71-4cabb25dd3dc
 syncflowy: {gen: 3}
 ---
 - Alpha (renamed) ^wf-a6ef3b6605ed
-	A brand-new note on Alpha
-	second note line
-	- [ ] Alpha child ^wf-355aed801456
-	- [ ] Nested new item ^wf-23d21c8f81e9
+    A brand-new note on Alpha
+    second note line
+    - [ ] Alpha child ^wf-355aed801456
+    - [ ] Nested new item ^wf-23d21c8f81e9
 - [ ] Between **Beta** and Gamma, see [[Other note]] and ==highlight== ^wf-af58e4f0cd73
 - [ ] **Gamma** with *italic*, `code`, ~~strike~~ and [a link](https://example.com) ^wf-919e98b5d273
 - [ ] A typed checkbox item ^wf-262b04ba51e4
@@ -278,8 +278,8 @@ Before:
 
 ```markdown
 - Item A ^wf-1c372615ec6a
-	- [ ] A1 ^wf-e11e8e0da0a0
-	- [ ] A2 ^wf-e82e4f4f2e5e
+    - [ ] A1 ^wf-e11e8e0da0a0
+    - [ ] A2 ^wf-e82e4f4f2e5e
 - [ ] Item B ^wf-93b609b8e05c
 - [ ] Item C ^wf-40b165794a74
 - [ ] Item D ^wf-752baa039b91
@@ -295,8 +295,8 @@ Item C:
 - [ ] A1 ^wf-e11e8e0da0a0
 - [ ] Item B ^wf-93b609b8e05c
 - [ ] Item C ^wf-40b165794a74
-	- [ ] A2 ^wf-e82e4f4f2e5e
-	- [ ] Item D ^wf-752baa039b91
+    - [ ] A2 ^wf-e82e4f4f2e5e
+    - [ ] Item D ^wf-752baa039b91
 ```
 
 ```console
@@ -391,20 +391,20 @@ A real run that changed several kinds at once:
 ````markdown
 - [ ] Item A ^wf-f55e0e9f325c
 - ``` ^wf-a60375dbf70b
-	A1 = code()
-	second_line()
-	```
+    A1 = code()
+    second_line()
+    ```
 - Item C ^wf-b744d72c706c
-	1. A2 ^wf-1cf80ca5f100
-	2. Item D ^wf-fa3297cca53a
+    1. A2 ^wf-1cf80ca5f100
+    2. Item D ^wf-fa3297cca53a
 - > Quote me ^wf-2afd54317c17
 - # Heading me ^wf-5f1ee00a6aff
 - --- ^wf-88079ee82efb
 - [ ] Todo me ^wf-4ce980831243
 - > A new quote
 - ```python
-	new_code()
-	```
+    new_code()
+    ```
 - ---
 ````
 
@@ -469,16 +469,16 @@ workflowy: 66365e3c-5ab2-42cf-b027-d41062ea3d9b
 syncflowy: {gen: 2}
 ---
 - [ ] Shared task (their wording) ^wf-5c7ae78c99a1
-	- ⚠ Shared task (my wording) %%wf-conflict:name%%
+    - ⚠ Shared task (my wording) %%wf-conflict:name%%
 - [ ] Other task, renamed in Workflowy ^wf-3b4e0e461421
 - [ ] Task they complete, edited locally ^wf-018319a8478e
 - [ ] Task they delete ^wf-885b1ad5c8db
 - [ ] Task they move out ^wf-b6651a21d7c6
 - [ ] Task they move inside ^wf-b377b4aa92b5
 - [ ] Noted task ^wf-2bf63cc93c5e
-	line one (edited in WF)
-	line two
-	line three (edited locally)
+    line one (edited in WF)
+    line two
+    line three (edited locally)
 ```
 
 Workflowy has the same text: their rename of "Other task", yours of "Task they complete", and the note with both
@@ -502,13 +502,13 @@ note under the marker:
 
 ```markdown
 - [ ] Noted task ^wf-2bf63cc93c5e
-	line one (edited in WF)
-	line two THEIRS
-	line three (edited locally)
-	- ⚠ local note %%wf-conflict:note%%
-		line one (edited in WF)
-		line two MINE
-		line three (edited locally)
+    line one (edited in WF)
+    line two THEIRS
+    line three (edited locally)
+    - ⚠ local note %%wf-conflict:note%%
+        line one (edited in WF)
+        line two MINE
+        line three (edited locally)
 ```
 
 A conflict exits 0. The marker is never sent to Workflowy and stays until you deal with it; until then, each sync
@@ -780,7 +780,7 @@ whose Workflowy text syncflowy cannot show exactly ([read-only items](markdown.m
 ```markdown
 - [ ] 🔒 Two-line ⏎ name ^wf-280af43cae0b-ro
 - 🔒 unclosed bold ^wf-20a30f8fbc7b-ro
-	- [ ] child of malformed ^wf-61756c2d0c98
+    - [ ] child of malformed ^wf-61756c2d0c98
 ```
 
 Editing the locked text of the first item, editing the child of the second, and adding a new child under the
@@ -815,12 +815,12 @@ original lives outside the synced subtree, and "Weekly review" holds a mirror of
 
 ```markdown
 - Local item ^wf-d949af688c14
-	- [ ] LI child ^wf-4221774aa39a
+    - [ ] LI child ^wf-4221774aa39a
 - Origin O ^wf-9442c9ebeca5
-	- [ ] O child 1 ^wf-d3c88f8589f5
-	- [ ] O child 2 ^wf-054e86827a6d
+    - [ ] O child 1 ^wf-d3c88f8589f5
+    - [ ] O child 2 ^wf-054e86827a6d
 - Weekly review ^wf-9c5188820877
-	- ⧉ [[#^wf-d949af688c14|Local item]] ^wf-bfaac6060c93-ro
+    - ⧉ [[#^wf-d949af688c14|Local item]] ^wf-bfaac6060c93-ro
 ```
 
 | you | result |
@@ -842,7 +842,7 @@ or deleted without `force`.** Typing over one and adding a child under it:
 
 ```markdown
 - typing into the placeholder ^wf-94027db756fa-ro
-	- a child typed under it
+    - a child typed under it
 ```
 
 ```console

@@ -35,8 +35,6 @@
 //! - 🔒 best-effort text of a malformed name ^wf-0e9f77aa12cd-ro
 //! ```
 //!
-//! (Indentation is shown as four spaces here; the renderer writes one tab per level.)
-//!
 //! ## Frontmatter
 //!
 //! Must start on line 1 (`---` … `---`). Keys the engine owns:
@@ -73,8 +71,8 @@
 //!   heading; deeper nodes are lists under them. A heading that skips a level (`###`
 //!   directly under `#`) is coerced to parent level + 1 with a warning. Headings never
 //!   show a checkbox, but `# [x] Title` (and `# [ ] Title`) parse as a tick (§4.3).
-//! * **List items**: indentation by tabs when rendering; the parser accepts tabs or any
-//!   consistent number of spaces per level (detected from the file; inconsistent input is
+//! * **List items**: indentation by four spaces per level when rendering; the parser
+//!   accepts tabs or any consistent number of spaces per level (detected from the file; inconsistent input is
 //!   coerced with a warning). Markers `-`, `*`, `+` and ordered `N.`/`N)` are accepted;
 //!   rendering uses `- `, and `1. 2. …` for the children of a `numbered` parent. The
 //!   first line holds the name; continuation lines indented one level deeper, before

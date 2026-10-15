@@ -313,7 +313,7 @@ fn local_new_item_is_created_and_tagged() {
     edit(
         &f.file,
         &format!("{draft_line}\n"),
-        &format!("{draft_line}\n\t- A new step\n\t\twith a note\n"),
+        &format!("{draft_line}\n    - A new step\n        with a note\n"),
     );
     let r = f.env.sync(&f.file);
     assert_eq!(synced(&r), (true, 2), "{r:#?}");
@@ -365,7 +365,7 @@ fn link_titles_are_dropped_and_reported() {
     edit(
         &f.file,
         &format!("{draft}\n"),
-        &format!("{draft}\n\t- See [docs](https://e.com 'title')\n"),
+        &format!("{draft}\n    - See [docs](https://e.com 'title')\n"),
     );
     let r = f.env.sync(&f.file);
     synced(&r);
@@ -574,7 +574,7 @@ fn new_item_typed_ticked_is_created_completed() {
     edit(
         &f.file,
         &format!("{later}\n"),
-        &format!("{later}\n\t- [x] Already done\n"),
+        &format!("{later}\n    - [x] Already done\n"),
     );
     let r = f.env.sync(&f.file);
     synced(&r);
@@ -688,7 +688,11 @@ fn conflicting_edit_keeps_remote_and_marks_the_file() {
     assert_settled(&f);
     // Deleting the marker resolves the conflict; nothing is pushed.
     let before = f.env.snapshot();
-    edit(&f.file, "\t\t- ⚠ Buy soy milk %%wf-conflict:name%%\n", "");
+    edit(
+        &f.file,
+        "        - ⚠ Buy soy milk %%wf-conflict:name%%\n",
+        "",
+    );
     f.env.sync(&f.file);
     assert_eq!(f.env.snapshot(), before);
     assert!(!read(&f.file).contains("⚠"));
@@ -1033,7 +1037,7 @@ fn file_changed_during_the_sync_keeps_new_items_single() {
     edit(
         &f.file,
         &format!("{later}\n"),
-        &format!("{later}\n\t- Brand new\n"),
+        &format!("{later}\n    - Brand new\n"),
     );
     let file = f.file.clone();
     // The concurrent edit lands after the apply (at the re-export).
@@ -1174,7 +1178,7 @@ fn crash_recovery_through_the_journal() {
         edit(
             &f.file,
             &format!("{later}\n"),
-            &format!("{later}\n\t- First new\n\t- *Second* new\n"),
+            &format!("{later}\n    - First new\n    - *Second* new\n"),
         );
         edit(&f.file, "Call Bob", "Call Bob back");
         let edited = read(&f.file);
@@ -1224,7 +1228,7 @@ fn edit_tagged_creates(f: &Fixture) {
     edit(
         &f.file,
         &format!("{bob}\n"),
-        &format!("{copy}\n{bob}\n\t- Untagged new\n"),
+        &format!("{copy}\n{bob}\n    - Untagged new\n"),
     );
     edit(&f.file, "Later", "Later, edited");
 }
@@ -1309,7 +1313,7 @@ fn dry_run_does_not_recover_the_journal() {
         edit(
             &f.file,
             &format!("{later}\n"),
-            &format!("{later}\n\t- First new\n\t- *Second* new\n"),
+            &format!("{later}\n    - First new\n    - *Second* new\n"),
         );
         edit(&f.file, "Call Bob", "Call Bob back");
         let edited = read(&f.file);

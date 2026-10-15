@@ -7,7 +7,7 @@
 //! * blocks separated by one blank line: the root note; the list items of the root (root
 //!   conflict markers first); each heading with its note; the list items of each
 //!   heading (its conflict markers first); sub-headings;
-//! * list items indented with one tab per level, markers `- ` or `N.`; the first line is
+//! * list items indented with four spaces per level, markers `- ` or `N.`; the first line is
 //!   `[checkbox] [🔒] <kind prefix><text> <tag>` with empty parts left out;
 //! * a code item's fence opens on its first line, its lines and the closing fence are
 //!   indented one level deeper than the marker (blank code lines are written empty);
@@ -172,7 +172,7 @@ fn trim_blank_edges(lines: &[String]) -> &[String] {
 /// Note lines written at column 0 (the root's and headings' notes), with edge empty lines
 /// dropped. A line that would read as structure there (`# x`, `- x`, a fence, …) gets
 /// mdinline's line-start escape. Canonical text never needs it (EC 4); verbatim text of a
-/// read-only item or a marker may (an indented `\t# x` under a heading is a note line, but
+/// read-only item or a marker may (an indented `    # x` under a heading is a note line, but
 /// `# x` at column 0 is a heading), and the escape does not change what `md_to_wf` reads.
 fn column0_note(lines: &[String]) -> impl Iterator<Item = String> + '_ {
     trim_blank_edges(lines)
@@ -227,6 +227,9 @@ fn indented_note(lines: &[String]) -> Vec<String> {
     out
 }
 
+/// One level of list indentation.
+const INDENT: &str = "    ";
+
 fn push_line(out: &mut Vec<String>, line: String) {
     let t = line.trim_end_matches([' ', '\t']).len();
     let mut line = line;
@@ -235,7 +238,7 @@ fn push_line(out: &mut Vec<String>, line: String) {
 }
 
 fn list_item(it: &RItem, depth: usize, ord: &mut usize, style: TagStyle, out: &mut Vec<String>) {
-    let ind = "\t".repeat(depth);
+    let ind = INDENT.repeat(depth);
     let marker = if it.ordered {
         *ord += 1;
         format!("{ord}.")
@@ -244,7 +247,7 @@ fn list_item(it: &RItem, depth: usize, ord: &mut usize, style: TagStyle, out: &m
     };
     let (text, code) = first_line(it, style);
     push_line(out, format!("{ind}{marker} {text}"));
-    let cind = format!("{ind}\t");
+    let cind = format!("{ind}{INDENT}");
     if let Some((fence, code)) = code {
         for l in code.split('\n') {
             out.push(if l.is_empty() {

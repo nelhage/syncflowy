@@ -130,10 +130,10 @@ syncflowy: {gen: 1}
 Spring 2027 planting
 
 - Vegetables ^wf-3be53d2763ad
-	Raised beds by the fence
-	- Tomatoes ^wf-8069f23e2368
-		- [ ] Buy stakes ^wf-b0a1fa4da2ae
-	- [ ] Lettuce ^wf-ac22287add1f
+    Raised beds by the fence
+    - Tomatoes ^wf-8069f23e2368
+        - [ ] Buy stakes ^wf-b0a1fa4da2ae
+    - [ ] Lettuce ^wf-ac22287add1f
 - [ ] Order seeds ^wf-0bfe464630d8
 - [ ] Read [the planting guide](https://example.com/guide) ^wf-0f52eb3567ff
 ```
@@ -149,11 +149,11 @@ Spring 2027 planting
 Rename one line and add one:
 
 ```diff
- 	- Tomatoes ^wf-8069f23e2368
- 		- [ ] Buy stakes ^wf-b0a1fa4da2ae
--	- [ ] Lettuce ^wf-ac22287add1f
-+	- [ ] Lettuce, two rows ^wf-ac22287add1f
-+	- Carrots
+     - Tomatoes ^wf-8069f23e2368
+         - [ ] Buy stakes ^wf-b0a1fa4da2ae
+-    - [ ] Lettuce ^wf-ac22287add1f
++    - [ ] Lettuce, two rows ^wf-ac22287add1f
++    - Carrots
  - [ ] Order seeds ^wf-0bfe464630d8
 ```
 
@@ -178,8 +178,8 @@ vault/garden.md: synced: 1 created, 1 updated, 0 moved, 0 reordered, 0 completed
 The new line now has its tag, and the file is at generation 2:
 
 ```markdown
-	- [ ] Lettuce, two rows ^wf-ac22287add1f
-	- [ ] Carrots ^wf-2dab2776c2ac
+    - [ ] Lettuce, two rows ^wf-ac22287add1f
+    - [ ] Carrots ^wf-2dab2776c2ac
 ```
 
 Changes made in Workflowy come into the file the same way: run `sync` again, and the file is rewritten with them.
