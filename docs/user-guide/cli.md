@@ -106,7 +106,7 @@ syncflowy: {headings: 1, gen: 1}
 # Books %%wf:18ceaf00e2ae%%
 
 - [ ] **Middlemarch** ^wf-cf37a8ca9fac
-	George Eliot
+    George Eliot
 
 # Articles %%wf:11d2c330f968%%
 

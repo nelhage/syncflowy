@@ -21,16 +21,16 @@ After an empty line.
 
 - [ ] Write the mock ^wf-000000000004
 - Deep ^wf-000000000007
-	- Deeper ^wf-000000000008
-		- Deeper still ^wf-000000000009
-			- Nearly there ^wf-00000000000a
-				- [ ] Bottom `x = 1` ^wf-00000000000b
+    - Deeper ^wf-000000000008
+        - Deeper still ^wf-000000000009
+            - Nearly there ^wf-00000000000a
+                - [ ] Bottom `x = 1` ^wf-00000000000b
 
 ## Numbered steps %%wf:00000000000c%%
 
 1. [ ] first ^wf-00000000000d
 2. [ ] third ^wf-00000000000f
-	with a note
+    with a note
 
 ## Board layout is kept as a plain item %%wf:000000000010%%
 

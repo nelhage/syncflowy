@@ -73,7 +73,7 @@ fn tag_moved_between_files_is_a_move() {
     edit(
         &t.b,
         &format!("{dest}\n"),
-        &format!("{dest}\n\t{x_line}\n\t{child_line}\n"),
+        &format!("{dest}\n    {x_line}\n    {child_line}\n"),
     );
 
     let api = TestApi::new(&t.env.client);
@@ -105,9 +105,9 @@ fn tag_moved_between_files_is_a_move() {
     let a_text = read(&t.a);
     let b_text = read(&t.b);
     assert!(!a_text.contains("Wanders off"), "{a_text}");
-    assert!(line_of(&b_text, &t.x).starts_with("\t- "), "{b_text}");
+    assert!(line_of(&b_text, &t.x).starts_with("    - "), "{b_text}");
     assert!(
-        line_of(&b_text, &t.x_child).starts_with("\t\t- "),
+        line_of(&b_text, &t.x_child).starts_with("        - "),
         "{b_text}"
     );
     assert!(line_of(&a_text, &t.keep).contains("Stays in alpha"));
@@ -131,7 +131,7 @@ fn cut_and_paste(t: &Two, edit_pasted: impl Fn(&str) -> String) {
     edit(&t.a, &format!("{x_line}\n{child_line}\n"), "");
     let b_text = read(&t.b);
     let dest = line_of(&b_text, &t.target).to_owned();
-    let pasted = edit_pasted(&format!("\t{x_line}\n\t{child_line}\n"));
+    let pasted = edit_pasted(&format!("    {x_line}\n    {child_line}\n"));
     edit(&t.b, &format!("{dest}\n"), &format!("{dest}\n{pasted}"));
 }
 
@@ -256,7 +256,7 @@ fn file_emptied_into_another_file_is_not_braked() {
     std::fs::write(&t.a, frontmatter).unwrap();
     let b_text = read(&t.b);
     let dest = line_of(&b_text, &t.target).to_owned();
-    let pasted: String = body.lines().map(|l| format!("\t{l}\n")).collect();
+    let pasted: String = body.lines().map(|l| format!("    {l}\n")).collect();
     edit(&t.b, &format!("{dest}\n"), &format!("{dest}\n{pasted}"));
 
     let api = TestApi::new(&t.env.client);
@@ -277,9 +277,9 @@ fn file_emptied_into_another_file_is_not_braked() {
     );
     assert_eq!(tree.parent(&t.x_child), Some(&t.x));
     let b_text = read(&t.b);
-    assert!(line_of(&b_text, &t.keep).starts_with("\t- "), "{b_text}");
+    assert!(line_of(&b_text, &t.keep).starts_with("    - "), "{b_text}");
     assert!(
-        line_of(&b_text, &t.x_child).starts_with("\t\t- "),
+        line_of(&b_text, &t.x_child).starts_with("        - "),
         "{b_text}"
     );
     settled(&t);
@@ -428,7 +428,11 @@ fn held_parent_delete_loses_to_its_child_moving_out() {
     let b_text = read(&t.b);
     let dest = line_of(&b_text, &t.target).to_owned();
     let pasted = child_line.trim_start();
-    edit(&t.b, &format!("{dest}\n"), &format!("{dest}\n\t{pasted}\n"));
+    edit(
+        &t.b,
+        &format!("{dest}\n"),
+        &format!("{dest}\n    {pasted}\n"),
+    );
     let r = t.env.sync(&t.a);
     assert_eq!(r.warnings.len(), 1, "{r:#?}");
     assert!(r.warnings[0].contains("\"with its child\""), "{r:#?}");
@@ -464,7 +468,11 @@ fn tag_copied_between_files_is_a_new_node() {
     let x_line = line_of(&a_text, &t.x).to_owned();
     let b_text = read(&t.b);
     let dest = line_of(&b_text, &t.target).to_owned();
-    edit(&t.b, &format!("{dest}\n"), &format!("{dest}\n\t{x_line}\n"));
+    edit(
+        &t.b,
+        &format!("{dest}\n"),
+        &format!("{dest}\n    {x_line}\n"),
+    );
     let api = TestApi::new(&t.env.client);
     let rs = reports(&t.env, &api, &[t.a.clone(), t.b.clone()]);
     assert!(
@@ -501,7 +509,7 @@ fn edits_in_both_files_in_one_run() {
     edit(
         &t.b,
         &format!("{dest}\n"),
-        &format!("{dest}\n\t- New in beta\n"),
+        &format!("{dest}\n    - New in beta\n"),
     );
     let rs = reports(&t.env, &t.env.client, &[t.a.clone(), t.b.clone()]);
     assert_eq!(rs.len(), 2);

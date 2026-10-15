@@ -51,7 +51,7 @@ fn nested_creates_with_special_names() {
         &file,
         &format!("{al}\n"),
         &format!(
-            "{al}\n\t- Parent & *child* [link](https://example.com)\n\t\t- #tag  item `code`\n\t\t\t- deep ~~strike~~\n- New top with note\n\tnote line 1\n\tnote line 2\n"
+            "{al}\n    - Parent & *child* [link](https://example.com)\n        - #tag  item `code`\n            - deep ~~strike~~\n- New top with note\n    note line 1\n    note line 2\n"
         ),
     );
     let r = env.sync(&file);
@@ -133,7 +133,7 @@ fn root_note_and_code_block_edits() {
     edit(
         &file,
         &format!("{al}\n"),
-        &format!("{al}\n\t- ```\n\t\tfn main() {{}}\n\t\t```\n\t- > a quote\n"),
+        &format!("{al}\n    - ```\n        fn main() {{}}\n        ```\n    - > a quote\n"),
     );
     let r = env.sync(&file);
     assert!(matches!(r.outcome, SyncOutcome::Synced { .. }), "{r:#?}");
@@ -183,7 +183,7 @@ fn unfencing_or_forcing_a_multi_line_value_loses_nothing() {
     let cs = short(&code);
     edit(
         &file,
-        &format!("- ``` ^wf-{cs}\n\tline one\n\tline two\n\t```\n"),
+        &format!("- ``` ^wf-{cs}\n    line one\n    line two\n    ```\n"),
         &format!("- A1 unfenced ^wf-{cs}\n"),
     );
     let r = env.sync(&file);
@@ -541,7 +541,7 @@ fn new_item_whose_parent_vanished_before_the_create_is_resurrected() {
     edit(
         &file,
         &format!("{al}\n"),
-        &format!("{al}\n\t- My important new child\n"),
+        &format!("{al}\n    - My important new child\n"),
     );
     // A collaborator deletes Alpha after our export, just before the create.
     let mut fired = false;

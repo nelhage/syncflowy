@@ -102,9 +102,9 @@ Free text here is the sync root's note.
 Note on "Planning": any paragraphs right under the heading.
 
 - Draft the spec ^wf-8e1f00aa2b3c
-	A note line on "Draft the spec".
-	- [ ] Write the mock ^wf-0c0ffee12345
-	- [ ] Run the UI scenarios ^wf-77aa12cd0e9f
+    A note line on "Draft the spec".
+    - [ ] Write the mock ^wf-0c0ffee12345
+    - [ ] Run the UI scenarios ^wf-77aa12cd0e9f
 - **Bold** item, <u>underlined</u>, a #tag and a [link](https://example.com) ^wf-a1b2c3d4e5f6
 - ```python ^wf-…
   x = 1
@@ -129,7 +129,7 @@ Rules:
 - **Completed nodes are not in the file.** A completed node and its whole subtree are hidden (§4.5).
   Ticking a checkbox is a one-shot command: the next sync completes the node in Workflowy and removes it
   (and its subtree) from the file (§4.3).
-- **Indentation**: render with tabs (Obsidian's default). Parse tabs or any consistent space width.
+- **Indentation**: render with four spaces per level. Parse tabs or any consistent space width.
 - **Id tag** at the end of the item's first line (§4.4).
 
 ### 4.2 Inline text

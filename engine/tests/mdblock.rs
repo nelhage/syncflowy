@@ -366,7 +366,7 @@ fn unsafe_verbatim_notes_are_canonicalised() {
     assert_eq!(d.items[0].note_md, vec!["```", "- x", "```"]);
     let n = normalize(&d);
     assert!(
-        n.ends_with("- 🔒 t ^wf-000000000002-ro\n\t```\n\t- x\n\t```\n"),
+        n.ends_with("- 🔒 t ^wf-000000000002-ro\n    ```\n    - x\n    ```\n"),
         "{n}"
     );
 }
@@ -1047,7 +1047,7 @@ fn view_kinds_and_layouts() {
     let md = render_tree(&t, &DocConfig::default(), &ViewExtras::default());
     assert_eq!(
         body(&md),
-        "- ``` ^wf-000000000002\n\tc<1\n\t```\n\tn\n- > q ^wf-000000000003\n- --- ^wf-000000000004\n- [ ] named divider ^wf-000000000005\n- nums ^wf-000000000006\n\t1. [ ] one ^wf-000000000007\n\t2. [ ] two ^wf-000000000008\n- ``` ^wf-000000000009\n\n\t```\n- [ ] ^wf-00000000000a\n\ta note\n"
+        "- ``` ^wf-000000000002\n    c<1\n    ```\n    n\n- > q ^wf-000000000003\n- --- ^wf-000000000004\n- [ ] named divider ^wf-000000000005\n- nums ^wf-000000000006\n    1. [ ] one ^wf-000000000007\n    2. [ ] two ^wf-000000000008\n- ``` ^wf-000000000009\n\n    ```\n- [ ] ^wf-00000000000a\n    a note\n"
     );
 }
 
@@ -1094,7 +1094,7 @@ fn view_empty_items_are_not_placeholders() {
     let md = render_tree(&t, &cfg, &ViewExtras::default());
     assert_eq!(
         body(&md),
-        "- [ ] ^wf-000000000002\n\t- [ ] todo child ^wf-000000000003\n- ^wf-000000000004\n\t1. [ ] first ^wf-000000000005\n\t2. [ ] second ^wf-000000000006\n- ``` ^wf-000000000007\n\n\t```\n\t- [ ] code child ^wf-000000000008\n- > ^wf-000000000009\n\t- [ ] quote child ^wf-00000000000a\n- ^wf-00000000000b\n\t- [ ] empty child ^wf-00000000000c\n- ⧉ (mirror of a deleted item) ^wf-00000000000d-ro\n"
+        "- [ ] ^wf-000000000002\n    - [ ] todo child ^wf-000000000003\n- ^wf-000000000004\n    1. [ ] first ^wf-000000000005\n    2. [ ] second ^wf-000000000006\n- ``` ^wf-000000000007\n\n    ```\n    - [ ] code child ^wf-000000000008\n- > ^wf-000000000009\n    - [ ] quote child ^wf-00000000000a\n- ^wf-00000000000b\n    - [ ] empty child ^wf-00000000000c\n- ⧉ (mirror of a deleted item) ^wf-00000000000d-ro\n"
     );
     let d = parse(&md).unwrap();
     let parsed: Vec<(ItemKind, &str, usize)> = d
@@ -1239,7 +1239,7 @@ fn view_read_only_tiers() {
     let md = render_tree(&t, &DocConfig::default(), &ViewExtras::default());
     assert_eq!(
         body(&md),
-        "- [ ] 🔒 broken bold ^wf-000000000002-ro\n- [ ] 🔒 two ⏎ lines ^wf-000000000003-ro\n- [ ] 🔒 fine ^wf-000000000004-ro\n\tunclosed\n- ```` ^wf-000000000005\n\ta\n\t```\n\t````\n- [ ] **x** y ^wf-000000000006\n"
+        "- [ ] 🔒 broken bold ^wf-000000000002-ro\n- [ ] 🔒 two ⏎ lines ^wf-000000000003-ro\n- [ ] 🔒 fine ^wf-000000000004-ro\n    unclosed\n- ```` ^wf-000000000005\n    a\n    ```\n    ````\n- [ ] **x** y ^wf-000000000006\n"
     );
     let d = parse(&md).unwrap();
     assert_eq!(d.items[0].name_md, "broken bold");
@@ -1288,7 +1288,7 @@ fn view_conflict_markers() {
     let md = render_tree(&t, &DocConfig::default(), &extras);
     assert_eq!(
         body(&md),
-        "- ⚠ local note %%wf-conflict:note%%\n\tlocal root note\n- node ^wf-000000000002\n\tremote note\n\t- ⚠ local name %%wf-conflict:name%%\n\t- ⚠ local note %%wf-conflict:note%%\n\t\tlocal\n\t\tnote\n\t- [ ] child ^wf-000000000003\n"
+        "- ⚠ local note %%wf-conflict:note%%\n    local root note\n- node ^wf-000000000002\n    remote note\n    - ⚠ local name %%wf-conflict:name%%\n    - ⚠ local note %%wf-conflict:note%%\n        local\n        note\n    - [ ] child ^wf-000000000003\n"
     );
     let d = parse(&md).unwrap();
     assert!(d.items[0].is_marker());
@@ -1344,7 +1344,7 @@ fn normalize_canonicalises_text_and_markers() {
     let n = normalize(&d);
     assert_eq!(
         n,
-        "---\nworkflowy: 000000000001\nsyncflowy: {ids: comment}\n---\nPre\n\n- **bold** *it* %%wf:000000000002%%\n\tnote with &\n\t- [x] child %%wf:000000000003%%\n1. one\n2. two\n\n# heading\n\n- ⚠ local %%wf-conflict:name%%\n- 🔒 kept __as is__ %%wf:000000000004-ro%%\n"
+        "---\nworkflowy: 000000000001\nsyncflowy: {ids: comment}\n---\nPre\n\n- **bold** *it* %%wf:000000000002%%\n    note with &\n    - [x] child %%wf:000000000003%%\n1. one\n2. two\n\n# heading\n\n- ⚠ local %%wf-conflict:name%%\n- 🔒 kept __as is__ %%wf:000000000004-ro%%\n"
     );
     let again = parse(&n).unwrap();
     assert!(equivalent(&again, &d, &InlineConfig::default()));

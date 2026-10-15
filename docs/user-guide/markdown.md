@@ -4,7 +4,7 @@ This page explains every part of a synced Markdown file: the frontmatter and its
 out, the id tags, inline formatting, Workflowy's node kinds, read-only items, mirrors and conflict markers. For what
 your edits *do* in Workflowy, see [What your edits do](editing.md).
 
-All examples are real output of syncflowy. Indentation in rendered files is one tab per level. The examples come from several separate test runs, so the same 12-character id can name different nodes in
+All examples are real output of syncflowy. Indentation in rendered files is four spaces per level. The examples come from several separate test runs, so the same 12-character id can name different nodes in
 different examples. Small examples are often excerpts: they leave out the frontmatter or the lines around the part
 being shown.
 
@@ -33,44 +33,44 @@ Free text here is the sync root's note.
 It has **two** lines & an ampersand.
 
 - Planning ^wf-72ad9784e804
-	Note on "Planning": lines right under the heading.
-	- Draft the *spec* ^wf-849919fed983
-		A note line.
+    Note on "Planning": lines right under the heading.
+    - Draft the *spec* ^wf-849919fed983
+        A note line.
 
-		After an empty line.
-		\- not a child, a note line
-		- [ ] Write the mock ^wf-b57e156452ec
-		- Deep ^wf-2823ff185804
-			- Deeper ^wf-e34adc6a7b07
-				- Deeper still ^wf-619ae27f6dac
-					- Nearly there ^wf-90c9785a74b5
-						- [ ] Bottom `x = 1` ^wf-0bdf96b84cd7
-	- Numbered steps ^wf-d00fee1fe835
-		1. [ ] first ^wf-9bcc841e525e
-		2. [ ] third ^wf-aed9db72096c
-			with a note
-	- [ ] Board layout is kept as a plain item ^wf-86971bae29e9
-	- [ ] Paragraph layout ^wf-f97041907338
-	- [ ] An h1 inside the outline ^wf-bd335f1b7ce7
+        After an empty line.
+        \- not a child, a note line
+        - [ ] Write the mock ^wf-b57e156452ec
+        - Deep ^wf-2823ff185804
+            - Deeper ^wf-e34adc6a7b07
+                - Deeper still ^wf-619ae27f6dac
+                    - Nearly there ^wf-90c9785a74b5
+                        - [ ] Bottom `x = 1` ^wf-0bdf96b84cd7
+    - Numbered steps ^wf-d00fee1fe835
+        1. [ ] first ^wf-9bcc841e525e
+        2. [ ] third ^wf-aed9db72096c
+            with a note
+    - [ ] Board layout is kept as a plain item ^wf-86971bae29e9
+    - [ ] Paragraph layout ^wf-f97041907338
+    - [ ] An h1 inside the outline ^wf-bd335f1b7ce7
 - ``` ^wf-0faec1e4bcd6
-	fn main() {
-	    println!("hi & bye");
-	}
-	```
-	runs on save
+    fn main() {
+        println!("hi & bye");
+    }
+    ```
+    runs on save
 - > To be or not to be ^wf-d1821a36f41f
 - --- ^wf-eb6d09f5af6f
 - ^wf-1b0fd2f68e02
-	- [ ] child of an empty bullet ^wf-61c09709524a
+    - [ ] child of an empty bullet ^wf-61c09709524a
 - ⧉ (mirror of a deleted item) ^wf-c4893308254a-ro
 - [ ] 🔒 broken bold ^wf-75bd70bb31f8-ro
-	a malformed name (UI:F1)
+    a malformed name (UI:F1)
 - [ ] 🔒 line one ⏎ line two ^wf-e22e3e0ac1bb-ro
 - ```` ^wf-a8df5f2dca1d
-	x
-	```
-	y
-	````
+    x
+    ```
+    y
+    ````
 - [ ] **bold** and unknown markup ^wf-e3ce6b0bec62
 - [ ] See https://example.com/a?b=1&c=2 on 📅 2026-01-15 and at 📅 2026-01-15 14:30 ^wf-3c213108eeaa
 - [ ] <u>underlined</u>, <span class="colored c-red">red</span>, [a link](https://example.com) and #tag @who ^wf-f00cd531bb01
@@ -80,16 +80,16 @@ It has **two** lines & an ampersand.
 - [ ] \[ ] not a box ^wf-ed5f704494c4
 - [ ] a \^wf-8e1f00aa2b3c in the text and %\% percents ^wf-94b71ec8514b
 - [ ] A todo with children ^wf-669bcc63fb32
-	- [ ] leaf one ^wf-6fcd396ad25e
-	- [ ] leaf two ^wf-02bcde313b0c
-		&#32;&#32;indented note line
+    - [ ] leaf one ^wf-6fcd396ad25e
+    - [ ] leaf two ^wf-02bcde313b0c
+        &#32;&#32;indented note line
 - [ ] Trailing empty note lines ^wf-ecf22665551e
-	first
-	
-	
+    first
+    
+    
 - [ ] Leading empty note line ^wf-17a44ac81198
 
-	second
+    second
 `````
 
 What to notice:
@@ -119,7 +119,7 @@ What to notice:
 12. **Inline formatting.** Bold, italic, code and links become Markdown; underline and colours stay as HTML; dates
     are `📅 2026-01-15`. See [Inline formatting](#inline-formatting).
 13. **Whitespace.** Leading spaces in a note line are written `&#32;`. Empty lines at the end of a note are lines
-    that hold only the indentation (a tab), so they are not mistaken for the gap before the next item. An empty line
+    that hold only the indentation (spaces), so they are not mistaken for the gap before the next item. An empty line
     at the start of a note is a blank line.
 
 ## Frontmatter
@@ -234,20 +234,20 @@ workflowy: 42258477-b1af-49ab-a5a9-e7f709f1414e
 syncflowy: {depth: 2, gen: 2}
 ---
 - Alpha ^wf-abce1a2a9ed2
-	- [ ] Alpha child ^wf-77cb8348b570
+    - [ ] Alpha child ^wf-77cb8348b570
 - Beta ^wf-4572d2015b35
-	- [ ] Beta child ^wf-97136e83cfc1
+    - [ ] Beta child ^wf-97136e83cfc1
 - Level 1 ^wf-f3cd60486bc9
-	- Level 2 ^wf-000593e20343
+    - Level 2 ^wf-000593e20343
 ```
 
 `Level 3` and `Level 4` are only hidden: Workflowy still has them. `depth: null` brings them back (excerpt):
 
 ```markdown
 - Level 1 ^wf-f3cd60486bc9
-	- Level 2 ^wf-000593e20343
-		- Level 3 ^wf-96acbcc043c4
-			- [ ] Level 4 ^wf-36f880ded786
+    - Level 2 ^wf-000593e20343
+        - Level 3 ^wf-96acbcc043c4
+            - [ ] Level 4 ^wf-36f880ded786
 ```
 
 > **Warning.** `depth:` hides nodes from the file; it does not protect them. Deleting the line "Level 2" above
@@ -305,7 +305,7 @@ Workflowy, or renaming the file, changes nothing.
 - The lines indented under it, **before its first child**, are its **note**, one Markdown line per note line. A
   blank line between them is an empty note line.
 - Nested items are its children.
-- The engine writes `- ` markers (or `1.` under a numbered parent) and one tab per level. When reading, it accepts
+- The engine writes `- ` markers (or `1.` under a numbered parent) and four spaces per level. When reading, it accepts
   `-`, `*`, `+`, `1.` and `1)` markers, and tabs or any consistent number of spaces.
 - A line that fits nowhere (for example text at column 0 after a list) is attached to the note of the nearest item
   above it, with a warning: `line 22: line is not indented under an item; attached to the preceding item's note`.
@@ -337,7 +337,7 @@ Root note line 2, typed in Obsidian
 stray text at column 0 after the list
 ```
 
-After `sync` (`7 created, 3 updated`; the updates include the new root-note line), normalised to tabs and `-`/`1.`
+After `sync` (`7 created, 3 updated`; the updates include the new root-note line), normalised to four-space indentation and `-`/`1.`
 markers:
 
 ```markdown
@@ -349,26 +349,26 @@ Root note line 1
 Root note line 2, typed in Obsidian
 
 - Groceries ^wf-95dd81355c53
-	A note typed under Groceries
-	second note line
+    A note typed under Groceries
+    second note line
 
-	third note line after a blank line
-	- [ ] Milk ^wf-b9af5b569643
-	- [ ] Eggs ^wf-6c9a9cc9af4e
-	- [ ] Bread (star marker) ^wf-440407295e42
-	- [ ] Butter (plus marker) ^wf-5cd12d5db79b
+    third note line after a blank line
+    - [ ] Milk ^wf-b9af5b569643
+    - [ ] Eggs ^wf-6c9a9cc9af4e
+    - [ ] Bread (star marker) ^wf-440407295e42
+    - [ ] Butter (plus marker) ^wf-5cd12d5db79b
 - [ ] Errands ^wf-9ebe89d9bf02
-	1. [ ] first step ^wf-308cdc6b13ab
-	2. [ ] second step ^wf-17e3cc0e95ee
+    1. [ ] first step ^wf-308cdc6b13ab
+    2. [ ] second step ^wf-17e3cc0e95ee
 - A brand new top-level item ^wf-3dd6415af341
-	- [ ] a child indented with four spaces ^wf-3d26ac512b01
-		stray text at column 0 after the list
+    - [ ] a child indented with four spaces ^wf-3d26ac512b01
+        stray text at column 0 after the list
 ```
 
 "Errands" became a numbered list in Workflowy, because all its children were typed with numbered markers. The stray
 line became the note of the last item.
 
-Note: syncflowy writes empty lines at the end of a note as lines holding only a tab. Whether Obsidian or a
+Note: syncflowy writes empty lines at the end of a note as lines holding only the indentation. Whether Obsidian or a
 formatting plugin keeps such lines has not been checked.
 
 ### Headings mode
@@ -396,16 +396,16 @@ After an empty line.
 
 - [ ] Write the mock ^wf-b57e156452ec
 - Deep ^wf-2823ff185804
-	- Deeper ^wf-e34adc6a7b07
-		- Deeper still ^wf-619ae27f6dac
-			- Nearly there ^wf-90c9785a74b5
-				- [ ] Bottom `x = 1` ^wf-0bdf96b84cd7
+    - Deeper ^wf-e34adc6a7b07
+        - Deeper still ^wf-619ae27f6dac
+            - Nearly there ^wf-90c9785a74b5
+                - [ ] Bottom `x = 1` ^wf-0bdf96b84cd7
 
 ## Numbered steps %%wf:d00fee1fe835%%
 
 1. [ ] first ^wf-9bcc841e525e
 2. [ ] third ^wf-aed9db72096c
-	with a note
+    with a note
 
 ## Board layout is kept as a plain item %%wf:86971bae29e9%%
 
@@ -497,8 +497,8 @@ Differences from list mode:
 > A note typed under the Beta heading
 >
 > - Skipped level typed by hand ^wf-0cf49189011c
-> 	- [ ] item under the h3 ^wf-d5155a9268c7
-> 	- [ ] Beta child ^wf-97136e83cfc1
+>     - [ ] item under the h3 ^wf-d5155a9268c7
+>     - [ ] Beta child ^wf-97136e83cfc1
 > ```
 >
 > A heading that skips a level is first coerced to the next level, as the first warning shows. A `#` heading at
@@ -693,23 +693,23 @@ out; they render like the h1 and board lines):
 - [ ] A paragraph (p) node ^wf-25d9b02d3504
 - > A quote-block node ^wf-af97425375be
 - ``` ^wf-d03d4eac98d6
-	print("code-block node")
-	second line
-	```
+    print("code-block node")
+    second line
+    ```
 - --- ^wf-041814d4954e
 - [ ] a divider that has a name ^wf-6560fbbe9381
 - A numbered parent ^wf-b4035596dfde
-	1. [ ] step one ^wf-c1ba943863a5
-	2. [ ] step two ^wf-1b333ebebe3e
-	3. step three ^wf-a3653e67026c
-		- [ ] a bullet under step three ^wf-27478d1bc13a
+    1. [ ] step one ^wf-c1ba943863a5
+    2. [ ] step two ^wf-1b333ebebe3e
+    3. step three ^wf-a3653e67026c
+        - [ ] a bullet under step three ^wf-27478d1bc13a
 - A board ^wf-f255133bb4c2
-	- Column To do ^wf-c22a4a7347fa
-		- [ ] card 1 ^wf-87f07e465b19
-	- Column Done ^wf-d73b2778507c
-		- [ ] card 2 ^wf-f07ccb8409d6
+    - Column To do ^wf-c22a4a7347fa
+        - [ ] card 1 ^wf-87f07e465b19
+    - Column Done ^wf-d73b2778507c
+        - [ ] card 2 ^wf-f07ccb8409d6
 - [ ] A todo parent ^wf-02f350e9e079
-	- [ ] open subtask ^wf-3076cdc98666
+    - [ ] open subtask ^wf-3076cdc98666
 ````
 
 What you can and cannot change from Markdown, with real results, is in
@@ -745,8 +745,8 @@ from "Leaf A" and "Todo item" (a to-do). The sync sent nothing (`file unchanged 
 
 ```markdown
 - [ ] Interior bullet ^wf-db95d4350b28
-	- Leaf A ^wf-9c1966ad51fd
-	- [ ] Leaf B ^wf-47a73bc8996b
+    - Leaf A ^wf-9c1966ad51fd
+    - [ ] Leaf B ^wf-47a73bc8996b
 - Todo item ^wf-bf628758ff4d
 - [ ] Leaf C ^wf-a9d3a61a59e3
 ```
@@ -756,9 +756,9 @@ its box back, and the new item followed the policy:
 
 ```markdown
 - [ ] Interior bullet (renamed in WF) ^wf-db95d4350b28
-	- Leaf A ^wf-9c1966ad51fd
-	- [ ] Leaf B ^wf-47a73bc8996b
-	- [ ] Leaf D added in WF ^wf-c4b2afbf5310
+    - Leaf A ^wf-9c1966ad51fd
+    - [ ] Leaf B ^wf-47a73bc8996b
+    - [ ] Leaf D added in WF ^wf-c4b2afbf5310
 - [ ] Todo item ^wf-bf628758ff4d
 - [ ] Leaf C ^wf-a9d3a61a59e3
 ```
@@ -781,13 +781,13 @@ It is shown with `🔒 ` before the text and `-ro` on its tag:
 
 ````markdown
 - [ ] 🔒 A fine name ^wf-50b370d87824-ro
-	but a broken note
+    but a broken note
 - ``` ^wf-225a1f1bdba2
-	x
-	```
+    x
+    ```
 - 🔒 ``` ^wf-03307ef71ba2-ro
-	code with unclosed
-	```
+    code with unclosed
+    ```
 ````
 
 Edits to its text are refused, and the line is put back. Ticking or deleting it **is** allowed, and so is editing
@@ -808,11 +808,11 @@ workflowy: f253cb87-e739-4614-9ee2-bacc26f79523
 syncflowy: {gen: 1}
 ---
 - Local section ^wf-9f707b66a5ec
-	- [ ] Local item ^wf-4390738a065f
+    - [ ] Local item ^wf-4390738a065f
 - Shared **checklist** ^wf-40707d64a59d
-	kept in the Library
-	- [ ] pack charger ^wf-88089a945f59
-	- [ ] pack passport ^wf-e70226fd8cac
+    kept in the Library
+    - [ ] pack charger ^wf-88089a945f59
+    - [ ] pack passport ^wf-e70226fd8cac
 - ⧉ [[#^wf-4390738a065f|Local item]] ^wf-a583f12cc087-ro
 - [ ] Another section ^wf-03d6331bd7f1
 - ⧉ [[#^wf-40707d64a59d|Shared checklist]] ^wf-35636ee56b11-ro
@@ -851,18 +851,18 @@ syncflowy: {gen: 3}
 root note from Workflowy
 
 - ⚠ local note %%wf-conflict:note%%
-	my local root note
+    my local root note
 - [ ] Interior bullet (renamed in WF) ^wf-db95d4350b28
-	- Leaf A ^wf-9c1966ad51fd
-	- [ ] Leaf B, the *Workflowy* wording ^wf-47a73bc8996b
-		- ⚠ Leaf B, my **local** wording %%wf-conflict:name%%
-	- [ ] Leaf D added in WF ^wf-c4b2afbf5310
+    - Leaf A ^wf-9c1966ad51fd
+    - [ ] Leaf B, the *Workflowy* wording ^wf-47a73bc8996b
+        - ⚠ Leaf B, my **local** wording %%wf-conflict:name%%
+    - [ ] Leaf D added in WF ^wf-c4b2afbf5310
 - [ ] Todo item ^wf-bf628758ff4d
 - [ ] Leaf C ^wf-a9d3a61a59e3
-	a note typed in Workflowy
-	- ⚠ local note %%wf-conflict:note%%
-		my local note
-		two lines
+    a note typed in Workflowy
+    - ⚠ local note %%wf-conflict:note%%
+        my local note
+        two lines
 ```
 
 The shape:
