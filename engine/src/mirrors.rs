@@ -370,7 +370,7 @@ pub fn to_real(merge: &MergeResult, view: &Tree, real: &Tree) -> MergeResult {
     for n in m.iter() {
         let mut r = n.clone();
         r.stub = false;
-        r.parent_id = n.parent_id.as_ref().map(&content);
+        r.parent_id = n.parent_id.as_ref().map(content);
         nodes.insert(r.id.clone(), r);
     }
     // Pass 2: a content rendered in full at a shell takes the shell's merged fields;
@@ -438,13 +438,13 @@ pub fn to_real(merge: &MergeResult, view: &Tree, real: &Tree) -> MergeResult {
             to: content(&mv.to),
         })
         .collect();
-    let ticks: Vec<NodeId> = merge.ticks.iter().map(&content).collect();
+    let ticks: Vec<NodeId> = merge.ticks.iter().map(content).collect();
     let deletes: Vec<DeleteIntent> = merge.deletes.clone();
     let mut orders = BTreeMap::new();
     for (p, order) in &merge.orders {
         orders.entry(content(p)).or_insert_with(|| order.clone());
     }
-    let outside: BTreeSet<NodeId> = merge.outside.iter().map(&content).collect();
+    let outside: BTreeSet<NodeId> = merge.outside.iter().map(content).collect();
 
     MergeResult {
         root: merge.root.clone(),
