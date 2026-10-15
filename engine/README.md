@@ -159,7 +159,9 @@ A note on "Planning": the lines right under the heading.
   gets its tag at the next sync. Do not remove tags from lines you keep.
 * **Inline text**: `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``, `[text](url)`, bare URLs, `<u>`, colour
   spans and other well-formed WF-HTML as literal HTML, dates as a compact form. Obsidian-only syntax
-  (`[[wikilinks]]`, `==highlight==`, `$math$`) is sent to Workflowy as literal text and written back unescaped.
+  (`[[wikilinks]]`, `![[embeds]]`, `![images](url)`, `==highlight==`, `$math$`, `%%comments%%`) is sent to
+  Workflowy as literal text and written back unescaped (a `%%` that would read as an id tag stays escaped). A link
+  title (`[text](url "title")`) is dropped, and the report says the write was lossy.
 * **Node kinds**: `- [ ] ` boxes appear on todo nodes and leaves (cosmetic; `- ` and `- [ ] ` both mean "not
   completed"); a node whose children are hidden by `depth:` is not a leaf. `checkboxes:` changes this (`todos`,
   `all`, or `none`: no boxes at all, todo nodes included; they keep their layout, and `[x]` still ticks). A

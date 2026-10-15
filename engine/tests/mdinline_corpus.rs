@@ -8,12 +8,16 @@
 //!
 //! `MDINLINE_BLESS=1` rewrites the stored rendering and tier from the current code (for
 //! review in the diff). `make_corpus.py` in the same directory regenerates the inputs.
+//!
+//! [`typed_obsidian_syntax`] checks Markdown typed in Obsidian the other way round: what
+//! it stores in Workflowy and how it comes back.
 
 use std::path::PathBuf;
 
 use serde_json::{Value, json};
 use syncflowy::mdinline::{
-    FieldKind, InlineConfig, Tier, line_is_block_safe, md_to_wf, wf_to_md, write_value,
+    FieldKind, InlineConfig, Tier, drops_link_title, line_is_block_safe, md_to_wf, wf_to_md,
+    write_value,
 };
 
 fn corpus_path() -> PathBuf {
@@ -107,4 +111,61 @@ fn corpus() {
         failures.len(),
         failures.join("\n")
     );
+}
+
+/// Obsidian syntax typed in Markdown (§4.2): the WF value it is stored as, the Markdown
+/// it comes back as after a sync, and whether the write drops something (a link title,
+/// reported as a lossy write).
+#[test]
+fn typed_obsidian_syntax() {
+    let cfg = InlineConfig::default();
+    for (md, wf, back, lossy) in [
+        // A comment is stored as text and comes back as typed, so Obsidian still hides it.
+        (
+            "draft %%hidden comment%%",
+            "draft %%hidden comment%%",
+            "draft %%hidden comment%%",
+            false,
+        ),
+        // ... unless it would read as a tag.
+        (
+            "%%wf:8e1f00aa2b3c%%",
+            "%%wf:8e1f00aa2b3c%%",
+            "%\\%wf:8e1f00aa2b3c%%",
+            false,
+        ),
+        // An image is literal text: no link inside, written back unescaped.
+        (
+            "![img](https://example.com/i.png)",
+            "![img](https://example.com/i.png)",
+            "![img](https://example.com/i.png)",
+            false,
+        ),
+        (
+            "![[embed.png]] and ![a](b.png)",
+            "![[embed.png]] and ![a](b.png)",
+            "![[embed.png]] and ![a](b.png)",
+            false,
+        ),
+        // A link title has no WF form: the link is kept, the title dropped.
+        (
+            "[a](https://example.com \"title\")",
+            r#"<a href="https://example.com">a</a>"#,
+            "[a](https://example.com)",
+            true,
+        ),
+        (
+            "see [a](u 'title') and [b](v)",
+            r#"see <a href="u">a</a> and <a href="v">b</a>"#,
+            "see [a](u) and [b](v)",
+            true,
+        ),
+    ] {
+        for kind in [FieldKind::Name, FieldKind::Note] {
+            assert_eq!(md_to_wf(md, kind, &cfg), wf, "{md}");
+            let got = wf_to_md(wf, kind, &cfg);
+            assert_eq!((got.text.as_str(), got.tier), (back, Tier::Exact), "{md}");
+            assert_eq!(drops_link_title(md, kind, &cfg), lossy, "{md}");
+        }
+    }
 }

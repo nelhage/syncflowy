@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-use super::chars::backslashes_before;
+use super::chars::{backslashes_before, starts_with_ci};
 use super::{ConflictField, IdTag, LineTag, TagFlag, TagForm, TagMatch};
 use crate::tree::ShortId;
 
@@ -105,8 +105,18 @@ pub(crate) fn format_tag(short: &ShortId, flags: &BTreeSet<TagFlag>, form: TagFo
     }
 }
 
-/// True if `s` contains a tag or an Obsidian comment delimiter `%%` (EC 4): such text
-/// must never come out of `wf_to_md` unescaped.
+/// True if `rest`, the text right after a `%%`, reads as the start of a comment tag
+/// (`wf:` or `wf-conflict:`, after spaces or tabs; any case, to be safe).
+pub(crate) fn tag_after_percents(rest: &str) -> bool {
+    let r = rest.trim_start_matches([' ', '\t']);
+    starts_with_ci(r, "wf:") || starts_with_ci(r, "wf-conflict:")
+}
+
+/// True if `s` contains a tag, or a `%%` that starts what reads as one (EC 4): such text
+/// must never come out of `wf_to_md` unescaped. Any other `%%` (an Obsidian comment) is
+/// harmless: [`find_tags`] needs `wf:` or `wf-conflict:` right after it.
 pub(crate) fn has_hazard(s: &str) -> bool {
-    s.contains("%%") || !find_tags(s).is_empty()
+    s.match_indices('%')
+        .any(|(i, _)| s[i + 1..].starts_with('%') && tag_after_percents(&s[i + 2..]))
+        || !find_tags(s).is_empty()
 }

@@ -5,8 +5,9 @@ use std::collections::BTreeSet;
 
 use syncflowy::mdinline::{
     ConflictField, FieldKind, IdTag, InlineConfig, LineTag, TagFlag, TagForm, Tier, classify,
-    encode_edge_whitespace, escape_line_start, find_tags, format_conflict_tag, format_tag,
-    line_is_block_safe, md_to_plain, md_to_wf, plain_to_md, trim_line, wf_to_md, write_value,
+    drops_link_title, encode_edge_whitespace, escape_line_start, find_tags, format_conflict_tag,
+    format_tag, line_is_block_safe, md_to_plain, md_to_wf, plain_to_md, trim_line, wf_to_md,
+    write_value,
 };
 use syncflowy::tree::ShortId;
 use syncflowy::wfhtml;
@@ -163,10 +164,12 @@ fn row_code_spans() {
         "<code>a\\`\\`b</code> x",
         Tier::Passthrough,
     );
-    // Tag-like code is passthrough so it can be escaped (EC 4).
+    // Tag-like code is passthrough so it can be escaped (EC 4); an Obsidian comment
+    // delimiter is not tag-like.
+    name("<code>a %% b</code>", "`a %% b`", Tier::Exact);
     name(
-        "<code>a %% b</code>",
-        "<code>a %\\% b</code>",
+        "<code>a %%wf:8e1f00aa2b3c%%</code>",
+        "<code>a %\\%wf:8e1f00aa2b3c%%</code>",
         Tier::Passthrough,
     );
     parses("`a` `` b ` ``", "<code>a</code> <code>b `</code>");
@@ -311,8 +314,26 @@ fn row_links() {
     parses("[t](<a b>)", r#"<a href="a b">t</a>"#);
     parses("[a [b] c](u)", r#"<a href="u">a [b] c</a>"#);
     parses("[a [b](c) d](e)", r#"[a <a href="c">b</a> d](e)"#);
-    parses("[t](u \"title\")", "[t](u &quot;title&quot;)");
+    // A title is dropped (WF links have none); `drops_link_title` says so.
+    parses("[t](u \"title\")", r#"<a href="u">t</a>"#);
+    parses("[t](u 'title')", r#"<a href="u">t</a>"#);
+    parses("[t](<a b> (title))", r#"<a href="a b">t</a>"#);
+    parses("[t](u \"ti\\\"tle\")", r#"<a href="u">t</a>"#);
+    parses("[t](u\"title\")", r#"<a href="u&quot;title&quot;">t</a>"#);
+    parses("[t](u \"unclosed)", "[t](u &quot;unclosed)");
+    assert!(drops_link_title("[t](u \"title\")", NAME, &cfg()));
+    assert!(drops_link_title("a\n[t](u (x))", NOTE, &cfg()));
+    assert!(!drops_link_title("[t](u)", NAME, &cfg()));
+    assert!(!drops_link_title("![i](u \"title\")", NAME, &cfg()));
+    assert!(!drops_link_title("[t](u \"title\")", CODE, &cfg()));
+    // An image is literal text exactly as written: no link or autolink inside.
     parses("![alt](x.png)", "![alt](x.png)");
+    parses(
+        "![img](https://example.com/i.png)",
+        "![img](https://example.com/i.png)",
+    );
+    parses("![a *b* [c]](u \"t\")", "![a *b* [c]](u &quot;t&quot;)");
+    parses("[x ![a](u) y](v)", r#"<a href="v">x ![a](u) y</a>"#);
     parses("[t](javascript:alert(1))", "[t](javascript:alert(1))");
     parses(
         "[see https://e.com](u)",
@@ -561,7 +582,15 @@ fn inline_escapes() {
         // there is another `$`.
         ("$5 and $10", "\\$5 and \\$10"),
         ("$x$ costs $5", "$x$ costs \\$5"),
-        ("%%comment%%", "%\\%comment%\\%"),
+        ("%%comment%%", "%%comment%%"),
+        ("%%wf:8e1f00aa2b3c%%", "%\\%wf:8e1f00aa2b3c%%"),
+        ("a %% \twf-conflict:name", "a %\\% \twf-conflict:name"),
+        ("%%%wf:x", "%\\%\\%wf:x"),
+        ("%%a%% x %%wf:y %%", "%%a%% x %\\%wf:y %%"),
+        // A lone `%%` would pair with a comment-form tag on the line: escaped.
+        ("50%% off", "50%\\% off"),
+        ("%%WF:x", "%\\%WF:x"),
+        ("%%wf-x%%", "%%wf-x%%"),
         ("100%", "100%"),
         ("50% off %", "50% off %"),
         ("x ^wf-8e1f00aa2b3c", "x \\^wf-8e1f00aa2b3c"),
@@ -601,6 +630,11 @@ fn obsidian_only_syntax_is_literal() {
         "[^1]",
         "text[^1]",
         "^[inline footnote]",
+        "%%comment%%",
+        "a %%hidden comment%% b",
+        "![img](https://example.com/i.png)",
+        "![alt *x*](<a b> \"t\")",
+        "see ![[a]](u) and ![b](c)",
     ] {
         for kind in [NAME, NOTE] {
             let wf = md_to_wf(md, kind, &cfg());
@@ -615,16 +649,18 @@ fn obsidian_only_syntax_is_literal() {
     // line-level pass still escapes it (EC 4).
     let wf = md_to_wf("x\n==", NOTE, &cfg());
     assert_eq!(wf_to_md(&wf, NOTE, &cfg()).text, "x\n\\==");
-    // Obsidian comments would hide text (and our tag forms): still escaped (EC 4).
-    let wf = md_to_wf("%%comment%%", NAME, &cfg());
-    assert_eq!(wfhtml::to_plain_text(&wf), "%%comment%%");
+    // A comment that would read as a tag is still escaped (EC 4).
+    let wf = md_to_wf("%%wf:8e1f00aa2b3c%%", NAME, &cfg());
+    assert_eq!(wfhtml::to_plain_text(&wf), "%%wf:8e1f00aa2b3c%%");
     let back = wf_to_md(&wf, NAME, &cfg());
-    assert_eq!(back.text, "%\\%comment%\\%");
+    assert_eq!(back.text, "%\\%wf:8e1f00aa2b3c%%");
     assert_eq!(md_to_wf(&back.text, NAME, &cfg()), wf);
-    // An image is literal text in WF (it has no WF meaning, but would display as an
-    // image): it stays escaped, and a `!` before a link stays escaped so the link is not
-    // read as an image.
-    name("![alt](x.png)", "\\![alt\\](x.png)", Tier::Exact);
+    // An image is literal text in WF and is written back as typed; a `!` before a link
+    // stays escaped so the link is not read as an image, and so does a `![` that is not a
+    // whole image.
+    name("![alt](x.png)", "![alt](x.png)", Tier::Exact);
+    name("![alt]", "\\![alt]", Tier::Exact);
+    name("![a`b](u)", "\\![a`b\\](u)", Tier::Exact);
     name(
         r#"wow!<a href="https://x.org">t</a>"#,
         "wow\\![t](https://x.org)",
@@ -867,11 +903,18 @@ fn user_text_never_contains_a_tag() {
         "<code>^wf-8e1f00aa2b3c</code>",
         "<u>%%</u>",
         "%%%",
+        "%% wf:8e1f00aa2b3c %%",
+        "x%%%wf:8e1f00aa2b3c%%%",
+        "![a](u %%wf:8e1f00aa2b3c%%)",
     ] {
         for kind in [NAME, NOTE] {
             let md = wf_to_md(wf, kind, &cfg());
             assert!(find_tags(&md.text).is_empty(), "{wf} -> {}", md.text);
-            assert!(!md.text.contains("%%"), "{wf} -> {}", md.text);
+            assert!(
+                !md.text.contains("%%wf") && !md.text.contains("%% wf"),
+                "{wf} -> {}",
+                md.text
+            );
             assert!(matches!(md.tier, Tier::Exact | Tier::Passthrough), "{wf}");
             assert_eq!(md_to_wf(&md.text, kind, &cfg()), wf);
         }

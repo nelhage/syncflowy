@@ -1667,13 +1667,24 @@ impl<'a, 'c> Engine<'a, 'c> {
         let li = self.items[i].item;
         match &self.items[i].resurrects {
             Some(old) => self.resurrected_values(i, old),
-            None => CreateValues {
-                name: self.md_to_wf(&li.name_md, field_kind(li)),
-                note: (!li.note_md.is_empty())
-                    .then(|| self.md_to_wf(&Self::note_md(li), FieldKind::Note)),
-                layout: self.new_layout(li),
-                lost: Vec::new(),
-            },
+            None => {
+                let note_md = Self::note_md(li);
+                let drops = |md: &str, kind| self.codec.drops_text(md, kind, self.inline);
+                let lost = [
+                    (ConflictField::Name, drops(&li.name_md, field_kind(li))),
+                    (
+                        ConflictField::Note,
+                        !li.note_md.is_empty() && drops(&note_md, FieldKind::Note),
+                    ),
+                ];
+                CreateValues {
+                    name: self.md_to_wf(&li.name_md, field_kind(li)),
+                    note: (!li.note_md.is_empty())
+                        .then(|| self.md_to_wf(&note_md, FieldKind::Note)),
+                    layout: self.new_layout(li),
+                    lost: lost.into_iter().filter(|l| l.1).map(|l| l.0).collect(),
+                }
+            }
         }
     }
 

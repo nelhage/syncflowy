@@ -137,7 +137,7 @@ pub(crate) fn finish_line(line: &str) -> String {
 
 /// True if a line satisfies the block-safety part of the escaping contract (EC 4): no
 /// structural start, no edge whitespace, no trailing block id, no id tag or conflict tag
-/// and no `%%`, no line break.
+/// and no `%%` that starts one, no line break.
 pub fn line_is_block_safe(line: &str) -> bool {
     !line.contains(['\n', '\r'])
         && line_start_escape_at(line).is_none()
@@ -226,8 +226,11 @@ mod tests {
         assert!(line_is_block_safe("plain **text**"));
         assert!(!line_is_block_safe("x ^wf-8e1f00aa2b3c"));
         assert!(line_is_block_safe("x \\^wf-8e1f00aa2b3c"));
-        assert!(!line_is_block_safe("a %% b"));
-        assert!(line_is_block_safe("a %\\% b"));
+        // An Obsidian comment delimiter is safe; one that starts a tag is not.
+        assert!(line_is_block_safe("a %% b"));
+        assert!(!line_is_block_safe("a %%wf: b"));
+        assert!(!line_is_block_safe("a %% \twf-conflict:x"));
+        assert!(line_is_block_safe("a %\\%wf: b"));
         assert!(!line_is_block_safe(" x"));
         assert!(!line_is_block_safe("- x"));
         assert!(!line_is_block_safe("x [wid:: 8e1f00aa2b3c]"));

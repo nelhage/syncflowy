@@ -7,9 +7,11 @@
 //!
 //! Deliberate differences from CommonMark (documented in the module docs of
 //! `mdinline`): code spans do not cross line breaks; only the WF tag vocabulary is inline
-//! HTML (anything else is literal text) and it must be balanced; images (`![…](…)`) are
-//! literal text; link titles are not supported (`[a](b "t")` is literal); only `&amp;
-//! &lt; &gt; &quot;` and numeric references are decoded; bare URLs are atomic tokens.
+//! HTML (anything else is literal text) and it must be balanced; an image
+//! (`![…](…)`, see [`image_len`]) is literal text exactly as written, with nothing parsed
+//! inside it; a link title (`[a](b "t")`) is accepted and dropped (WF links have none;
+//! [`parse_reporting`] says so); only `&amp; &lt; &gt; &quot;` and numeric references
+//! are decoded; bare URLs are atomic tokens.
 
 use super::chars::{
     angle_autolink_len, bare_url_len, can_open_close, class, decode_entity, url_boundary,
@@ -56,6 +58,8 @@ struct Parser<'a> {
     kind: FieldKind,
     items: Vec<Item>,
     stack: Vec<Opener>,
+    /// A link was formed whose title was dropped.
+    dropped_title: bool,
 }
 
 /// The tags `md_to_wf` accepts as inline HTML (§4.2).
@@ -63,6 +67,11 @@ const HTML_TAGS: [&str; 8] = ["code", "span", "time", "b", "i", "s", "u", "a"];
 
 /// Parse preprocessed Markdown (lines already trimmed and joined with `\n`).
 pub(crate) fn parse(src: &str, cfg: &InlineConfig, kind: FieldKind) -> Vec<N> {
+    parse_reporting(src, cfg, kind).0
+}
+
+/// [`parse`], and whether a link title was dropped (WF-HTML links cannot hold one).
+pub(crate) fn parse_reporting(src: &str, cfg: &InlineConfig, kind: FieldKind) -> (Vec<N>, bool) {
     let mut p = Parser {
         s: src,
         pos: 0,
@@ -70,10 +79,44 @@ pub(crate) fn parse(src: &str, cfg: &InlineConfig, kind: FieldKind) -> Vec<N> {
         kind,
         items: Vec::new(),
         stack: Vec::new(),
+        dropped_title: false,
     };
     p.run();
     let nodes = process_emphasis(std::mem::take(&mut p.items));
-    finalize(nodes)
+    (finalize(nodes), p.dropped_title)
+}
+
+/// The length of an image `![alt](dest)` (optionally with a title) at the start of `s`:
+/// the alt text up to its matching `]` (brackets nest, backslash escapes count, no code
+/// span and no blank line inside), then a link destination. Images have no WF meaning,
+/// so `md_to_wf` keeps the whole construct as literal text and `wf_to_md` writes such
+/// text back unescaped, so that it keeps working in Obsidian (§4.2, EC 5).
+pub(crate) fn image_len(s: &str) -> Option<usize> {
+    let rest = s.strip_prefix("![")?;
+    let b = rest.as_bytes();
+    let mut depth = 1usize;
+    let mut i = 0;
+    let close = loop {
+        match *b.get(i)? {
+            b'\\' if b.get(i + 1).is_some_and(u8::is_ascii_punctuation) => i += 2,
+            b'`' => return None,
+            b'\n' if b.get(i + 1) == Some(&b'\n') => return None,
+            b'[' => {
+                depth += 1;
+                i += 1;
+            }
+            b']' => {
+                depth -= 1;
+                if depth == 0 {
+                    break i;
+                }
+                i += 1;
+            }
+            _ => i += 1,
+        }
+    };
+    let (_, dest_len, _) = link_dest(&rest[close + 1..], FieldKind::Note)?;
+    Some(2 + close + 1 + dest_len)
 }
 
 impl Parser<'_> {
@@ -121,7 +164,15 @@ impl Parser<'_> {
                 },
                 '*' | '_' | '~' => self.delim_run(c),
                 '[' => self.open_bracket(false, 1),
-                '!' if rest[1..].starts_with('[') => self.open_bracket(true, 2),
+                '!' if rest[1..].starts_with('[') => match image_len(rest) {
+                    // An image is literal text as written: nothing inside it is parsed.
+                    Some(len) => {
+                        let raw = rest[..len].to_owned();
+                        self.text(&raw);
+                        self.pos += len;
+                    }
+                    None => self.open_bracket(true, 2),
+                },
                 ']' => self.close_bracket(),
                 CALENDAR if self.cfg.dates => match dates::parse_compact(rest) {
                     Some((d, len)) => {
@@ -300,10 +351,12 @@ impl Parser<'_> {
         } else {
             link_dest(&self.s[self.pos + 1..], self.kind)
         };
-        let Some((href, dest_len)) = dest.filter(|(h, _)| El::A(h.clone()).is_writable()) else {
+        let Some((href, dest_len, title)) = dest.filter(|(h, ..)| El::A(h.clone()).is_writable())
+        else {
             self.stack.remove(k);
             return literal(self);
         };
+        self.dropped_title |= title;
         let op = self.stack.swap_remove(k);
         self.stack.truncate(k);
         let content: Vec<Item> = self.items.drain(op.item + 1..).collect();
@@ -394,9 +447,10 @@ fn open_tag(s: &str) -> Option<(El, usize)> {
     el.is_writable().then_some((el, len))
 }
 
-/// Parse a link destination `(dest)` at the start of `s` (no title). Returns the decoded
-/// href and the bytes consumed.
-fn link_dest(s: &str, kind: FieldKind) -> Option<(String, usize)> {
+/// Parse a link destination `(dest)` or `(dest "title")` at the start of `s` (the title
+/// in `"…"`, `'…'` or `(…)`, after whitespace). Returns the decoded href, the bytes
+/// consumed and whether there was a title (which WF-HTML cannot hold: it is dropped).
+fn link_dest(s: &str, kind: FieldKind) -> Option<(String, usize, bool)> {
     let b = s.as_bytes();
     if b.first() != Some(&b'(') {
         return None;
@@ -457,8 +511,27 @@ fn link_dest(s: &str, kind: FieldKind) -> Option<(String, usize)> {
             return None;
         }
     }
-    let i = skip_sp(i);
-    (b.get(i) == Some(&b')')).then_some((href, i + 1))
+    let j = skip_sp(i);
+    let mut title = false;
+    let j = match b.get(j) {
+        Some(&open @ (b'"' | b'\'' | b'(')) if j > i => {
+            let close = if open == b'(' { b')' } else { open };
+            let mut k = j + 1;
+            loop {
+                match *b.get(k)? {
+                    b'\\' if b.get(k + 1).is_some_and(u8::is_ascii_punctuation) => k += 2,
+                    c if c == close => break,
+                    b'(' if open == b'(' => return None,
+                    b'\n' if b.get(k + 1) == Some(&b'\n') => return None,
+                    _ => k += 1,
+                }
+            }
+            title = true;
+            skip_sp(k + 1)
+        }
+        _ => j,
+    };
+    (b.get(j) == Some(&b')')).then_some((href, j + 1, title))
 }
 
 /// CommonMark's `process_emphasis` over one range of items, then conversion to nodes

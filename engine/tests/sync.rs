@@ -354,6 +354,41 @@ fn local_rename_and_note_edit_are_pushed() {
 }
 
 #[test]
+fn link_titles_are_dropped_and_reported() {
+    let f = fixture();
+    let draft = line_of(&read(&f.file), &f.draft).to_owned();
+    edit(
+        &f.file,
+        "Buy milk",
+        "Buy [milk](https://example.com \"oat\")",
+    );
+    edit(
+        &f.file,
+        &format!("{draft}\n"),
+        &format!("{draft}\n\t- See [docs](https://e.com 'title')\n"),
+    );
+    let r = f.env.sync(&f.file);
+    synced(&r);
+    let tree = f.env.export();
+    assert_eq!(
+        tree.get(&f.milk).unwrap().name,
+        r#"Buy <a href="https://example.com">milk</a>"#
+    );
+    by_name(&tree, r#"See <a href="https://e.com">docs</a>"#);
+    let lossy: Vec<&ReportEvent> = r
+        .events
+        .iter()
+        .filter(|e| matches!(e, ReportEvent::LossyWrite { .. }))
+        .collect();
+    assert_eq!(lossy.len(), 2, "{r:#?}");
+    assert!(lossy.contains(&&ReportEvent::LossyWrite {
+        node: f.milk.clone(),
+        field: syncflowy::mdinline::ConflictField::Name,
+    }));
+    assert_settled(&f);
+}
+
+#[test]
 fn local_normalisation_is_deferred() {
     let f = fixture();
     edit(&f.file, "Draft the spec", "Draft the __whole__ spec");

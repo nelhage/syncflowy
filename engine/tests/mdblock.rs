@@ -746,6 +746,44 @@ fn escaped_and_malformed_tags_are_text() {
 }
 
 #[test]
+fn obsidian_comments_and_comment_tags_stay_apart() {
+    // A comment is text, never a tag; a comment tag next to a comment is still a tag.
+    let d = parse(
+        "---\nworkflowy: 000000000001\nsyncflowy: {headings: 1}\n---\n\
+         # draft %%a comment%% %%wf:000000000002%%\n\
+         - b %%hidden%% ^wf-000000000003\n\
+         - c %%wf:not hex%%\n",
+    )
+    .unwrap();
+    let h = &d.items[0];
+    assert_eq!(h.tag.as_ref().unwrap().short, short("000000000002"));
+    assert_eq!(h.name_md, "draft %%a comment%%");
+    let b = &h.children[0];
+    assert_eq!(b.tag.as_ref().unwrap().short, short("000000000003"));
+    assert_eq!(b.name_md, "b %%hidden%%");
+    assert!(h.children[1].tag.is_none());
+    // Rendered: comments are written as typed and the file reads back the same (the
+    // fixed point is checked by `render_tree`); a lone `%%` is escaped so that it cannot
+    // pair with the comment-form tag of a heading.
+    let t = tree(&[
+        (2, 1, "draft %%a comment%%", None, "bullets", false),
+        (3, 2, "b %%hidden%%", None, "bullets", false),
+        (4, 1, "50%% off", None, "bullets", false),
+        (5, 1, "%%wf:000000000009%%", None, "bullets", false),
+    ]);
+    let cfg = DocConfig {
+        headings: 1,
+        ..DocConfig::default()
+    };
+    let md = render_tree(&t, &cfg, &ViewExtras::default());
+    assert_eq!(
+        body(&md),
+        "# draft %%a comment%% %%wf:000000000002%%\n\n- [ ] b %%hidden%% ^wf-000000000003\n\n\
+         # 50%\\% off %%wf:000000000004%%\n\n# %\\%wf:000000000009%% %%wf:000000000005%%\n"
+    );
+}
+
+#[test]
 fn tag_flags() {
     let d = doc("- x ^wf-000000000002-ro\n- y ^wf-000000000003-zz\n- z ^wf-000000000004-RO-zz\n");
     let ro = |i: usize| d.items[i].tag.as_ref().unwrap().flags.clone();

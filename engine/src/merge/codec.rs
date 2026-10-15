@@ -13,7 +13,8 @@ use crate::wfhtml;
 pub trait TextCodec {
     /// Markdown -> canonical WF-HTML for one field (`mdinline::md_to_wf`).
     fn md_to_wf(&self, md: &str, kind: FieldKind, cfg: &InlineConfig) -> String;
-    /// The §5.2 write of an edited field (`mdinline::write_value`).
+    /// The §5.2 write of an edited field (`mdinline::write_value`); `lost` also when the
+    /// new Markdown holds something WF cannot ([`TextCodec::drops_text`]).
     fn write_value(
         &self,
         base_wf: &str,
@@ -29,6 +30,11 @@ pub trait TextCodec {
     /// The visible text of a WF value (`wfhtml::to_plain_text`), for similarity (§4.4)
     /// and report labels.
     fn plain_text(&self, wf: &str) -> String;
+    /// True if [`TextCodec::md_to_wf`] drops part of `md` that WF cannot hold (a link
+    /// title, `mdinline::drops_link_title`): the write is reported as lossy.
+    fn drops_text(&self, _md: &str, _kind: FieldKind, _cfg: &InlineConfig) -> bool {
+        false
+    }
 }
 
 /// The production codec: [`crate::mdinline`] and [`crate::wfhtml`].
@@ -47,7 +53,9 @@ impl TextCodec for MdInlineCodec {
         kind: FieldKind,
         cfg: &InlineConfig,
     ) -> WriteValue {
-        mdinline::write_value(base_wf, new_md, kind, cfg)
+        let mut w = mdinline::write_value(base_wf, new_md, kind, cfg);
+        w.lost |= self.drops_text(new_md, kind, cfg);
+        w
     }
 
     fn classify(&self, wf: &str, kind: FieldKind, cfg: &InlineConfig) -> Tier {
@@ -60,6 +68,10 @@ impl TextCodec for MdInlineCodec {
 
     fn plain_text(&self, wf: &str) -> String {
         wfhtml::to_plain_text(wf)
+    }
+
+    fn drops_text(&self, md: &str, kind: FieldKind, cfg: &InlineConfig) -> bool {
+        mdinline::drops_link_title(md, kind, cfg)
     }
 }
 

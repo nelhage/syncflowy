@@ -149,13 +149,13 @@ Each WF-HTML construct is mapped to the most faithful Markdown. Anything without
 | anything else that is well-formed | passthrough | |
 | `#tag`, `@mention` | the same text | WF tags are plain text (UI:C2), and Obsidian tags have the same syntax, which is a happy accident. |
 
-Things in Markdown with no WF meaning (`[[wikilinks]]`, `==highlight==`, `$math$`, `![[embeds]]`, footnotes)
-are sent to Workflowy as **literal text**. WF users then see `[[Page]]`. That is acceptable but visible.
+Things in Markdown with no WF meaning (`[[wikilinks]]`, `==highlight==`, `$math$`, `![[embeds]]`, `![images](…)`,
+`%%comments%%`, footnotes) are sent to Workflowy as **literal text**. WF users then see `[[Page]]`. That is acceptable but visible.
 They are rendered back unescaped, so they keep working in Obsidian after a sync.
 
 **Escaping is the trickiest part of the dialect.** WF text such as `1. foo`, `> x`, `# x`, `[ ] x`,
 `- x` or `---` at the start of a name or note line, `*` and `_` mid-text, a trailing `^abc` or `[wid:: …]`, and
-`%%` would all be misread by Obsidian or by our parser. Render escapes minimally (to limit visual noise), and
+a `%%wf:` would all be misread by Obsidian or by our parser. Render escapes minimally (to limit visual noise), and
 parse accepts both escaped and unescaped forms wherever that is unambiguous. Line-leading escapes matter most
 in notes, where a WF note line starting with `- ` would otherwise become a child node.
 
@@ -886,9 +886,13 @@ module docs have the details.
 - **Code blocks** with a ``` line are written with a longer fence and stay editable; the design left this open.
   A fence's info string (a language typed in Obsidian) is dropped with a warning, since Workflowy code blocks
   have none; the API's create pipeline would have made it the first line of the code.
-- **Obsidian syntax** (`[[x]]`, `![[x]]`, `==x==`, `$x$`) is written back unescaped (§4.2), except a `$` before a
-  digit when the value holds another `$`, to keep prices from reading as math.
-- **Dates, locale variants and link titles** have no compact or structured form; they stay literal.
+- **Obsidian syntax** (`[[x]]`, `![[x]]`, `![alt](img)`, `==x==`, `$x$`, `%%comments%%`) is written back
+  unescaped (§4.2), except a `$` before a digit when the value holds another `$`, to keep prices from reading as
+  math, and a `%%` that would read as a tag (`%%wf:`, `%%wf-conflict:`) or has no partner in the value (it would
+  pair with a `%%wf:…%%` tag). An image is literal text exactly as typed (no link inside). A `%%x%%` typed by a
+  Workflowy user is therefore hidden in Obsidian's reading view.
+- **Dates and locale variants** have no compact or structured form; they stay literal. A **link title**
+  (`[a](u "t")`) has no WF form either: the link is pushed without it and the write is reported as lossy.
 - **Checkbox policy, id tag form, depth, headings** are frontmatter options (`checkboxes`, `ids`, `depth`,
   `headings`); the design only recommended making the tag form configurable. `checkboxes: none` shows no boxes,
   `todo` nodes included (their layout is kept). A node whose children are hidden by `depth` counts as interior

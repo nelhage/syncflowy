@@ -31,11 +31,17 @@
 //! `<a href="u">u</a>` with the UI quirk: raw `&` in `href`, `&amp;` in the text), and
 //! `📅 YYYY-MM-DD[ HH:MM]` (only when [`InlineConfig::dates`]). Markdown with no WF meaning
 //! (`[[wikilinks]]`, `![[embeds]]`, `![images](…)`, `==hl==`, `$math$`, `%%comments%%`,
-//! footnotes) is literal text. [`wf_to_md`] writes wikilinks, embeds, highlights, math
-//! and footnote references back unescaped, so what the user typed keeps working in
-//! Obsidian; it escapes only what would change meaning: `%%` (EC 4), an image `![…](…)`,
-//! the tag forms, and a `$` before a digit when the value has another `$` (a price such
-//! as `$10-$20` typed in WF must not display as math).
+//! footnotes) is literal text; an image is kept exactly as written (no link or escape
+//! inside it is read). [`wf_to_md`] writes wikilinks, embeds, images, highlights, math,
+//! comments and footnote references back unescaped, so what the user typed keeps working
+//! in Obsidian; it escapes only what would change meaning: a `%%` that would start a tag
+//! (`%%wf:`, `%%wf-conflict:`, EC 4), every `%%` of a value whose `%%` do not pair up (a
+//! lone one would pair with a `%%wf:…%%` tag on the line), a `![` that is not a whole
+//! image, the tag forms, and a `$` before a digit when the value has another `$` (a price
+//! such as `$10-$20` typed in WF must not display as math). A link title (`[a](u "t")`) has no WF form: the
+//! link is kept and the title dropped ([`drops_link_title`]; `merge` reports the write as
+//! lossy). Trade-off: `%%x%%` typed by a Workflowy user is hidden in Obsidian's reading
+//! view (design §11).
 //!
 //! Character references in Markdown: `&amp; &lt; &gt; &quot; &#NN; &#xHH;` are decoded by
 //! [`md_to_wf`]; any other `&` is a literal `&` (a numeric reference to a character that
@@ -49,7 +55,7 @@
 //! rules and the rule of 3, `~~` as in GFM, backslash escapes for ASCII punctuation, link
 //! brackets with the "no links in links" rule). Deliberate simplifications, which the
 //! renderer never relies on: code spans do not cross line breaks; inline HTML is only the
-//! WF vocabulary above and must be balanced; link titles are not supported; images are
+//! WF vocabulary above and must be balanced; link titles are dropped; images are
 //! literal; bare URLs (after start of line, whitespace, `*`, `_`, `~`, `(`, `>`) are atomic
 //! tokens that end at whitespace or one of ``< > \ [ ] ` "``, with GFM's trailing
 //! punctuation trimming. Leading and trailing whitespace of every line is removed before
@@ -92,13 +98,15 @@
 //!      conflict tag on the same line.)
 //!    * leading and trailing whitespace of a line is preserved by encoding it as
 //!      `&#32;` / `&#9;` / `&#160;` … (Markdown and our parser both strip it otherwise);
-//!    * no line contains a substring that [`find_tags`] recognises, nor `%%` (the
-//!      Obsidian comment delimiter): a `^` in `^wf-` is written `\^`, `%%` as `%\%`,
-//!      `[wid::` as `\[wid::`, `(wid::` as `\(wid::`, `<!--` as `\<!--`; a trailing
-//!      Obsidian block id (`… ^abc` at the end of a line) is written `\^abc`.
+//!    * no line contains a substring that [`find_tags`] recognises, nor a `%%` followed
+//!      by `wf:` or `wf-conflict:` (spaces or tabs between allowed): a `^` in `^wf-` is
+//!      written `\^`, such a `%%` as `%\%`, `[wid::` as `\[wid::`, `(wid::` as
+//!      `\(wid::`, `<!--` as `\<!--`; a trailing Obsidian block id (`… ^abc` at the end
+//!      of a line) is written `\^abc`. Any other `%%` (an Obsidian comment) is written
+//!      as is: it can neither form a tag nor be read as part of one.
 //! 5. **Minimal escaping.** Escape only where needed (`a * b`, `x_y_z`, `3 > 2`, `AT&T`,
-//!    `#tag`, `1.5`, and the Obsidian forms `[[Page|alias]]`, `![[img.png]]`, `==hl==`,
-//!    `$x$`, `text[^1]` stay unescaped); WF text `&lt;b&gt;` renders as `\<b>` so it stays
+//!    `#tag`, `1.5`, and the Obsidian forms `[[Page|alias]]`, `![[img.png]]`,
+//!    `![alt](img.png)`, `==hl==`, `$x$`, `%%comment%%`, `text[^1]` stay unescaped); WF text `&lt;b&gt;` renders as `\<b>` so it stays
 //!    distinct from real markup (UI:E2).
 //!
 //! For [`FieldKind::Code`] (the name of a `code-block` node, rendered inside a fence by
@@ -318,19 +326,10 @@ fn code_to_md(wf: &str, cfg: &InlineConfig) -> MdText {
 /// leading and trailing whitespace is removed (encode it as `&#32;` to keep it); in a
 /// `Name`, line breaks become spaces.
 pub fn md_to_wf(md: &str, kind: FieldKind, cfg: &InlineConfig) -> String {
-    let s = chars::sanitize(md);
-    let src = match kind {
-        FieldKind::Code => return wfhtml::escape_text(&s),
-        // UNVERIFIED: a line break typed into a name becomes a space (the UI's rendering of
-        // a name with `\n` is unknown, §13 Q5, so names we write never contain one).
-        FieldKind::Name => s.replace('\n', " ").trim_matches(chars::is_ws).to_owned(),
-        FieldKind::Note => s
-            .split('\n')
-            .map(|l| l.trim_matches(chars::is_ws))
-            .collect::<Vec<_>>()
-            .join("\n"),
-    };
-    let nodes = parse::parse(&src, cfg, kind);
+    if kind == FieldKind::Code {
+        return wfhtml::escape_text(&chars::sanitize(md));
+    }
+    let nodes = parse::parse(&inline_source(md, kind), cfg, kind);
     let out = node::serialize(&nodes);
     if wfhtml::is_well_formed(&out) && wfhtml::canonicalize(&out) == out {
         out
@@ -339,6 +338,27 @@ pub fn md_to_wf(md: &str, kind: FieldKind, cfg: &InlineConfig) -> String {
         // is not expected to happen; plain text is always canonical.
         wfhtml::escape_text(&node::plain_text(&nodes))
     }
+}
+
+/// What [`md_to_wf`] parses for a `Name` or `Note`: sanitized, lines trimmed.
+fn inline_source(md: &str, kind: FieldKind) -> String {
+    let s = chars::sanitize(md);
+    match kind {
+        // UNVERIFIED: a line break typed into a name becomes a space (the UI's rendering of
+        // a name with `\n` is unknown, §13 Q5, so names we write never contain one).
+        FieldKind::Name => s.replace('\n', " ").trim_matches(chars::is_ws).to_owned(),
+        _ => s
+            .split('\n')
+            .map(|l| l.trim_matches(chars::is_ws))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    }
+}
+
+/// True if [`md_to_wf`] drops part of `md` that WF-HTML cannot hold: the title of a link
+/// (`[a](u "t")`, §4.2). The link itself is kept; `merge` reports such a write as lossy.
+pub fn drops_link_title(md: &str, kind: FieldKind, cfg: &InlineConfig) -> bool {
+    kind != FieldKind::Code && parse::parse_reporting(&inline_source(md, kind), cfg, kind).1
 }
 
 /// The tier of `wf` (= `wf_to_md(wf, kind, cfg).tier`).
