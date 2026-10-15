@@ -61,11 +61,10 @@
 //! 6. Append [`JournalEntry::Done`] or [`JournalEntry::Skipped`], and update the latest
 //!    known tree.
 //!
-//! **Where the nonce goes.** §7.3 suggests the nonce in the note (`note: "⟳syncflowy:…"`,
-//! replaced in step 2). The plan's contract (`plan::CreateName::Deferred`) puts it in
-//! the *name* instead, and this module follows it: the API cannot write a `null` note
-//! back (DM§6.4), so a nonce in the note would turn every note-less created node's
-//! `null` into `""`; the name is overwritten in step 2 anyway. The nonce is ASCII after
+//! **Where the nonce goes.** In the *name* (§7.3, `plan::CreateName::Deferred`), not in
+//! the note: the API cannot write a `null` note back (DM§6.4), so a nonce in the note
+//! would turn every note-less created node's `null` into `""`; the name is overwritten
+//! in step 2 anyway. The nonce is ASCII after
 //! the `⟳` and is a fixed point of the create pipeline (checked against the mock in
 //! `tests/apply.rs`).
 //!
