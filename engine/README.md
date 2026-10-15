@@ -86,7 +86,10 @@ or `unchanged`, `paused`, `refused: ...` (a brake) or `skipped: ...`.
   directory's other checkpoints) and holds the delete back with
   `warning: "Item E" (67edfe175330) is in other.md; sync both files in one command to move it`. The line stays
   out of the file and the delete stays pending until a run syncs both files (a move) or no longer finds the tag
-  (the delete is sent). Syncing only the file you pasted into makes the line a new node, since its tag belongs to
+  (the delete is sent). If the other file is paused, the run leaves it out, so the warning says
+  `..., which is paused; unpause it and sync both files in one command to move it` and the delete stays held
+  until then. A held delete that is finally sent counts and names the cut line's children as hidden items,
+  including those that were visible when it was cut. Syncing only the file you pasted into makes the line a new node, since its tag belongs to
   a file outside the run, and the original is then deleted. A tagged line *copied* into another file while it
   stays in its own file becomes a new node there, as a copied line does within one file.
 

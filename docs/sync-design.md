@@ -380,7 +380,10 @@ unknown id. A tag that is still on its line in its own file was copied, not move
 node, as for a duplicated tag within one file (§4.4). When files are synced one at a time (the CLI), a run
 that would delete a node whose tag (or a descendant's) is in another synced file outside the run (found
 through the files the other checkpoints record) holds the delete back as a pending delete (§9.1 guard 2) and
-asks for both files to be synced together; a stale or missing recorded file only costs the check. Sync roots
+asks for both files to be synced together (and, if that file is paused, which leaves it out of any run, for it
+to be unpaused first); a stale or missing recorded file only costs the check. When such a delete is finally
+sent, its line is no longer in the base render, so all its descendants count and are named as hidden, also
+those that were visible when it was cut (an over-report in the safe direction, as for deferred deletes). Sync roots
 must not nest. Alternatively, a nested root could render in the outer file as a link or
 an `![[embed]]` and be treated there as a hidden subtree.
 

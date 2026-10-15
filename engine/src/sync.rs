@@ -1104,13 +1104,15 @@ fn source_bases(
 /// §6.4 when files are synced one at a time (the CLI): the nodes tagged in the files
 /// recorded in the state directory's other checkpoints (`Checkpoint::file`), roots of
 /// this run excluded (the run's own files are `CrossFile`), with the file that tags
-/// each. A recorded file that is missing, does not parse or no longer names its
-/// checkpoint's root is skipped: a stale path only costs the check.
+/// each and whether that file is paused (`sync_all` leaves a paused file out of the run,
+/// so syncing both files cannot move the node until it is unpaused). A recorded file
+/// that is missing, does not parse or no longer names its checkpoint's root is skipped:
+/// a stale path only costs the check.
 fn tagged_in_other_files(
     store: &StateStore,
     roots: &BTreeSet<NodeId>,
     ids: &IdMap,
-) -> BTreeMap<NodeId, PathBuf> {
+) -> BTreeMap<NodeId, (PathBuf, bool)> {
     let mut out = BTreeMap::new();
     let others = match store.roots() {
         Ok(r) => r,
@@ -1133,13 +1135,15 @@ fn tagged_in_other_files(
         if doc.frontmatter.root.resolve(ids).as_ref() != Some(root) {
             continue;
         }
+        let paused = doc.frontmatter.paused;
         for (_, it) in doc.walk() {
             if it.is_marker() {
                 continue;
             }
             for t in it.tag.iter().chain(&it.extra_tags) {
                 if let Some(n) = ids.get(&t.short) {
-                    out.entry(n.clone()).or_insert_with(|| file.clone());
+                    out.entry(n.clone())
+                        .or_insert_with(|| (file.clone(), paused));
                 }
             }
         }
@@ -1175,7 +1179,7 @@ fn held_deletes(
         } else {
             remote.preorder(&d.node)
         };
-        let Some((node, file)) = subtree
+        let Some((node, (file, paused))) = subtree
             .iter()
             .find_map(|n| elsewhere.get(n).map(|f| (n, f)))
         else {
@@ -1188,12 +1192,17 @@ fn held_deletes(
             }
             _ => file.display().to_string(),
         };
+        let label = merge::Labels::new(remote).label(node);
         out.insert(
             d.node.clone(),
-            format!(
-                "{} is in {name}; sync both files in one command to move it",
-                merge::Labels::new(remote).label(node)
-            ),
+            if *paused {
+                format!(
+                    "{label} is in {name}, which is paused; \
+                     unpause it and sync both files in one command to move it"
+                )
+            } else {
+                format!("{label} is in {name}; sync both files in one command to move it")
+            },
         );
     }
     out
