@@ -36,7 +36,6 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the Python suit
 
 | path | what it is |
 |---|---|
-| [docs/engine-issues.md](docs/engine-issues.md) | **Known issues in the engine**: bugs, mismatches with the design, and recommended improvements found while writing the user guide, each with its location in the source and a proposed fix. |
 | [docs/sync-design.md](docs/sync-design.md) | **Design of the sync engine**: the Markdown dialect, three-way merge, applying changes through the API, ordering and safety, deployment as one daemon behind Obsidian Sync, mirrors (synced as their origins; the engine uses the beta API only), and the choice of Rust. |
 | [docs/workflowy/README.md](docs/workflowy/README.md) | Index and one-page summary of the API investigation. Start here for anything about Workflowy's behaviour. |
 | [docs/workflowy/data-model.md](docs/workflowy/data-model.md) | **The authoritative API spec**: storage model, every endpoint, validation, ids, priorities, `modifiedAt`, text processing, mirrors (production, and the beta API's mirror-aware semantics in §10.5). |
