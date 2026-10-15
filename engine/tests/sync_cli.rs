@@ -91,6 +91,12 @@ fn render_sync_status() {
     let o = cli(&env, &["sync", file.to_str().unwrap()]);
     assert_eq!(o.status.code(), Some(1), "{}", stdout(&o));
     assert!(stdout(&o).contains("refused"), "{}", stdout(&o));
+    // Said once, as the outcome (not again as a warning).
+    let brake_lines = stdout(&o)
+        .lines()
+        .filter(|l| l.contains("refusing to delete") || l.contains("the file is empty"))
+        .count();
+    assert_eq!(brake_lines, 1, "{}", stdout(&o));
     assert_eq!(env.export().children(&root).len(), 7);
     let o = cli(&env, &["sync", "--force", file.to_str().unwrap()]);
     assert!(o.status.success(), "{}{}", stdout(&o), stderr(&o));
@@ -102,6 +108,39 @@ fn render_sync_status() {
     assert_eq!(o.status.code(), Some(1));
     assert!(stdout(&o).contains("missing"), "{}", stdout(&o));
     assert_eq!(env.export().children(&root).len(), 1);
+}
+
+#[test]
+fn reports_have_no_debug_output_and_name_a_conflict_once() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Project");
+    let a = env.ui_create(Some(&root), "Alpha");
+    let file = env.path("project.md");
+    env.render(&root, &file);
+    env.ui(
+        "edit",
+        serde_json::json!({"id": a.as_str(), "text": "Alpha (remote)"}),
+    );
+    edit(&file, "Alpha", "Alpha (local)");
+    let al = line_of(&read(&file), &a).to_owned();
+    edit(&file, &format!("{al}\n"), &format!("{al}\n- Carrots\n"));
+
+    let o = cli(&env, &["sync", "--dry-run", file.to_str().unwrap()]);
+    assert!(o.status.success(), "{}{}", stdout(&o), stderr(&o));
+    let out = stdout(&o);
+    assert!(!out.contains("NodeId("), "{out}");
+    assert!(out.contains("op 0: create "), "{out}");
+
+    let o = cli(&env, &["sync", file.to_str().unwrap()]);
+    assert!(o.status.success(), "{}{}", stdout(&o), stderr(&o));
+    let out = stdout(&o);
+    assert!(!out.contains("NodeId("), "{out}");
+    let conflict_lines = out.lines().filter(|l| l.contains("conflict on")).count();
+    assert_eq!(conflict_lines, 1, "{out}");
+    assert!(
+        out.contains("conflict on the name of \"Alpha (remote)\""),
+        "{out}"
+    );
 }
 
 #[test]
@@ -229,4 +268,39 @@ fn a_second_file_for_a_root_is_refused_across_runs() {
     let o = cli(&env, &["sync", third.to_str().unwrap()]);
     assert!(o.status.success(), "{}{}", stdout(&o), stderr(&o));
     assert!(stdout(&o).contains("1 updated"), "{}", stdout(&o));
+}
+
+#[test]
+fn empty_api_key_is_missing() {
+    let env = Env::new();
+    for key in ["", "  "] {
+        let o = Command::new(env!("CARGO_BIN_EXE_syncflowy"))
+            .args(["--api-url", env.mock.base_url(), "sync", "x.md"])
+            .env("WORKFLOWY_API_KEY", key)
+            .output()
+            .unwrap();
+        assert_eq!(o.status.code(), Some(2));
+        assert_eq!(
+            stderr(&o),
+            "error: no API key: pass --api-key or set WORKFLOWY_API_KEY\n"
+        );
+    }
+}
+
+#[test]
+fn wrong_api_key_names_the_cause_once() {
+    let env = Env::new();
+    let root = env.ui_create(None, "Project");
+    let file = env.path("project.md");
+    env.render(&root, &file);
+    let o = Command::new(env!("CARGO_BIN_EXE_syncflowy"))
+        .args(["--api-url", env.mock.base_url(), "--api-key", "wrong"])
+        .arg("--state-dir")
+        .arg(&env.cfg.state_dir)
+        .args(["sync", file.to_str().unwrap()])
+        .env_remove("WORKFLOWY_API_KEY")
+        .output()
+        .unwrap();
+    assert_eq!(o.status.code(), Some(2));
+    assert_eq!(stderr(&o), "error: API: invalid credentials\n");
 }

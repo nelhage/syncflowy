@@ -350,12 +350,31 @@ fn items_typed_under_a_stub_are_lifted_and_reported() {
         Some(&f.later),
         "lifted to the stub's parent"
     );
+    // Reported as a lift (the stub itself was not edited, so nothing was refused).
     assert!(
-        r.events
-            .iter()
-            .any(|e| matches!(e, ReportEvent::ReadOnlyEditRefused { node, .. } if node == &f.stub)),
+        r.events.iter().any(|e| matches!(
+            e,
+            ReportEvent::Lifted { name, placeholder, parent, .. }
+                if name == "under the stub" && placeholder == &f.stub && parent == &f.later
+        )),
         "{:?}",
         r.events
+    );
+    assert!(
+        !r.events
+            .iter()
+            .any(|e| matches!(e, ReportEvent::ReadOnlyEditRefused { .. })),
+        "{:?}",
+        r.events
+    );
+    let lifted = format!(
+        "\"under the stub\" was typed under a read-only placeholder; created under \"Later\" ({}) instead",
+        short(&f.later)
+    );
+    assert!(
+        r.messages.iter().any(|m| m.ends_with(&lifted)),
+        "{:#?}",
+        r.messages
     );
     assert_settled(&f);
 }

@@ -322,10 +322,15 @@ pub struct SyncReport {
     pub warnings: Vec<String>,
     /// What crash recovery did at the start of this cycle.
     pub recovered: Option<Recovery>,
-    /// Human-readable log: the merge events described with node names, and one line
-    /// per applied op (for the CLI and the status note).
+    /// Human-readable log: the merge events described with node names, one line per
+    /// applied op, and the hidden items each delete takes (for the CLI and the status
+    /// note).
     #[serde(default)]
     pub messages: Vec<String>,
+    /// Temp id -> real id of the nodes this cycle's last apply created, to name the new
+    /// nodes that `events` mention ([`merge::Labels`]).
+    #[serde(default)]
+    pub created: BTreeMap<NodeId, NodeId>,
 }
 
 impl SyncReport {
@@ -340,6 +345,7 @@ impl SyncReport {
             warnings: Vec::new(),
             recovered: None,
             messages: Vec::new(),
+            created: BTreeMap::new(),
         }
     }
 }
@@ -633,6 +639,8 @@ struct Planned {
     deferred: BTreeSet<NodeId>,
     /// Pending deletes to save with the checkpoint (sent ones removed after apply).
     pending: PendingDeletes,
+    /// Temp id -> real id of the nodes this plan's apply created.
+    created: BTreeMap<NodeId, NodeId>,
 }
 
 enum Prepared {
@@ -822,10 +830,7 @@ fn prepare(
     let real_merge = mirrors::to_real(&merged, remote, real);
     let plan = match plan::plan(&real_merge, real, &pcfg) {
         Ok(p) => p,
-        Err(PlanError::Brake(b)) => {
-            a.report.warnings.push(format!("brake: {b}"));
-            return Ok(Prepared::Done(SyncOutcome::Braked(b)));
-        }
+        Err(PlanError::Brake(b)) => return Ok(Prepared::Done(SyncOutcome::Braked(b))),
         Err(e) => return Err(e.into()),
     };
 
@@ -834,7 +839,15 @@ fn prepare(
         a.report.conflicts = merged.conflicts.clone();
         a.report
             .messages
-            .extend(describe_events(&merged.report, remote));
+            .extend(hidden_deleted(&plan, &real_merge, |_| true));
+        let labels = merge::Labels {
+            tree: remote,
+            created: None,
+            planned: Some(&merged.merged),
+        };
+        a.report
+            .messages
+            .extend(merged.report.iter().map(|e| e.describe_with(&labels)));
         return Ok(Prepared::Done(SyncOutcome::DryRun { plan }));
     }
     Ok(Prepared::Ready(Box::new(Planned {
@@ -850,6 +863,7 @@ fn prepare(
         ids,
         deferred,
         pending,
+        created: BTreeMap::new(),
     })))
 }
 
@@ -953,8 +967,22 @@ fn source_bases(
     merge::cross_bases(&wf, &base_doc, &priors, ids, wanted)
 }
 
-fn describe_events(events: &[ReportEvent], tree: &Tree) -> Vec<String> {
-    events.iter().map(|e| e.describe(tree)).collect()
+/// §4.5: the report names the hidden descendants of each plain delete of `plan` for
+/// which `sent(op index)` holds (a mirror removal leaves its content in place).
+fn hidden_deleted(plan: &Plan, merge: &MergeResult, sent: impl Fn(usize) -> bool) -> Vec<String> {
+    plan.ops
+        .iter()
+        .enumerate()
+        .filter_map(|(i, op)| match op {
+            Op::Delete {
+                node,
+                mirror: false,
+                ..
+            } if sent(i) => merge.deletes.iter().find(|d| &d.node == node),
+            _ => None,
+        })
+        .filter_map(merge::DeleteIntent::describe_hidden)
+        .collect()
 }
 
 /// Step 10: apply the plan with a journal. `Ok(None)` for an empty plan. `remote` is the
@@ -994,6 +1022,12 @@ fn apply_planned(
         }
     };
     a.report.messages.extend(outcome.log_lines(&p.plan));
+    a.report
+        .messages
+        .extend(hidden_deleted(&p.plan, &p.real, |i| {
+            outcome.results.get(i) == Some(&apply::OpOutcome::Done)
+        }));
+    p.created.clone_from(&outcome.created);
     add_summary(&mut a.pushed, &p.plan.summary);
     // Sent deletes are no longer pending (a skipped one comes back, or is cancelled, at
     // the next merge).
@@ -1135,9 +1169,15 @@ fn finish(
         .filter(|c| !shown.contains(c))
         .cloned()
         .collect();
+    let labels = merge::Labels {
+        tree: remote,
+        created: Some(&p.created),
+        planned: Some(&p.merge.merged),
+    };
     a.report
         .messages
-        .extend(describe_events(&p.merge.report, remote));
+        .extend(p.merge.report.iter().map(|e| e.describe_with(&labels)));
+    a.report.created.clone_from(&p.created);
     a.report.outcome = SyncOutcome::Synced {
         pushed: a.pushed,
         wrote_file: wrote,
@@ -1790,7 +1830,7 @@ pub fn sync_all(
                 a.report.discrepancies =
                     apply::verify(&p.real.merged, &after_real, &a.root, &outcome.created);
                 for d in &a.report.discrepancies {
-                    log::warn!("{}: verification: {d:?}", a.file.display());
+                    log::warn!("{}: verification: {d}", a.file.display());
                 }
             }
             // §15.1: this root's view of the new export, sticky to the pass's choice.

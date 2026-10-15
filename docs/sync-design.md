@@ -252,7 +252,8 @@ not an option.
 
 Deleting a visible parent deletes its hidden (completed) children too. That is correct Workflowy semantics,
 but the Markdown user cannot see what they are deleting. The delete brake (§8.3) should count hidden
-descendants, and the sync report should name them.
+descendants, and the sync report should name them (the engine names the first ten, in the report and in a dry
+run).
 
 ## 5. Fidelity: how lossy rendering stays lossless
 
@@ -276,7 +277,9 @@ express (leading or trailing whitespace, an unrecognised attribute and so on) **
 just the edited part**. Refinement: let `b` be the base WF value and `b' = md_to_wf(render(b))` its lossy
 round-trip. If `b' == b`, write `md_to_wf(new_md)`. Otherwise compute the edit from `b'` to
 `md_to_wf(new_md)` and apply it to `b` with a three-way text merge (character-level for names, line-level for notes).
-If that merge does not apply cleanly, fall back to the naive write and log what was lost.
+If that merge does not apply cleanly, fall back to the naive write and log what was lost. Nothing is logged
+when the user saw all of `b`: the item changed kind (a code block unfenced, say) and `b` round-trips in its
+old kind, or a read-only value (§5.3) was edited with `force`.
 
 ### 5.3 Representability tiers
 
@@ -342,7 +345,7 @@ Completion and hiding interact with all of these (§4.5):
 
 | local | remote | result |
 |---|---|---|
-| ticked | edited | push nothing but the completion, and keep the remote edit. The node disappears from the file. |
+| ticked | edited | push nothing but the completion, and keep the remote edit. The node disappears from the file; a local edit of the same field is reported with its text. |
 | edited (and/or children added) | completed it, or an ancestor | push the edits and creates anyway: the nodes exist and WF users can see them greyed under the completed item. Then they disappear from the file. **Report this**, because the Markdown user's fresh work vanishes from view. |
 | deleted | completed it | completion counts as an edit, so the delete loses: the node stays (completed, hidden). |
 | moved it | completed it | apply the move. The node is hidden at its new position. |

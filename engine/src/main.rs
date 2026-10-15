@@ -20,8 +20,11 @@ use std::time::Duration;
 
 use clap::{Parser, Subcommand};
 
+use syncflowy::apply;
 use syncflowy::daemon::{self, DaemonConfig};
 use syncflowy::mdblock::DocConfig;
+use syncflowy::mdinline::ConflictField;
+use syncflowy::merge::ReportEvent;
 use syncflowy::sync::{self, PauseReason, RootStatus, SyncConfig, SyncOutcome, SyncReport};
 use syncflowy::wfclient::{Client, ClientConfig, DEFAULT_BASE_URL};
 
@@ -36,8 +39,8 @@ struct Cli {
     #[arg(long, env = "WORKFLOWY_API_KEY", hide_env_values = true, global = true)]
     api_key: Option<String>,
 
-    /// API base URL: the beta API (default) or the mock server for tests. The production
-    /// host is refused: it cannot tell a mirror from an empty node (DM§10.5).
+    /// API base URL (default: the beta API). The production host is refused: it reports
+    /// mirrors as empty items.
     #[arg(long, env = "WORKFLOWY_API_URL", default_value = DEFAULT_BASE_URL, global = true)]
     api_url: String,
 
@@ -126,6 +129,7 @@ fn client(cli: &Cli) -> anyhow::Result<Client> {
     let key = cli
         .api_key
         .clone()
+        .filter(|k| !k.trim().is_empty())
         .ok_or_else(|| anyhow::anyhow!("no API key: pass --api-key or set WORKFLOWY_API_KEY"))?;
     let base_url = cli.api_url.trim_end_matches('/').to_owned();
     if is_production_host(&base_url) {
@@ -184,8 +188,8 @@ fn describe_outcome(outcome: &SyncOutcome) -> String {
         SyncOutcome::Rendered { generation } => format!("rendered (gen {generation})"),
         SyncOutcome::DryRun { plan } => {
             let mut s = format!("dry run: {} op(s)", plan.ops.len());
-            for op in &plan.ops {
-                s.push_str(&format!("\n  would {op:?}"));
+            for line in apply::plan_lines(plan) {
+                s.push_str(&format!("\n  {line}"));
             }
             s
         }
@@ -221,14 +225,28 @@ fn print_report(report: &SyncReport) -> bool {
     for m in &report.messages {
         println!("  {m}");
     }
+    // A conflict recorded this run is already among the messages, by name; the
+    // others are markers from earlier runs, still unresolved.
     for c in &report.conflicts {
-        println!(
-            "  conflict on the {:?} of {}: resolve the marker in the file",
-            c.field, c.node
-        );
+        let new = report.events.iter().any(|e| {
+            matches!(e, ReportEvent::Conflict { node, field } if *node == c.node && *field == c.field)
+        });
+        if !new {
+            let field = match c.field {
+                ConflictField::Name => "name",
+                ConflictField::Note => "note",
+            };
+            let node = c
+                .node
+                .short()
+                .map_or_else(|| c.node.to_string(), |s| s.to_string());
+            println!(
+                "  unresolved conflict on the {field} of {node}: resolve the marker in the file"
+            );
+        }
     }
     for d in &report.discrepancies {
-        println!("  verification: {d:?}");
+        println!("  verification: {d}");
     }
     !matches!(
         report.outcome,
@@ -356,7 +374,9 @@ fn main() -> ExitCode {
         Ok(true) => ExitCode::SUCCESS,
         Ok(false) => ExitCode::from(1),
         Err(e) => {
-            eprintln!("error: {e:#}");
+            // Every message already names its cause (`Error`'s variants print their
+            // source), so the chain is not appended again.
+            eprintln!("error: {e}");
             ExitCode::from(2)
         }
     }

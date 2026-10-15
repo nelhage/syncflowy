@@ -94,9 +94,11 @@
     "pushes": {},
     "report": [
       {
-        "ReadOnlyEditRefused": {
+        "Lifted": {
           "line": 11,
-          "node": "e"
+          "name": "typed under shell",
+          "parent": "root",
+          "placeholder": "e"
         }
       }
     ],
