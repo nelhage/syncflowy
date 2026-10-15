@@ -107,7 +107,10 @@ fatal error, such as an unusable state directory or an API 401.
 
 Prints the local state without calling the API: for each root its generation, when it last synced, which file
 holds it, whether the file has local changes, whether an interrupted cycle awaits recovery, and the pending
-deletes.
+deletes. With files, it shows their roots; a file that does not exist prints `<file>: missing`, and one whose
+root has no checkpoint in this state directory prints `<file>: no checkpoint for root <root> in this state
+directory`. The other files are still shown, and the exit status is 1. `status` only reads: it does not create
+the state directory.
 
 ```console
 $ syncflowy $S status

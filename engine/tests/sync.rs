@@ -1178,15 +1178,15 @@ fn symlinked_file_stays_a_link_and_keeps_its_mode() {
 #[test]
 fn status_reports_local_state() {
     let f = fixture();
-    let s = sync::status(&f.env.cfg, &[]).unwrap();
+    let s = sync::status(&f.env.cfg).unwrap();
     assert_eq!(s.len(), 1);
     assert_eq!(s[0].root, f.root);
     assert_eq!(s[0].generation, 1);
     assert_eq!(s[0].locally_modified, Some(false));
     assert!(!s[0].journal_pending);
     edit(&f.file, "Buy milk", "Buy soy milk");
-    let s = sync::status(&f.env.cfg, std::slice::from_ref(&f.file)).unwrap();
-    assert_eq!(s[0].locally_modified, Some(true));
+    let s = sync::status_of_files(&f.env.cfg, std::slice::from_ref(&f.file)).unwrap();
+    assert_eq!(s[0].status.as_ref().unwrap().locally_modified, Some(true));
 }
 
 #[test]

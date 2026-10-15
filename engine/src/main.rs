@@ -22,7 +22,7 @@ use clap::{Parser, Subcommand};
 
 use syncflowy::daemon::{self, DaemonConfig};
 use syncflowy::mdblock::DocConfig;
-use syncflowy::sync::{self, PauseReason, SyncConfig, SyncOutcome, SyncReport};
+use syncflowy::sync::{self, PauseReason, RootStatus, SyncConfig, SyncOutcome, SyncReport};
 use syncflowy::wfclient::{Client, ClientConfig, DEFAULT_BASE_URL};
 
 #[derive(Debug, Parser)]
@@ -289,35 +289,50 @@ fn run(cli: Cli) -> anyhow::Result<bool> {
             Ok(true)
         }
         Command::Status { files } => {
-            let roots = sync::status(&cfg, files)?;
-            if roots.is_empty() {
-                println!("no synced roots in {}", cfg.state_dir.display());
+            if files.is_empty() {
+                let roots = sync::status(&cfg)?;
+                if roots.is_empty() {
+                    println!("no synced roots in {}", cfg.state_dir.display());
+                }
+                roots.iter().for_each(print_root_status);
+                return Ok(true);
             }
-            for s in roots {
-                println!(
-                    "{}: gen {}, last synced at {} (unix), file {}",
-                    s.root,
-                    s.generation,
-                    s.synced_at,
-                    s.file
-                        .as_ref()
-                        .map(|p| p.display().to_string())
-                        .unwrap_or_else(|| "-".into()),
-                );
-                match s.locally_modified {
-                    Some(true) => println!("  the file has local changes not yet synced"),
-                    Some(false) => println!("  the file is as last written"),
-                    None => println!("  the file cannot be read"),
-                }
-                if s.journal_pending {
-                    println!("  an unfinished cycle was interrupted: the next sync recovers it");
-                }
-                for (node, label, first_seen) in &s.pending_deletes {
-                    println!("  pending delete: {label:?} ({node}), first seen at {first_seen}");
+            let mut ok = true;
+            for f in sync::status_of_files(&cfg, files)? {
+                match &f.status {
+                    Ok(s) => print_root_status(s),
+                    Err(problem) => {
+                        ok = false;
+                        println!("{}: {problem}", f.file.display());
+                    }
                 }
             }
-            Ok(true)
+            Ok(ok)
         }
+    }
+}
+
+fn print_root_status(s: &RootStatus) {
+    println!(
+        "{}: gen {}, last synced at {} (unix), file {}",
+        s.root,
+        s.generation,
+        s.synced_at,
+        s.file
+            .as_ref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "-".into()),
+    );
+    match s.locally_modified {
+        Some(true) => println!("  the file has local changes not yet synced"),
+        Some(false) => println!("  the file is as last written"),
+        None => println!("  the file cannot be read"),
+    }
+    if s.journal_pending {
+        println!("  an unfinished cycle was interrupted: the next sync recovers it");
+    }
+    for (node, label, first_seen) in &s.pending_deletes {
+        println!("  pending delete: {label:?} ({node}), first seen at {first_seen}");
     }
 }
 

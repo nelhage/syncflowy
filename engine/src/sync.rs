@@ -1824,61 +1824,119 @@ pub fn sync_all(
 // status
 // ---------------------------------------------------------------------------------------
 
-/// Status of every root in the state directory, or of the roots of `files` if given.
-/// Reads local state only (no API call). A file whose root has no checkpoint is
-/// `Error::RootNotFound` (its root is unknown locally).
-pub fn status(cfg: &SyncConfig, files: &[PathBuf]) -> Result<Vec<RootStatus>, Error> {
-    let store = StateStore::open(&cfg.state_dir)?;
-    let known = store.roots()?;
-    let mut targets: Vec<(NodeId, Option<PathBuf>)> = Vec::new();
-    if files.is_empty() {
-        targets.extend(known.into_iter().map(|r| (r, None)));
-    } else {
-        let mut ids = IdMap::new();
-        for r in &known {
-            ids.insert(r);
-        }
-        for file in files {
-            let text = read_text(file)
-                .map_err(io_error(file))?
-                .ok_or_else(|| Error::Io {
-                    path: file.clone(),
-                    source: std::io::Error::from(std::io::ErrorKind::NotFound),
-                })?;
-            let fm = mdblock::parse_frontmatter(&text)?;
-            let root = fm
-                .root
-                .resolve(&ids)
-                .filter(|r| known.contains(r))
-                .ok_or_else(|| Error::RootNotFound(fm.root.raw.clone()))?;
-            targets.push((root, Some(file.clone())));
+/// Why [`status_of_files`] cannot report on a file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileProblem {
+    /// The file does not exist.
+    Missing,
+    /// The file cannot be read, or its frontmatter does not parse.
+    Unreadable(String),
+    /// The file's root (as written in its frontmatter) has no checkpoint in this state
+    /// directory.
+    NoCheckpoint(String),
+}
+
+impl std::fmt::Display for FileProblem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FileProblem::Missing => f.write_str("missing"),
+            FileProblem::Unreadable(e) => f.write_str(e),
+            FileProblem::NoCheckpoint(root) => {
+                write!(f, "no checkpoint for root {root} in this state directory")
+            }
         }
     }
+}
+
+/// [`status_of_files`]'s result for one file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileStatus {
+    /// The file as given.
+    pub file: PathBuf,
+    /// Its root's status, or why there is none.
+    pub status: Result<RootStatus, FileProblem>,
+}
+
+/// Status of every root in the state directory. Reads local state only (no API call)
+/// and creates nothing: a missing state directory has no roots.
+pub fn status(cfg: &SyncConfig) -> Result<Vec<RootStatus>, Error> {
+    let Some(store) = StateStore::open_existing(&cfg.state_dir)? else {
+        return Ok(Vec::new());
+    };
     let mut out = Vec::new();
-    for (root, file) in targets {
-        let cp = store
-            .load_checkpoint(&root)?
-            .ok_or_else(|| Error::NoCheckpoint(root.clone()))?;
-        let file = file.or_else(|| cp.file.clone());
-        let locally_modified = file
-            .as_ref()
-            .and_then(|f| read_text(f).ok().flatten())
-            .map(|t| !cp.md_unchanged(&t));
-        out.push(RootStatus {
-            root: root.clone(),
-            file,
-            generation: cp.generation,
-            synced_at: cp.synced_at,
-            pending_deletes: cp
-                .pending_deletes
-                .iter()
-                .map(|p| (p.node.clone(), p.label.clone(), p.first_seen))
-                .collect(),
-            journal_pending: store.journal_path(&root).exists(),
-            locally_modified,
+    for root in store.roots()? {
+        out.extend(root_status(&store, &root, None)?);
+    }
+    Ok(out)
+}
+
+/// Status of the roots of `files`, one entry per file in order. A file that is missing,
+/// unreadable, or whose root has no checkpoint here gets a [`FileProblem`] and the other
+/// files go on. Like [`status`], reads local state only and creates nothing.
+pub fn status_of_files(cfg: &SyncConfig, files: &[PathBuf]) -> Result<Vec<FileStatus>, Error> {
+    let store = StateStore::open_existing(&cfg.state_dir)?;
+    let known = match &store {
+        Some(store) => store.roots()?,
+        None => Vec::new(),
+    };
+    let mut ids = IdMap::new();
+    for r in &known {
+        ids.insert(r);
+    }
+    let mut out = Vec::new();
+    for file in files {
+        let status = match read_text(file) {
+            Ok(None) => Err(FileProblem::Missing),
+            Err(e) => Err(FileProblem::Unreadable(io_error(file)(e).to_string())),
+            Ok(Some(text)) => match mdblock::parse_frontmatter(&text) {
+                Err(e) => Err(FileProblem::Unreadable(Error::from(e).to_string())),
+                Ok(fm) => {
+                    let found = match (&store, fm.root.resolve(&ids)) {
+                        (Some(store), Some(root)) if known.contains(&root) => {
+                            root_status(store, &root, Some(file.clone()))?
+                        }
+                        _ => None,
+                    };
+                    found.ok_or_else(|| FileProblem::NoCheckpoint(fm.root.raw.clone()))
+                }
+            },
+        };
+        out.push(FileStatus {
+            file: file.clone(),
+            status,
         });
     }
     Ok(out)
+}
+
+/// One root's status, `None` if it has no checkpoint. `file` overrides the checkpoint's
+/// recorded file.
+fn root_status(
+    store: &StateStore,
+    root: &NodeId,
+    file: Option<PathBuf>,
+) -> Result<Option<RootStatus>, Error> {
+    let Some(cp) = store.load_checkpoint(root)? else {
+        return Ok(None);
+    };
+    let file = file.or_else(|| cp.file.clone());
+    let locally_modified = file
+        .as_ref()
+        .and_then(|f| read_text(f).ok().flatten())
+        .map(|t| !cp.md_unchanged(&t));
+    Ok(Some(RootStatus {
+        root: root.clone(),
+        file,
+        generation: cp.generation,
+        synced_at: cp.synced_at,
+        pending_deletes: cp
+            .pending_deletes
+            .iter()
+            .map(|p| (p.node.clone(), p.label.clone(), p.first_seen))
+            .collect(),
+        journal_pending: store.journal_path(root).exists(),
+        locally_modified,
+    }))
 }
 
 #[cfg(test)]

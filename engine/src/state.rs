@@ -663,6 +663,18 @@ impl StateStore {
         })
     }
 
+    /// Open the store at `dir` without creating anything (for read-only commands such as
+    /// `status`): `Ok(None)` if the directory does not exist.
+    pub fn open_existing(dir: &Path) -> Result<Option<StateStore>, StateError> {
+        match fs::metadata(dir) {
+            Ok(_) => Ok(Some(StateStore {
+                dir: dir.to_path_buf(),
+            })),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(io_err(dir)(e)),
+        }
+    }
+
     /// The store's directory.
     pub fn dir(&self) -> &Path {
         &self.dir
