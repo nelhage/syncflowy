@@ -344,7 +344,7 @@ Completion and hiding interact with all of these (§4.5):
 
 | local | remote | result |
 |---|---|---|
-| ticked | edited | push nothing but the completion, and keep the remote edit. The node disappears from the file. |
+| ticked | edited | push nothing but the completion, and keep the remote edit. The node disappears from the file; a local edit of the same field is reported with its text. |
 | edited (and/or children added) | completed it, or an ancestor | push the edits and creates anyway: the nodes exist and WF users can see them greyed under the completed item. Then they disappear from the file. **Report this**, because the Markdown user's fresh work vanishes from view. |
 | deleted | completed it | completion counts as an edit, so the delete loses: the node stays (completed, hidden). |
 | moved it | completed it | apply the move. The node is hidden at its new position. |

@@ -269,6 +269,36 @@ fn conflict_on_a_node_moved_out_of_the_root_is_reported() {
 }
 
 #[test]
+fn ticking_a_node_renamed_remotely_reports_the_dropped_rename() {
+    let (env, _root, a, _b, file) = setup();
+    env.ui(
+        "edit",
+        json!({"id": a.as_str(), "text": "Alpha, renamed by them"}),
+    );
+    edit(&file, "- [ ] Alpha", "- [x] Alpha, my rename");
+    let r = env.sync(&file);
+    // §6.2: the completion is pushed and the remote name kept.
+    let tree = env.export();
+    let node = tree.get(&a).unwrap();
+    assert!(node.completed);
+    assert_eq!(node.name, "Alpha, renamed by them");
+    assert!(
+        r.events.iter().any(|e| matches!(
+            e,
+            ReportEvent::TickedConflict { node, local_md, .. }
+                if *node == a && local_md == "Alpha, my rename"
+        )),
+        "{r:#?}"
+    );
+    assert!(
+        r.messages.iter().any(|m| m.contains("which you ticked")
+            && m.contains("\"Alpha, my rename\"")),
+        "{r:#?}"
+    );
+    settle(&env, &file);
+}
+
+#[test]
 fn deleting_a_parent_takes_its_hidden_children() {
     let (env, root, a, _b, file) = setup();
     let done = env.ui_create(Some(&a), "done child");

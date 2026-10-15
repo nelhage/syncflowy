@@ -113,7 +113,8 @@
 //! node (unless it is already completed remotely: [`ReportEvent::AlreadyCompleted`]), and
 //! other edits to it and its subtree are still pushed (planned before the completion).
 //! A field of a ticked node that was also changed remotely keeps the remote value with
-//! no conflict marker (the node leaves the file). A new item typed as `[x]` is created
+//! no conflict marker (the node leaves the file); the local text is kept in the report
+//! ([`ReportEvent::TickedConflict`]). A new item typed as `[x]` is created
 //! and then completed. Ticks are never brakes. A tick of a placeholder (§10: the line
 //! is or was a placeholder, or the node is an orphan shell remotely) is a write to an
 //! orphan shell: refused without `force` ([`ReportEvent::ReadOnlyEditRefused`]).
@@ -496,6 +497,14 @@ pub enum ReportEvent {
         field: ConflictField,
         local_md: String,
     },
+    /// A field of a node ticked locally was edited on both sides: the completion is
+    /// pushed and Workflowy's value kept (§6.2 table), and since the ticked line leaves
+    /// the file, the local text is kept here.
+    TickedConflict {
+        node: NodeId,
+        field: ConflictField,
+        local_md: String,
+    },
     /// A node moved into the subtree remotely, or from another file (§6.2, §6.4).
     MovedIn {
         node: NodeId,
@@ -589,6 +598,15 @@ impl ReportEvent {
                 local_md,
             } => format!(
                 "conflict on the {} of {}, which was moved out of this file in Workflowy: Workflowy's version kept; yours was {local_md:?}",
+                f(field),
+                n(node)
+            ),
+            ReportEvent::TickedConflict {
+                node,
+                field,
+                local_md,
+            } => format!(
+                "conflict on the {} of {}, which you ticked: Workflowy's version kept; yours was {local_md:?}",
                 f(field),
                 n(node)
             ),
@@ -874,6 +892,11 @@ mod tests {
                 new_parent: None,
             },
             ReportEvent::MovedOutConflict {
+                node: a.clone(),
+                field: ConflictField::Name,
+                local_md: "typed".to_owned(),
+            },
+            ReportEvent::TickedConflict {
                 node: a.clone(),
                 field: ConflictField::Name,
                 local_md: "typed".to_owned(),

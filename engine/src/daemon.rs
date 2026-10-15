@@ -594,6 +594,7 @@ fn event_kind(e: &ReportEvent) -> Option<EventKind> {
         | ReportEvent::MirrorDeleteRefused { .. }
         | ReportEvent::Conflict { .. }
         | ReportEvent::MovedOutConflict { .. }
+        | ReportEvent::TickedConflict { .. }
         | ReportEvent::ConflictLost { .. }
         | ReportEvent::LossyWrite { .. }
         | ReportEvent::PendingDeleteCancelled { .. } => Some(EventKind::Info),

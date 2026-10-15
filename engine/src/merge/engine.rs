@@ -1352,9 +1352,19 @@ impl<'a, 'c> Engine<'a, 'c> {
             if w.wf != remote_val {
                 self.set_name(n, remote_val, w.wf, w.lost && !seen, push);
             }
-        } else if w.wf != remote_val && !ticked {
-            // Both changed differently: remote wins, local kept as a marker.
-            self.add_conflict(n, ConflictField::Name, md.to_owned());
+        } else if w.wf != remote_val {
+            if ticked {
+                // §6.2 table row 1: the completion is pushed and the remote edit kept;
+                // the line leaves the file, so the report keeps the typed text.
+                self.report.push(ReportEvent::TickedConflict {
+                    node: n.clone(),
+                    field: ConflictField::Name,
+                    local_md: md.to_owned(),
+                });
+            } else {
+                // Both changed differently: remote wins, local kept as a marker.
+                self.add_conflict(n, ConflictField::Name, md.to_owned());
+            }
         }
     }
 
@@ -1438,9 +1448,17 @@ impl<'a, 'c> Engine<'a, 'c> {
             }
             return;
         }
-        if w.wf == rv || ticked {
+        if w.wf == rv {
+            return;
+        }
+        if ticked {
             // §6.2 table row 1: ticked vs edited remotely: push nothing but the
-            // completion, keep the remote edit.
+            // completion, keep the remote edit, and report the typed text.
+            self.report.push(ReportEvent::TickedConflict {
+                node: n.clone(),
+                field: ConflictField::Note,
+                local_md: md.to_owned(),
+            });
             return;
         }
         match diff3_lines(base_val, &w.wf, rv) {
