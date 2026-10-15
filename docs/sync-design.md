@@ -149,13 +149,13 @@ Each WF-HTML construct is mapped to the most faithful Markdown. Anything without
 | anything else that is well-formed | passthrough | |
 | `#tag`, `@mention` | the same text | WF tags are plain text (UI:C2), and Obsidian tags have the same syntax, which is a happy accident. |
 
-Things in Markdown with no WF meaning (`[[wikilinks]]`, `==highlight==`, `$math$`, `![[embeds]]`, footnotes)
-are sent to Workflowy as **literal text**. WF users then see `[[Page]]`. That is acceptable but visible.
+Things in Markdown with no WF meaning (`[[wikilinks]]`, `==highlight==`, `$math$`, `![[embeds]]`, `![images](…)`,
+`%%comments%%`, footnotes) are sent to Workflowy as **literal text**. WF users then see `[[Page]]`. That is acceptable but visible.
 They are rendered back unescaped, so they keep working in Obsidian after a sync.
 
 **Escaping is the trickiest part of the dialect.** WF text such as `1. foo`, `> x`, `# x`, `[ ] x`,
 `- x` or `---` at the start of a name or note line, `*` and `_` mid-text, a trailing `^abc` or `[wid:: …]`, and
-`%%` would all be misread by Obsidian or by our parser. Render escapes minimally (to limit visual noise), and
+a `%%wf:` would all be misread by Obsidian or by our parser. Render escapes minimally (to limit visual noise), and
 parse accepts both escaped and unescaped forms wherever that is unambiguous. Line-leading escapes matter most
 in notes, where a WF note line starting with `- ` would otherwise become a child node.
 
@@ -532,7 +532,8 @@ Details:
   takes the engine's side. That is right when the merge was good. Guard 3 covers bad merges.
 - If `gen` is missing, unparseable, or older than the kept history (keep, say, 30 days or 200 generations),
   use **safe mode**: field edits are applied only where the text differs from *every* known version of that
-  node (Guard 3), and there are no deletes, no moves and no reorders. Report it.
+  node (Guard 3), and there are no deletes, no moves, no reorders and no ticks (a line typed as `[x]` is
+  created unticked). Report it.
 
 #### Guard 2: deferred deletes
 
@@ -571,6 +572,8 @@ Every engine write to a file is a chance for a concurrent merge with a client. W
 something the user needs to see:
 
 - **Remote changes or new id tags**: write.
+- **Changed `syncflowy:` options** (for example `ids:` or `checkboxes:`): write, so the new form shows at once.
+  A new checkbox policy is applied to every line, not only to new ones.
 - **Pure normalisation** (`__x__` → `**x**`, re-escaping): defer it until the file next needs a write for
   another reason.
 - **Debounce on the server side**: push and re-render a file only after it has been unchanged for some quiet
@@ -617,7 +620,8 @@ With the engine on a headless server, the vault is also its user interface:
   when they fire, safe-mode episodes, resurrections dropped, and API errors.
 - Per-root controls live in the file's frontmatter, so they can be set from any device. Examples:
   `syncflowy: {paused: true}` and `syncflowy: {force: true}`, the latter for a one-time override of the
-  mass-change brake, which the engine clears after use.
+  mass-change brake, which the engine clears after use. An option typed outside `syncflowy:` gets a warning;
+  a top-level `paused: true` is honoured anyway (pausing is the safe direction), a top-level `force` never is.
 - Obsidian Sync's own version history is a second safety net for the Markdown side. The engine's base history
   is the safety net for "what did we believe and push", and it should be kept long enough to reconstruct any
   push from the sync logs.
@@ -893,11 +897,19 @@ module docs have the details.
   "maybe applied" and settled by the nonce scan of §7.3. No gateway 5xx or 429 has been observed.
 - **Dry run** does not recover a leftover journal, since recovery writes.
 - **Code blocks** with a ``` line are written with a longer fence and stay editable; the design left this open.
-- **Obsidian syntax** (`[[x]]`, `![[x]]`, `==x==`, `$x$`) is written back unescaped (§4.2), except a `$` before a
-  digit when the value holds another `$`, to keep prices from reading as math.
-- **Dates, locale variants and link titles** have no compact or structured form; they stay literal.
+  A fence's info string (a language typed in Obsidian) is dropped with a warning, since Workflowy code blocks
+  have none; the API's create pipeline would have made it the first line of the code.
+- **Obsidian syntax** (`[[x]]`, `![[x]]`, `![alt](img)`, `==x==`, `$x$`, `%%comments%%`) is written back
+  unescaped (§4.2), except a `$` before a digit when the value holds another `$`, to keep prices from reading as
+  math, and a `%%` that would read as a tag (`%%wf:`, `%%wf-conflict:`) or has no partner in the value (it would
+  pair with a `%%wf:…%%` tag). An image is literal text exactly as typed (no link inside). A `%%x%%` typed by a
+  Workflowy user is therefore hidden in Obsidian's reading view.
+- **Dates and locale variants** have no compact or structured form; they stay literal. A **link title**
+  (`[a](u "t")`) has no WF form either: the link is pushed without it and the report says the title was dropped.
 - **Checkbox policy, id tag form, depth, headings** are frontmatter options (`checkboxes`, `ids`, `depth`,
-  `headings`); the design only recommended making the tag form configurable.
+  `headings`); the design only recommended making the tag form configurable. `checkboxes: none` shows no boxes,
+  `todo` nodes included (their layout is kept). A node whose children are hidden by `depth` counts as interior
+  for the box, so it does not look like a leaf.
 - **Files** are written in place through symlinks and keep their mode. The state directory layout (checkpoint,
   pending deletes, history, journal, lock) is described in `engine/src/state.rs`.
 - **Not done:** several engines on one account, any

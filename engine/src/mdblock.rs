@@ -51,13 +51,17 @@
 //!   true), `depth` (positive int, default unlimited), `paused` (bool, default false),
 //!   `force` (bool; consumed by the engine: `sync` clears it before rendering, and
 //!   [`Frontmatter::render`] writes what it is given), `gen` (u64, always written once
-//!   known; an unparseable value reads as `None`, not as an error). Unknown keys inside
+//!   known; an unparseable value reads as `None`, not as an error, and is kept in
+//!   [`Frontmatter::generation_text`]). Unknown keys inside
 //!   `syncflowy:` produce a warning and are dropped on the next render. Booleans are
 //!   `true`/`false` (any case); values may be quoted; `# comments` are ignored; a flow
 //!   mapping may continue on the following lines. An invalid value of a known key is
 //!   [`ParseError::BadConfig`] (skip the cycle rather than guess).
 //! * Every other frontmatter line is preserved verbatim, in order, after the two engine
-//!   keys. The `workflowy:` value is kept as written ([`RootRef::raw`], comment
+//!   keys. A top-level key that is a `syncflowy:` option name (`paused: true` on its own
+//!   line) is such a line too, with [`WarningKind::MisplacedConfigKey`]; a top-level
+//!   `paused: true` also pauses the file (the safe direction), a top-level `force` never
+//!   forces anything. The `workflowy:` value is kept as written ([`RootRef::raw`], comment
 //!   included); a second `workflowy:` key naming another root is [`ParseError::BadRoot`].
 //!
 //! ## Body
@@ -79,12 +83,14 @@
 //! * **Checkboxes** (§4.3): `- [ ] ` and `- ` both mean "incomplete"; `- [x] ` / `- [X] `
 //!   (on any item kind, including headings and ordered items) means "complete this
 //!   node". Which incomplete items show `[ ]` is cosmetic ([`CheckboxPolicy`],
-//!   [`Sticky`]).
+//!   [`Sticky`]); a node whose children are all cut off by `depth:` counts as interior,
+//!   not as a leaf.
 //! * **Kinds** (§4.3): a fenced block as the item text (```` - ``` ````, content indented
 //!   one level, closing fence at the same indentation as the content) is a `code-block`
-//!   node, its name being the code; a non-empty info string on the opening fence is
-//!   folded into the code as its first line (as the API's create pipeline does, DM§6.2
-//!   step 7; rendering always writes an empty info string). `- > text` is a
+//!   node, its name being the code; a non-empty info string on the opening fence (a
+//!   language) is dropped with [`WarningKind::DroppedInfoString`], since Workflowy code
+//!   blocks have none (the API's create pipeline would fold it into the code as its
+//!   first line, DM§6.2 step 7; rendering always writes an empty info string). `- > text` is a
 //!   `quote-block`. `- ---` is a `divider` (only rendered for dividers with an empty
 //!   name). All other layouts render as plain items and are preserved in the checkpoint.
 //! * **Id tags** (§4.4): found anywhere on an item's first line with
@@ -218,6 +224,8 @@ pub fn stub_text(full: &ShortId, label: &str) -> String {
         format!("{STUB_PREFIX}{full}|{label}]]")
     }
 }
+/// The deepest heading level `headings:` accepts (Markdown has six).
+pub const MAX_HEADINGS: u8 = 6;
 /// Prefix of a read-only best-effort rendering (§5.3).
 pub const READ_ONLY_PREFIX: &str = "🔒 ";
 /// Prefix of a conflict marker item (§6.1).
@@ -255,7 +263,8 @@ pub enum CheckboxPolicy {
     TodosOnly,
     /// Every list item.
     All,
-    /// None (ticking still works by typing `[x]`).
+    /// No boxes on incomplete items, `todo` layout included (ticking still works by
+    /// typing `[x]` on any item; the layout is kept).
     None,
 }
 
@@ -263,7 +272,7 @@ pub enum CheckboxPolicy {
 /// echoed in the checkpoint. Defaults are the design's recommendations.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DocConfig {
-    /// Depth 1..=headings renders as headings (§4.1). Default 0.
+    /// Depth 1..=headings renders as headings (§4.1), at most [`MAX_HEADINGS`]. Default 0.
     pub headings: u8,
     /// Id tag form to write. Default [`TagStyle::Auto`].
     pub tags: TagStyle,
@@ -321,6 +330,10 @@ pub struct Frontmatter {
     /// The render generation this file came from (§9.1 guard 1), the `gen:` key; `None`
     /// if absent or unparseable (then `sync` uses safe mode).
     pub generation: Option<u64>,
+    /// The value of a `gen:` that is not a number (then `generation` is `None`), for the
+    /// safe-mode warning. Never rendered, and ignored by [`equivalent`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation_text: Option<String>,
     /// `paused: true`: do not sync this root (§9.1 controls).
     pub paused: bool,
     /// `force: true`: one-shot override of the mass-change brake and placeholder guards
@@ -337,6 +350,7 @@ impl Frontmatter {
             root,
             config: DocConfig::default(),
             generation: None,
+            generation_text: None,
             paused: false,
             force: false,
             other: Vec::new(),
@@ -404,7 +418,7 @@ pub struct LocalItem {
     /// The name as Markdown: the first line with indentation, marker, checkbox, kind
     /// prefix (`> `, `🔒 ` with `ro`, `⚠ ` with a conflict tag) and tags removed, trailing
     /// whitespace trimmed; not unescaped (feed it to `mdinline::md_to_wf`). For
-    /// [`ItemKind::Code`]: the code lines (info string folded in), joined with `\n`,
+    /// [`ItemKind::Code`]: the code lines (without the fence's info string), joined with `\n`,
     /// dedented. For a marker: the local name text (empty for a note marker).
     pub name_md: String,
     /// Note lines (or a note marker's local note lines), with the item's continuation
@@ -436,7 +450,8 @@ pub struct ItemPath(pub Vec<usize>);
 pub enum WarningKind {
     /// A heading skipped a level and was coerced.
     HeadingLevelSkipped,
-    /// A heading deeper than `headings` (kept as a heading at its structural depth).
+    /// A heading deeper than `headings` (parsed as a heading at its structural depth, so
+    /// it owns the items after it; rendered as a list item). The message counts them.
     HeadingBeyondConfig,
     /// Indentation was inconsistent and was coerced.
     Indentation,
@@ -446,12 +461,18 @@ pub enum WarningKind {
     UnknownTagFlag,
     /// An unknown key in `syncflowy:` (dropped on the next render).
     UnknownConfigKey,
+    /// A `syncflowy:` option written as a top-level key (kept verbatim; only
+    /// `paused: true` is honoured there).
+    MisplacedConfigKey,
     /// A line that fit nowhere was attached to the nearest item's note.
     StrayLine,
     /// A code fence was not closed before the item ended.
     UnclosedFence,
     /// A conflict marker outside any item list position that makes sense (kept).
     MisplacedMarker,
+    /// A code fence's info string (a language) was dropped: Workflowy code blocks have
+    /// none.
+    DroppedInfoString,
 }
 
 /// A non-fatal parse problem.
@@ -550,6 +571,12 @@ impl LocalDoc {
 /// Parse a whole file. Never fails on body content (module docs).
 pub fn parse(text: &str) -> Result<LocalDoc, ParseError> {
     parse::parse(text)
+}
+
+/// The key of a top-level frontmatter line that is a `syncflowy:` option written outside
+/// it (`paused: true` on its own line), if [`Frontmatter::other`]'s `line` is one.
+pub fn misplaced_option(line: &str) -> Option<&str> {
+    frontmatter::misplaced_option(line)
 }
 
 /// Parse only the frontmatter (cheap; used by `daemon` discovery, §9.1 guard 5).
@@ -712,7 +739,8 @@ pub struct ConflictMarker {
 pub struct Sticky {
     /// The checkbox each item had in the previous file (`Ticked` never appears: ticked
     /// nodes are gone). For a list item whose layout is not `todo`, a recorded value wins
-    /// over [`CheckboxPolicy`]; `todo` always renders `Open`.
+    /// over [`CheckboxPolicy`]; `todo` always renders `Open`, except under
+    /// [`CheckboxPolicy::None`], where it is treated like any other item.
     pub checkbox: BTreeMap<NodeId, Checkbox>,
     /// §15.1 (mirrors as origins): content node -> placement that got the full rendering
     /// in the previous render. Informational here: `sync` feeds it to

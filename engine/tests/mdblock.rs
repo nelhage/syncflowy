@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use syncflowy::mdblock::{
     Checkbox, CheckboxPolicy, ConflictMarker, DocConfig, Frontmatter, ItemKind, ItemPath, LocalDoc,
     PLACEHOLDER_TEXT, ParseError, RootRef, Sticky, TagStyle, View, ViewError, ViewExtras,
-    WarningKind, equivalent, normalize, parse, parse_frontmatter, render,
+    WarningKind, equivalent, misplaced_option, normalize, parse, parse_frontmatter, render,
 };
 use syncflowy::mdinline::{ConflictField, InlineConfig, TagFlag, TagForm, Tier};
 use syncflowy::tree::{IdMap, Mirror, Node, NodeId, ShortId, Tree};
@@ -224,7 +224,55 @@ fn frontmatter_unknown_key_warns_and_gen_is_lenient() {
     assert_eq!(kinds(&d), vec![WarningKind::UnknownConfigKey]);
     assert_eq!(d.warnings[0].line, 3);
     assert_eq!(d.frontmatter.generation, None);
+    assert_eq!(d.frontmatter.generation_text.as_deref(), Some("soon"));
     assert!(!normalize(&d).contains("colour"));
+    // A numeric gen keeps no text; a quoted word is unquoted.
+    let f = parse_frontmatter("---\nworkflowy: 000000000001\nsyncflowy: {gen: 7}\n---\n").unwrap();
+    assert_eq!((f.generation, f.generation_text), (Some(7), None));
+    let f = parse_frontmatter("---\nworkflowy: 000000000001\nsyncflowy: {gen: \"three\"}\n---\n")
+        .unwrap();
+    assert_eq!(
+        (f.generation, f.generation_text.as_deref()),
+        (None, Some("three"))
+    );
+}
+
+#[test]
+fn frontmatter_top_level_options_warn_and_only_paused_is_honoured() {
+    let d = parse(
+        "---\nworkflowy: 000000000001\ntags: [a]\npaused: true\nforce: true\nheadings: 2\n\
+         syncflowy: {gen: 3}\n---\n- x\n",
+    )
+    .unwrap();
+    assert_eq!(kinds(&d), vec![WarningKind::MisplacedConfigKey; 3]);
+    let lines: Vec<usize> = d.warnings.iter().map(|w| w.line).collect();
+    assert_eq!(lines, [4, 5, 6]);
+    assert_eq!(
+        d.warnings[0].message,
+        "\"paused\" is a syncflowy option; write it as syncflowy: {paused: true} \
+         (the file is paused anyway)"
+    );
+    assert!(
+        d.warnings[1].message.ends_with("(ignored here)"),
+        "{:?}",
+        d.warnings
+    );
+    let f = &d.frontmatter;
+    assert!(f.paused, "a top-level paused: true pauses the file");
+    assert!(!f.force, "a top-level force never forces");
+    assert_eq!(f.config.headings, 0);
+    assert_eq!(f.generation, Some(3));
+    // The lines are kept verbatim.
+    assert_eq!(
+        f.other,
+        ["tags: [a]", "paused: true", "force: true", "headings: 2"]
+    );
+    assert_eq!(misplaced_option("paused: true"), Some("paused"));
+    assert_eq!(misplaced_option("tags: [a]"), None);
+    // `paused: false` at the top level pauses nothing (and still warns).
+    let d = parse("---\nworkflowy: 000000000001\npaused: False\n---\n- x\n").unwrap();
+    assert_eq!(kinds(&d), vec![WarningKind::MisplacedConfigKey]);
+    assert!(!d.frontmatter.paused);
 }
 
 #[test]
@@ -407,6 +455,34 @@ fn heading_first_level_coerced() {
             WarningKind::HeadingBeyondConfig
         ]
     );
+    assert_eq!(
+        d.warnings[1].message,
+        "heading at depth 1 but headings: 0; it becomes an item, and the item after it \
+         becomes its child"
+    );
+    // The warning names how many items the heading took (not markers).
+    let d = parse(
+        "---\nworkflowy: 000000000001\nsyncflowy: {headings: 1}\n---\n# One\n- a\n\
+         ### Skipped\n- ⚠ mine %%wf-conflict:name%%\n- b\n\t- b1\n- c\n## Empty\n",
+    )
+    .unwrap();
+    let beyond: Vec<(usize, &str)> = d
+        .warnings
+        .iter()
+        .filter(|w| w.kind == WarningKind::HeadingBeyondConfig)
+        .map(|w| (w.line, w.message.as_str()))
+        .collect();
+    assert_eq!(
+        beyond,
+        [
+            (
+                7,
+                "heading at depth 2 but headings: 1; it becomes an item, and the 2 items \
+                 after it become its children"
+            ),
+            (12, "heading at depth 2 but headings: 1; it becomes an item"),
+        ]
+    );
     // Indented `#` lines are not headings.
     let d = doc("- a\n\t# b\n");
     assert_eq!(d.items[0].note_md, vec!["# b"]);
@@ -435,7 +511,8 @@ fn kinds_code_quote_divider() {
     );
     let c = &d.items[0];
     assert_eq!(c.kind, ItemKind::Code);
-    assert_eq!(c.name_md, "python\nx = 1\n\n    y");
+    // The info string (a language) is dropped and reported (Workflowy code has none).
+    assert_eq!(c.name_md, "x = 1\n\n    y");
     assert_eq!(c.note_md, vec!["note after"]);
     assert_eq!((c.line, c.end_line), (4, 9));
     assert_eq!(
@@ -461,7 +538,20 @@ fn kinds_code_quote_divider() {
         (d.items[7].kind, d.items[7].name_md.as_str()),
         (ItemKind::Code, "a")
     );
-    assert!(d.warnings.is_empty());
+    assert_eq!(kinds(&d), vec![WarningKind::DroppedInfoString]);
+    assert_eq!(d.warnings[0].line, 4);
+    assert_eq!(
+        d.warnings[0].message,
+        "the code block's language \"python\" was dropped (Workflowy code blocks have none)"
+    );
+    // At heading depth too.
+    let d = parse(
+        "---\nworkflowy: 000000000001\nsyncflowy: {headings: 1}\n---\n\
+         # ```rust %%wf:000000000002%%\nfn x() {}\n```\n",
+    )
+    .unwrap();
+    assert_eq!(d.items[0].name_md, "fn x() {}");
+    assert_eq!(kinds(&d), vec![WarningKind::DroppedInfoString]);
 }
 
 #[test]
@@ -653,6 +743,44 @@ fn escaped_and_malformed_tags_are_text() {
     let d = doc("- a \\^wf-000000000002\n- b ^wf-0000000000023\n- c %\\%wf:000000000002%%\n");
     assert!(d.items.iter().all(|i| i.tag.is_none()));
     assert_eq!(d.items[0].name_md, "a \\^wf-000000000002");
+}
+
+#[test]
+fn obsidian_comments_and_comment_tags_stay_apart() {
+    // A comment is text, never a tag; a comment tag next to a comment is still a tag.
+    let d = parse(
+        "---\nworkflowy: 000000000001\nsyncflowy: {headings: 1}\n---\n\
+         # draft %%a comment%% %%wf:000000000002%%\n\
+         - b %%hidden%% ^wf-000000000003\n\
+         - c %%wf:not hex%%\n",
+    )
+    .unwrap();
+    let h = &d.items[0];
+    assert_eq!(h.tag.as_ref().unwrap().short, short("000000000002"));
+    assert_eq!(h.name_md, "draft %%a comment%%");
+    let b = &h.children[0];
+    assert_eq!(b.tag.as_ref().unwrap().short, short("000000000003"));
+    assert_eq!(b.name_md, "b %%hidden%%");
+    assert!(h.children[1].tag.is_none());
+    // Rendered: comments are written as typed and the file reads back the same (the
+    // fixed point is checked by `render_tree`); a lone `%%` is escaped so that it cannot
+    // pair with the comment-form tag of a heading.
+    let t = tree(&[
+        (2, 1, "draft %%a comment%%", None, "bullets", false),
+        (3, 2, "b %%hidden%%", None, "bullets", false),
+        (4, 1, "50%% off", None, "bullets", false),
+        (5, 1, "%%wf:000000000009%%", None, "bullets", false),
+    ]);
+    let cfg = DocConfig {
+        headings: 1,
+        ..DocConfig::default()
+    };
+    let md = render_tree(&t, &cfg, &ViewExtras::default());
+    assert_eq!(
+        body(&md),
+        "# draft %%a comment%% %%wf:000000000002%%\n\n- [ ] b %%hidden%% ^wf-000000000003\n\n\
+         # 50%\\% off %%wf:000000000004%%\n\n# %\\%wf:000000000009%% %%wf:000000000005%%\n"
+    );
 }
 
 #[test]
@@ -1019,7 +1147,8 @@ fn view_checkbox_policies_and_sticky() {
     );
     assert_eq!(boxes(CheckboxPolicy::TodosOnly, &[]), vec![N, N, O, N, N]);
     assert_eq!(boxes(CheckboxPolicy::All, &[]), vec![O, O, O, O, N]);
-    assert_eq!(boxes(CheckboxPolicy::None, &[]), vec![N, N, O, N, N]);
+    // `none` means no boxes, to-dos included.
+    assert_eq!(boxes(CheckboxPolicy::None, &[]), vec![N, N, N, N, N]);
     // Sticky wins over the policy, except for `todo` (always open) and kinds without boxes.
     assert_eq!(
         boxes(
@@ -1028,6 +1157,30 @@ fn view_checkbox_policies_and_sticky() {
         ),
         vec![O, N, O, O, N]
     );
+    // Under `none` a to-do is like any other item: a box the user typed sticks.
+    assert_eq!(
+        boxes(CheckboxPolicy::None, &[(2, O), (4, O), (5, N)]),
+        vec![O, N, O, N, N]
+    );
+}
+
+#[test]
+fn view_depth_cut_nodes_are_interior() {
+    let t = tree(&[
+        (2, 1, "big", None, "bullets", false),
+        (3, 2, "hidden by depth", None, "bullets", false),
+        (4, 1, "done kids only", None, "bullets", false),
+        (5, 4, "done", None, "bullets", true),
+        (6, 1, "leaf", None, "bullets", false),
+    ]);
+    let cfg = DocConfig {
+        max_depth: Some(1),
+        ..DocConfig::default()
+    };
+    let v = View::build(&t, &id(1), &cfg, &ViewExtras::default()).unwrap();
+    let boxes: Vec<Checkbox> = v.walk().into_iter().map(|(_, i)| i.checkbox).collect();
+    // Only children hidden by depth make a node interior; completed ones do not.
+    assert_eq!(boxes, [Checkbox::None, Checkbox::Open, Checkbox::Open]);
 }
 
 #[test]

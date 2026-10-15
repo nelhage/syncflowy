@@ -152,6 +152,8 @@ struct CreateValues {
     note: Option<String>,
     layout: String,
     lost: Vec<ConflictField>,
+    /// Fields whose typed Markdown held a link title, which WF cannot store.
+    dropped: Vec<ConflictField>,
 }
 
 /// A candidate identity from a tag.
@@ -1350,6 +1352,7 @@ impl<'a, 'c> Engine<'a, 'c> {
         let w = self.codec.write_value(base_val, md, kind, self.inline);
         if base_val == remote_val {
             if w.wf != remote_val {
+                self.report_dropped(n, ConflictField::Name, md, kind);
                 self.set_name(n, remote_val, w.wf, w.lost && !seen, push);
             }
         } else if w.wf != remote_val {
@@ -1365,6 +1368,18 @@ impl<'a, 'c> Engine<'a, 'c> {
                 // Both changed differently: remote wins, local kept as a marker.
                 self.add_conflict(n, ConflictField::Name, md.to_owned());
             }
+        }
+    }
+
+    /// Reports a link title in the written Markdown `md` that WF cannot hold
+    /// ([`TextCodec::drops_text`]). Unlike [`ReportEvent::LossyWrite`] this is never
+    /// excused by the user having seen the base value: the title is their own text.
+    fn report_dropped(&mut self, n: &NodeId, field: ConflictField, md: &str, kind: FieldKind) {
+        if self.codec.drops_text(md, kind, self.inline) {
+            self.report.push(ReportEvent::LinkTitleDropped {
+                node: n.clone(),
+                field,
+            });
         }
     }
 
@@ -1444,6 +1459,7 @@ impl<'a, 'c> Engine<'a, 'c> {
         let lost = w.lost && !seen;
         if base_val == rv {
             if w.wf != rv {
+                self.report_dropped(n, ConflictField::Note, md, FieldKind::Note);
                 self.set_note(n, remote, w.wf, lost, push);
             }
             return;
@@ -1464,6 +1480,7 @@ impl<'a, 'c> Engine<'a, 'c> {
         match diff3_lines(base_val, &w.wf, rv) {
             Some(merged) if self.codec.is_canonical(&merged) => {
                 if merged != rv {
+                    self.report_dropped(n, ConflictField::Note, md, FieldKind::Note);
                     self.set_note(n, remote, merged, lost, push);
                 }
             }
@@ -1682,9 +1699,16 @@ impl<'a, 'c> Engine<'a, 'c> {
             note,
             layout,
             lost,
+            dropped,
         } = self.create_values(i);
         for field in lost {
             self.report.push(ReportEvent::LossyWrite {
+                node: t.clone(),
+                field,
+            });
+        }
+        for field in dropped {
+            self.report.push(ReportEvent::LinkTitleDropped {
                 node: t.clone(),
                 field,
             });
@@ -1733,13 +1757,25 @@ impl<'a, 'c> Engine<'a, 'c> {
         let li = self.items[i].item;
         match &self.items[i].resurrects {
             Some(old) => self.resurrected_values(i, old),
-            None => CreateValues {
-                name: self.md_to_wf(&li.name_md, field_kind(li)),
-                note: (!li.note_md.is_empty())
-                    .then(|| self.md_to_wf(&Self::note_md(li), FieldKind::Note)),
-                layout: self.new_layout(li),
-                lost: Vec::new(),
-            },
+            None => {
+                let note_md = Self::note_md(li);
+                let drops = |md: &str, kind| self.codec.drops_text(md, kind, self.inline);
+                let dropped = [
+                    (ConflictField::Name, drops(&li.name_md, field_kind(li))),
+                    (
+                        ConflictField::Note,
+                        !li.note_md.is_empty() && drops(&note_md, FieldKind::Note),
+                    ),
+                ];
+                CreateValues {
+                    name: self.md_to_wf(&li.name_md, field_kind(li)),
+                    note: (!li.note_md.is_empty())
+                        .then(|| self.md_to_wf(&note_md, FieldKind::Note)),
+                    layout: self.new_layout(li),
+                    lost: Vec::new(),
+                    dropped: dropped.into_iter().filter(|l| l.1).map(|l| l.0).collect(),
+                }
+            }
         }
     }
 
@@ -1751,6 +1787,7 @@ impl<'a, 'c> Engine<'a, 'c> {
         let d = self.detected[i].clone().expect("base item detected");
         let kind = field_kind(li);
         let mut lost = Vec::new();
+        let mut dropped = Vec::new();
         let name = match &d.name {
             Some(md) => {
                 let w = self
@@ -1758,6 +1795,9 @@ impl<'a, 'c> Engine<'a, 'c> {
                     .write_value(&b.name, md, d.name_kind, self.inline);
                 if w.lost && !d.name_seen {
                     lost.push(ConflictField::Name);
+                }
+                if self.codec.drops_text(md, d.name_kind, self.inline) {
+                    dropped.push(ConflictField::Name);
                 }
                 w.wf
             }
@@ -1773,6 +1813,9 @@ impl<'a, 'c> Engine<'a, 'c> {
                 if w.lost && !d.note_seen {
                     lost.push(ConflictField::Note);
                 }
+                if self.codec.drops_text(md, FieldKind::Note, self.inline) {
+                    dropped.push(ConflictField::Note);
+                }
                 w.wf
             }
             None if self.codec.is_canonical(&base_note) => base_note,
@@ -1785,6 +1828,7 @@ impl<'a, 'c> Engine<'a, 'c> {
             note,
             layout,
             lost,
+            dropped,
         }
     }
 

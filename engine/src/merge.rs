@@ -589,6 +589,9 @@ pub enum ReportEvent {
     ConflictLost { node: NodeId, field: ConflictField },
     /// A §5.2 write could not preserve what Markdown could not show.
     LossyWrite { node: NodeId, field: ConflictField },
+    /// The typed Markdown held a link title (`[a](u "t")`), which a Workflowy link
+    /// cannot store: the link was written without it.
+    LinkTitleDropped { node: NodeId, field: ConflictField },
     /// A tick of a node already completed remotely was skipped (DM§4.5).
     AlreadyCompleted { node: NodeId },
     /// A pending delete was cancelled because the node reappeared (§9.1 guard 2).
@@ -804,6 +807,11 @@ impl ReportEvent {
             ),
             ReportEvent::LossyWrite { node, field } => format!(
                 "the {} of {} lost formatting Markdown could not show",
+                f(field),
+                n(node)
+            ),
+            ReportEvent::LinkTitleDropped { node, field } => format!(
+                "the {} of {} was written without its link title: Workflowy links have none",
                 f(field),
                 n(node)
             ),
@@ -1064,6 +1072,10 @@ mod tests {
                 field: ConflictField::Note,
             },
             ReportEvent::LossyWrite {
+                node: a.clone(),
+                field: ConflictField::Name,
+            },
+            ReportEvent::LinkTitleDropped {
                 node: a.clone(),
                 field: ConflictField::Name,
             },

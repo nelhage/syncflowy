@@ -58,8 +58,10 @@ S="--api-url http://127.0.0.1:8765 --state-dir /tmp/st"
 ### `render <ROOT> <OUT.md> [--headings N] [--force]`
 
 Renders the subtree under `ROOT` (a short id, a full UUID, or a `https://workflowy.com/#/<short>` URL) into a new
-file and records the first checkpoint, which starts the sync. `--headings N` renders depth 1..N as `#` headings.
-It refuses to overwrite an existing file or checkpoint unless `--force` is given.
+file and records the first checkpoint, which starts the sync. `--headings N` (0 to 6) renders depth 1..N as `#`
+headings. It refuses to overwrite an existing file or checkpoint unless `--force` is given. With `--force`, an
+existing file that names the same root keeps its `syncflowy:` options (not `gen`, `force` or `paused`) and its
+other frontmatter lines, and `--headings` changes only the heading depth; delete the file first for a clean reset.
 
 ```console
 $ syncflowy $S render 5e23116b-0a18-4c58-82b5-cbe4cb0343ff vault/plan.md
@@ -155,7 +157,9 @@ A note on "Planning": the lines right under the heading.
 
 * **Frontmatter**: `workflowy:` names the sync root. `syncflowy:` holds options (`headings`, `ids`, `checkboxes`,
   `dates`, `depth`, `paused`, `force`) and `gen`, the render generation the file came from (written by the
-  engine; do not edit). Other frontmatter keys are kept as written.
+  engine; do not edit). Other frontmatter keys are kept as written. An option written outside `syncflowy:`
+  (`paused: true` on its own line) is kept too, with a warning; only a top-level `paused: true` takes effect, a
+  top-level `force` never does.
 * **Items**: `- ` list items, indented with tabs when written (tabs or consistent spaces are read). The first line
   is the node's name, the indented lines after it are its note, nested items are children. The text between the
   frontmatter and the first item is the root's note. The root's own name is not in the file.
@@ -164,10 +168,15 @@ A note on "Planning": the lines right under the heading.
   gets its tag at the next sync. Do not remove tags from lines you keep.
 * **Inline text**: `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``, `[text](url)`, bare URLs, `<u>`, colour
   spans and other well-formed WF-HTML as literal HTML, dates as a compact form. Obsidian-only syntax
-  (`[[wikilinks]]`, `==highlight==`, `$math$`) is sent to Workflowy as literal text and written back unescaped.
+  (`[[wikilinks]]`, `![[embeds]]`, `![images](url)`, `==highlight==`, `$math$`, `%%comments%%`) is sent to
+  Workflowy as literal text and written back unescaped (a `%%` that would read as an id tag stays escaped). A link
+  title (`[text](url "title")`) is dropped, and the report says so.
 * **Node kinds**: `- [ ] ` boxes appear on todo nodes and leaves (cosmetic; `- ` and `- [ ] ` both mean "not
-  completed"). A fenced block is a code-block node, `- > text` a quote, `- ---` a divider, `1.` markers are a
-  numbered list. Other layouts render as plain items and keep their layout in the checkpoint.
+  completed"); a node whose children are hidden by `depth:` is not a leaf. `checkboxes:` changes this (`todos`,
+  `all`, or `none`: no boxes at all, todo nodes included; they keep their layout, and `[x]` still ticks). A
+  fenced block is a code-block node (Workflowy code has no language: a fence's info string such as `python` is
+  dropped with a warning), `- > text` a quote, `- ---` a divider, `1.` markers are a numbered list. Other layouts
+  render as plain items and keep their layout in the checkpoint.
 * **Completed nodes are not in the file.** `- [x]` is a command: see ticking below.
 * A node whose text cannot be represented exactly is shown with `🔒` and the `-ro` tag flag, and edits to it are
   refused.
@@ -216,9 +225,10 @@ A note on "Planning": the lines right under the heading.
   placeholder `⧉ (mirror of a deleted item)` with the `-ro` flag: its children are not shown, and edits or
   deletes of it are refused without `--force` (§10). Creating a mirror from Markdown and the UI's promotion of a
   mirror when its origin is deleted are not supported. An empty node is an ordinary, editable item.
-* **Safe mode** (§9.1 guard 1). If the file's `gen` is missing or no longer in the render history (for example a
-  hand-written or stale file), the engine cannot know what you changed. It then pushes text edits and creates,
-  but applies no deletes, moves or reorders, and says so in the report.
+* **Safe mode** (§9.1 guard 1). If the file's `gen` is missing, not a number, or no longer in the render history
+  (for example a hand-written or stale file), the engine cannot know what you changed. It then pushes text edits
+  and creates, but applies no deletes, moves, reorders or ticks, and says so in the report
+  (`the file's gen (999) is unknown: safe mode (no deletes, moves, reorders or ticks)`).
 * **Other guards.** Every update checks the remote value just before writing it (a collaborator's later edit
   becomes a conflict, not an overwrite). Creates are journaled and nonce-tagged so a crash never duplicates a
   node; an interrupted cycle is recovered by the next run. A file that cannot be parsed (frontmatter) is skipped,
@@ -260,7 +270,8 @@ the server that talks to Workflowy: there must be only one engine per account.
   Markdown. A mirror's hidden persisted children (DM§10.5) are never shown and go with the mirror when it is
   removed. Observed on the beta host on 2026-10-13 only through the mock.
 * Dates render compactly only for the observed forms; ranges, times, and locale or 24-hour variants stay literal HTML.
-* Markdown link titles are not supported (`[a](b "t")` is literal text). Images are literal text.
+* Markdown link titles are dropped (`[a](b "t")` is pushed as a link to `b`, and the report says the title was dropped). Images
+  and Obsidian comments are literal text in Workflowy (a `%%x%%` typed there is hidden in Obsidian).
 * A node that cannot round-trip is shown read-only (`🔒`); edit it in Workflowy.
 * The client sends at most 10 requests per second. A cycle exports once, or twice when it pushes (the second
   export verifies the push and renders the file). The documented export limit of one per minute was not observed

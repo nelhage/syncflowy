@@ -649,6 +649,7 @@ fn event_kind(e: &ReportEvent) -> Option<EventKind> {
         | ReportEvent::TickedConflict { .. }
         | ReportEvent::ConflictLost { .. }
         | ReportEvent::LossyWrite { .. }
+        | ReportEvent::LinkTitleDropped { .. }
         | ReportEvent::PendingDeleteCancelled { .. } => Some(EventKind::Info),
         ReportEvent::MovedIn { from_file_root, .. } => {
             from_file_root.as_ref().map(|_| EventKind::Info)
